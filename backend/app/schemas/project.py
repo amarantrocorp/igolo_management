@@ -1,0 +1,111 @@
+from datetime import date, datetime
+from decimal import Decimal
+from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from app.models.project import ProjectStatus, SprintStatus, VOStatus
+
+
+class ProjectConvert(BaseModel):
+    quotation_id: UUID
+    start_date: date
+    name: str
+    site_address: Optional[str] = None
+    manager_id: Optional[UUID] = None
+    supervisor_id: Optional[UUID] = None
+
+
+class ProjectUpdate(BaseModel):
+    status: Optional[ProjectStatus] = None
+    manager_id: Optional[UUID] = None
+    supervisor_id: Optional[UUID] = None
+    site_address: Optional[str] = None
+
+
+class SprintResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    sequence_order: int
+    name: str
+    status: SprintStatus
+    start_date: date
+    end_date: date
+    dependency_sprint_id: Optional[UUID]
+    notes: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+class SprintUpdate(BaseModel):
+    status: Optional[SprintStatus] = None
+    end_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
+class ProjectResponse(BaseModel):
+    id: UUID
+    name: str
+    client_id: UUID
+    accepted_quotation_id: UUID
+    status: ProjectStatus
+    start_date: date
+    expected_end_date: Optional[date]
+    total_project_value: Decimal
+    manager_id: Optional[UUID]
+    supervisor_id: Optional[UUID]
+    site_address: Optional[str]
+    sprints: List[SprintResponse] = []
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VariationOrderCreate(BaseModel):
+    description: str
+    additional_cost: Decimal
+    linked_sprint_id: Optional[UUID] = None
+
+
+class VariationOrderUpdate(BaseModel):
+    status: Optional[VOStatus] = None
+    description: Optional[str] = None
+    linked_sprint_id: Optional[UUID] = None
+
+
+class VariationOrderResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    description: str
+    additional_cost: Decimal
+    status: VOStatus
+    linked_sprint_id: Optional[UUID]
+    requested_by_id: UUID
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DailyLogCreate(BaseModel):
+    sprint_id: UUID
+    date: date
+    notes: str
+    blockers: Optional[str] = None
+    image_urls: Optional[List[str]] = None
+    visible_to_client: bool = False
+
+
+class DailyLogResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    sprint_id: UUID
+    logged_by_id: UUID
+    date: date
+    notes: str
+    blockers: Optional[str]
+    image_urls: Optional[List[str]]
+    visible_to_client: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

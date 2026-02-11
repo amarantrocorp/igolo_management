@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quotation - {{ quotation.id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 12px;
+            color: #333;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .company-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .quote-info {
+            text-align: right;
+        }
+        .quote-info .label {
+            color: #666;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .client-section {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .client-section h3 {
+            margin: 0 0 8px 0;
+            color: #2563eb;
+            font-size: 14px;
+        }
+        .room-section {
+            margin-bottom: 25px;
+        }
+        .room-header {
+            background: #2563eb;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px 6px 0 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        th {
+            background: #e2e8f0;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #475569;
+        }
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .room-total {
+            text-align: right;
+            font-weight: bold;
+            padding: 8px 10px;
+            background: #f1f5f9;
+        }
+        .grand-total {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2563eb;
+            border-top: 3px solid #2563eb;
+            padding-top: 10px;
+        }
+        .terms {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            font-size: 10px;
+            color: #64748b;
+        }
+        .terms h4 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="company-name">{{ company_name | default("IntDesign ERP") }}</div>
+            <div style="color: #666; font-size: 11px;">Interior Design & Execution</div>
+        </div>
+        <div class="quote-info">
+            <div class="label">Quotation</div>
+            <div style="font-size: 18px; font-weight: bold;">#Q-{{ quotation.version }}</div>
+            <div class="label">Valid Until: {{ quotation.valid_until or "N/A" }}</div>
+        </div>
+    </div>
+
+    <div class="client-section">
+        <h3>Prepared For</h3>
+        <div><strong>{{ client_name }}</strong></div>
+        <div>{{ client_contact }}</div>
+        {% if client_address %}<div>{{ client_address }}</div>{% endif %}
+    </div>
+
+    {% for room in quotation.rooms %}
+    <div class="room-section">
+        <div class="room-header">{{ room.name }}{% if room.area_sqft %} ({{ room.area_sqft }} sqft){% endif %}</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%">#</th>
+                    <th style="width: 35%">Description</th>
+                    <th style="width: 10%">Unit</th>
+                    <th style="width: 10%" class="text-right">Qty</th>
+                    <th style="width: 15%" class="text-right">Rate</th>
+                    <th style="width: 15%" class="text-right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in room.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.unit }}</td>
+                    <td class="text-right">{{ item.quantity }}</td>
+                    <td class="text-right">{{ "%.2f" | format(item.unit_price) }}</td>
+                    <td class="text-right">{{ "%.2f" | format(item.final_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="room-total">
+            Room Total: {{ "%.2f" | format(room.items | sum(attribute='final_price')) }}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="grand-total">
+        Grand Total: {{ "%.2f" | format(quotation.total_amount) }}
+    </div>
+
+    <div class="terms">
+        <h4>Terms & Conditions</h4>
+        <ol>
+            <li>This quotation is valid for 30 days from the date of issue.</li>
+            <li>Payment terms: 20% advance, 30% before carpentry, 30% before finishing, 20% on handover.</li>
+            <li>Any additional work not covered in this quotation will be charged as a Variation Order.</li>
+            <li>Material rates are subject to change if the project start is delayed beyond the validity period.</li>
+            <li>Timeline begins from the date of advance payment and site handover.</li>
+        </ol>
+    </div>
+
+    <div class="footer">
+        This is a computer-generated document. | {{ company_name | default("IntDesign ERP") }}
+    </div>
+</body>
+</html>
