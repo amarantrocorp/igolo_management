@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, NotFoundException
+from app.models.crm import Lead, LeadStatus
 from app.models.quotation import QuoteItem, QuoteRoom, QuoteStatus, Quotation
 from app.schemas.quotation import QuotationCreate
 
@@ -21,6 +22,18 @@ async def create_quotation(
 
     The quotation total_amount is the sum of all item final_prices across all rooms.
     """
+    # Block quote creation for converted leads
+    lead_result = await db.execute(
+        select(Lead).where(Lead.id == data.lead_id)
+    )
+    lead = lead_result.scalar_one_or_none()
+    if not lead:
+        raise NotFoundException(detail="Lead not found")
+    if lead.status == LeadStatus.CONVERTED:
+        raise BadRequestException(
+            detail="Cannot create a quotation for a converted lead. This lead already has an active project."
+        )
+
     # Determine the next version number for this lead
     result = await db.execute(
         select(func.coalesce(func.max(Quotation.version), 0)).where(
@@ -87,7 +100,8 @@ async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
     result = await db.execute(
         select(Quotation)
         .options(
-            selectinload(Quotation.rooms).selectinload(QuoteRoom.items)
+            selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
+            selectinload(Quotation.lead),
         )
         .where(Quotation.id == quote_id)
     )
@@ -105,7 +119,8 @@ async def get_quotations(
 ) -> List[Quotation]:
     """Retrieve a paginated list of quotations, optionally filtered by lead."""
     query = select(Quotation).options(
-        selectinload(Quotation.rooms).selectinload(QuoteRoom.items)
+        selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
+        selectinload(Quotation.lead),
     )
 
     if lead_id:

@@ -1,16 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-} from "@tanstack/react-table"
-import { useState } from "react"
 import api from "@/lib/api"
 import RoleGuard from "@/components/auth/role-guard"
 import type { Quotation, QuoteStatus } from "@/types"
@@ -26,21 +18,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Search,
   Loader2,
   FileText,
-  ChevronLeft,
-  ChevronRight,
   Plus,
   ExternalLink,
 } from "lucide-react"
+
+const QUOTE_STATUSES: QuoteStatus[] = [
+  "DRAFT",
+  "SENT",
+  "APPROVED",
+  "REJECTED",
+  "ARCHIVED",
+]
 
 function getStatusBadgeVariant(status: QuoteStatus) {
   switch (status) {
@@ -59,8 +50,10 @@ function getStatusBadgeVariant(status: QuoteStatus) {
   }
 }
 
+const ALLOWED_ROLES = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]
+
 export default function QuotesPage() {
-  const [globalFilter, setGlobalFilter] = useState("")
+  const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
   const { data: quotes = [], isLoading } = useQuery<Quotation[]>({
@@ -71,97 +64,20 @@ export default function QuotesPage() {
     },
   })
 
-  const filteredQuotes = quotes.filter((quote) => {
-    if (statusFilter !== "all" && quote.status !== statusFilter) return false
+  const filteredQuotes = quotes.filter((q) => {
+    if (statusFilter !== "all" && q.status !== statusFilter) return false
+    if (search) {
+      const s = search.toLowerCase()
+      return (
+        q.id.toLowerCase().includes(s) ||
+        (q.lead?.name ?? "").toLowerCase().includes(s)
+      )
+    }
     return true
   })
 
-  const columns: ColumnDef<Quotation>[] = [
-    {
-      accessorKey: "id",
-      header: "Quote ID",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          QT-{row.original.id.slice(0, 8).toUpperCase()}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "lead",
-      header: "Lead / Client",
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {row.original.lead?.name ?? "Unknown"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "version",
-      header: "Version",
-      cell: ({ row }) => (
-        <Badge variant="outline">v{row.original.version}</Badge>
-      ),
-    },
-    {
-      accessorKey: "total_amount",
-      header: "Total Amount",
-      cell: ({ row }) => (
-        <span className="font-semibold">
-          ${row.original.total_amount.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={getStatusBadgeVariant(row.original.status)}>
-          {row.original.status}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "created_at",
-      header: "Created",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {new Date(row.original.created_at).toLocaleDateString()}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <Link href={`/sales/quotes/${row.original.id}`}>
-          <Button variant="ghost" size="sm">
-            <ExternalLink className="mr-1 h-3 w-3" />
-            Open
-          </Button>
-        </Link>
-      ),
-    },
-  ]
-
-  const table = useReactTable({
-    data: filteredQuotes,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    state: {
-      globalFilter,
-    },
-    onGlobalFilterChange: setGlobalFilter,
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
-  })
-
   return (
-    <RoleGuard
-      allowedRoles={["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]}
-    >
+    <RoleGuard allowedRoles={ALLOWED_ROLES}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -174,7 +90,7 @@ export default function QuotesPage() {
             </p>
           </div>
 
-          <Link href="/sales/quotes/new">
+          <Link href="/dashboard/sales/quotes/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               New Quote
@@ -187,68 +103,87 @@ export default function QuotesPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search quotations..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="DRAFT">Draft</SelectItem>
-              <SelectItem value="SENT">Sent</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
-              <SelectItem value="ARCHIVED">Archived</SelectItem>
-            </SelectContent>
-          </Select>
+          <select
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            {QUOTE_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0) + s.slice(1).toLowerCase()}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
+              <TableRow>
+                <TableHead>Quote ID</TableHead>
+                <TableHead>Lead / Client</TableHead>
+                <TableHead>Version</TableHead>
+                <TableHead>Total Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                   </TableCell>
                 </TableRow>
-              ) : table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
+              ) : filteredQuotes.length > 0 ? (
+                filteredQuotes.map((q) => (
+                  <TableRow key={q.id}>
+                    <TableCell>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        QT-{q.id.slice(0, 8).toUpperCase()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {q.lead?.name ?? "Unknown"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">v{q.version}</Badge>
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {Number(q.total_amount).toLocaleString("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusBadgeVariant(q.status)}>
+                        {q.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(q.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Link href={`/dashboard/sales/quotes/${q.id}`}>
+                        <Button variant="ghost" size="sm">
+                          <ExternalLink className="mr-1 h-3 w-3" />
+                          Open
+                        </Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <FileText className="h-8 w-8 text-muted-foreground" />
                       <p className="text-muted-foreground">
@@ -265,34 +200,9 @@ export default function QuotesPage() {
           </Table>
         </div>
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {table.getRowModel().rows.length} of{" "}
-            {filteredQuotes.length} quotation(s)
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Showing {filteredQuotes.length} of {quotes.length} quotation(s)
+        </p>
       </div>
     </RoleGuard>
   )

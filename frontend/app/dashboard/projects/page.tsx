@@ -126,35 +126,40 @@ export default function ProjectsPage() {
       header: "Value",
       cell: ({ row }) => (
         <span className="font-semibold">
-          ${row.original.total_project_value.toLocaleString()}
+          {Number(row.original.total_project_value || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
         </span>
       ),
     },
     {
       id: "financial",
       header: "Received / Spent",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <p className="text-xs">
-            <span className="text-green-600">
-              ${row.original.total_received.toLocaleString()}
-            </span>{" "}
-            received
-          </p>
-          <p className="text-xs">
-            <span className="text-red-600">
-              ${row.original.total_spent.toLocaleString()}
-            </span>{" "}
-            spent
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const wallet = row.original.wallet
+        const received = Number(wallet?.total_received ?? 0)
+        const spent = Number(wallet?.total_spent ?? 0)
+        return (
+          <div className="space-y-0.5">
+            <p className="text-xs">
+              <span className="text-green-600">
+                {received.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
+              </span>{" "}
+              received
+            </p>
+            <p className="text-xs">
+              <span className="text-red-600">
+                {spent.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
+              </span>{" "}
+              spent
+            </p>
+          </div>
+        )
+      },
     },
     {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <Link href={`/projects/${row.original.id}`}>
+        <Link href={`/dashboard/projects/${row.original.id}`}>
           <Button variant="ghost" size="sm">
             <ExternalLink className="mr-1 h-3 w-3" />
             View

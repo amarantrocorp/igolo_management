@@ -11,7 +11,7 @@ from app.api.v1.labor.router import router as labor_router
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
-api_router.include_router(crm_router, prefix="", tags=["Sales Pipeline"])
+api_router.include_router(crm_router, prefix="/crm", tags=["Sales Pipeline"])
 api_router.include_router(quotes_router, prefix="/quotes", tags=["Sales Pipeline"])
 api_router.include_router(inventory_router, prefix="/inventory", tags=["Inventory"])
 api_router.include_router(projects_router, prefix="/projects", tags=["Project Execution"])

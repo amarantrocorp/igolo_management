@@ -1,18 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-} from "@tanstack/react-table"
 import api from "@/lib/api"
 import RoleGuard from "@/components/auth/role-guard"
 import type { Lead, LeadStatus } from "@/types"
@@ -37,25 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Plus,
-  Search,
-  Loader2,
-  Users,
-  ChevronLeft,
-  ChevronRight,
-  Phone,
-} from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-
-const createLeadSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  contact_number: z.string().min(1, "Contact number is required"),
-  source: z.string().min(1, "Lead source is required"),
-  notes: z.string().optional(),
-})
-
-type CreateLeadFormValues = z.infer<typeof createLeadSchema>
+import { Plus, Search, Loader2, Users, Phone } from "lucide-react"
 
 const LEAD_SOURCES = [
   "Website",
@@ -86,7 +58,6 @@ function getStatusBadgeVariant(status: LeadStatus) {
     case "QUALIFIED":
       return "default" as const
     case "QUOTATION_SENT":
-      return "warning" as const
     case "NEGOTIATION":
       return "warning" as const
     case "CONVERTED":
@@ -98,143 +69,72 @@ function getStatusBadgeVariant(status: LeadStatus) {
   }
 }
 
+const ALLOWED_ROLES = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]
+
 export default function LeadsPage() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [globalFilter, setGlobalFilter] = useState("")
+  const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const { toast } = useToast()
   const queryClient = useQueryClient()
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: "",
+    contact_number: "",
+    source: "",
+    notes: "",
+  })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ["leads"],
     queryFn: async () => {
-      const response = await api.get("/leads")
+      const response = await api.get("/crm/leads")
       return response.data.items ?? response.data
     },
   })
 
   const createMutation = useMutation({
-    mutationFn: async (data: CreateLeadFormValues) => {
-      const response = await api.post("/leads", data)
+    mutationFn: async (data: typeof formData) => {
+      const response = await api.post("/crm/leads", data)
       return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] })
       setOpen(false)
-      form.reset()
-      toast({ title: "Lead created", description: "New lead has been added to the pipeline." })
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create lead. Please try again.",
-        variant: "destructive",
-      })
+      setFormData({ name: "", contact_number: "", source: "", notes: "" })
+      setFormErrors({})
     },
   })
 
-  const form = useForm<CreateLeadFormValues>({
-    resolver: zodResolver(createLeadSchema),
-    defaultValues: {
-      name: "",
-      contact_number: "",
-      source: "",
-      notes: "",
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      const errors: Record<string, string> = {}
+      if (formData.name.length < 2) errors.name = "Name must be at least 2 characters"
+      if (!formData.contact_number) errors.contact_number = "Contact number is required"
+      if (!formData.source) errors.source = "Lead source is required"
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors)
+        return
+      }
+      setFormErrors({})
+      createMutation.mutate(formData)
     },
-  })
+    [formData, createMutation]
+  )
 
   const filteredLeads = leads.filter((lead) => {
     if (statusFilter !== "all" && lead.status !== statusFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      return (
+        lead.name.toLowerCase().includes(q) ||
+        lead.contact_number.includes(q)
+      )
+    }
     return true
-  })
-
-  const columns: ColumnDef<Lead>[] = [
-    {
-      accessorKey: "name",
-      header: "Name",
-      cell: ({ row }) => (
-        <div>
-          <span className="font-medium">{row.original.name}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "contact_number",
-      header: "Contact",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1.5">
-          <Phone className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.original.contact_number}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "source",
-      header: "Source",
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.original.source}</Badge>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={getStatusBadgeVariant(row.original.status)}>
-          {row.original.status.replace("_", " ")}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "assigned_to",
-      header: "Assigned To",
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.assigned_to?.full_name ?? "Unassigned"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "created_at",
-      header: "Created",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {new Date(row.original.created_at).toLocaleDateString()}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            toast({
-              title: "View lead",
-              description: `Detailed view for ${row.original.name} is not yet implemented.`,
-            })
-          }}
-        >
-          View
-        </Button>
-      ),
-    },
-  ]
-
-  const table = useReactTable({
-    data: filteredLeads,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    state: {
-      globalFilter,
-    },
-    onGlobalFilterChange: setGlobalFilter,
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
   })
 
   const statusCounts = LEAD_STATUSES.reduce(
@@ -246,9 +146,7 @@ export default function LeadsPage() {
   )
 
   return (
-    <RoleGuard
-      allowedRoles={["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]}
-    >
+    <RoleGuard allowedRoles={ALLOWED_ROLES}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -275,19 +173,20 @@ export default function LeadsPage() {
                   Add a new lead to the sales pipeline.
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}>
+              <form onSubmit={handleSubmit}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="lead_name">Full Name</Label>
                     <Input
                       id="lead_name"
                       placeholder="John Doe"
-                      {...form.register("name")}
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, name: e.target.value }))
+                      }
                     />
-                    {form.formState.errors.name && (
-                      <p className="text-xs text-destructive">
-                        {form.formState.errors.name.message}
-                      </p>
+                    {formErrors.name && (
+                      <p className="text-xs text-destructive">{formErrors.name}</p>
                     )}
                   </div>
 
@@ -296,11 +195,17 @@ export default function LeadsPage() {
                     <Input
                       id="contact_number"
                       placeholder="+91 9876543210"
-                      {...form.register("contact_number")}
+                      value={formData.contact_number}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          contact_number: e.target.value,
+                        }))
+                      }
                     />
-                    {form.formState.errors.contact_number && (
+                    {formErrors.contact_number && (
                       <p className="text-xs text-destructive">
-                        {form.formState.errors.contact_number.message}
+                        {formErrors.contact_number}
                       </p>
                     )}
                   </div>
@@ -310,8 +215,10 @@ export default function LeadsPage() {
                     <select
                       id="lead_source"
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                      {...form.register("source")}
-                      defaultValue=""
+                      value={formData.source}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, source: e.target.value }))
+                      }
                     >
                       <option value="" disabled>
                         Select lead source
@@ -322,10 +229,8 @@ export default function LeadsPage() {
                         </option>
                       ))}
                     </select>
-                    {form.formState.errors.source && (
-                      <p className="text-xs text-destructive">
-                        {form.formState.errors.source.message}
-                      </p>
+                    {formErrors.source && (
+                      <p className="text-xs text-destructive">{formErrors.source}</p>
                     )}
                   </div>
 
@@ -334,7 +239,10 @@ export default function LeadsPage() {
                     <Input
                       id="notes"
                       placeholder="Additional details about the lead..."
-                      {...form.register("notes")}
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, notes: e.target.value }))
+                      }
                     />
                   </div>
                 </div>
@@ -387,8 +295,8 @@ export default function LeadsPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search leads..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -397,44 +305,57 @@ export default function LeadsPage() {
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Assigned To</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                   </TableCell>
                 </TableRow>
-              ) : table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
+              ) : filteredLeads.length > 0 ? (
+                filteredLeads.map((lead) => (
+                  <TableRow
+                    key={lead.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() =>
+                      router.push(`/dashboard/sales/leads/${lead.id}`)
+                    }
+                  >
+                    <TableCell className="font-medium">{lead.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm">{lead.contact_number}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{lead.source}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusBadgeVariant(lead.status)}>
+                        {lead.status.replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {lead.assigned_to?.full_name ?? "Unassigned"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(lead.created_at).toLocaleDateString()}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Users className="h-8 w-8 text-muted-foreground" />
                       <p className="text-muted-foreground">No leads found</p>
@@ -449,36 +370,10 @@ export default function LeadsPage() {
           </Table>
         </div>
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {table.getRowModel().rows.length} of {filteredLeads.length}{" "}
-            lead(s)
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Showing {filteredLeads.length} of {leads.length} lead(s)
+        </p>
       </div>
     </RoleGuard>
-
   )
 }

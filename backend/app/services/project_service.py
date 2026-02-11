@@ -99,6 +99,17 @@ async def convert_quote_to_project(
     )
     db.add(wallet)
 
+    # Ensure the lead is marked as CONVERTED
+    from app.models.crm import Lead, LeadStatus
+
+    lead_result = await db.execute(
+        select(Lead).where(Lead.id == quotation.lead_id)
+    )
+    lead = lead_result.scalar_one_or_none()
+    if lead and lead.status != LeadStatus.CONVERTED:
+        lead.status = LeadStatus.CONVERTED
+        db.add(lead)
+
     await db.commit()
 
     # Return with sprints loaded
@@ -162,7 +173,10 @@ async def get_projects(
     status_filter: Optional[ProjectStatus] = None,
 ) -> List[Project]:
     """Retrieve a paginated list of projects with optional status filter."""
-    query = select(Project).options(selectinload(Project.sprints))
+    query = select(Project).options(
+        selectinload(Project.sprints),
+        selectinload(Project.wallet),
+    )
 
     if status_filter:
         query = query.where(Project.status == status_filter)

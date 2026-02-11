@@ -123,9 +123,9 @@ type CreateVOFormValues = z.infer<typeof createVOSchema>
 // ---- Overview Tab ----
 
 function OverviewTab({ project }: { project: Project }) {
-  const totalValue = project.total_project_value
-  const received = project.total_received
-  const spent = project.total_spent
+  const totalValue = Number(project.total_project_value ?? 0)
+  const received = Number(project.wallet?.total_received ?? 0)
+  const spent = Number(project.wallet?.total_spent ?? 0)
   const balance = received - spent
   const completedSprints =
     project.sprints?.filter((s) => s.status === "COMPLETED").length ?? 0

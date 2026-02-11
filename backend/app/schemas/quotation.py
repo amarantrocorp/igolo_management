@@ -61,6 +61,7 @@ class QuotationUpdate(BaseModel):
 class QuotationResponse(BaseModel):
     id: UUID
     lead_id: UUID
+    lead: Optional["LeadResponse"]
     version: int
     total_amount: Decimal
     status: QuoteStatus
@@ -72,3 +73,5 @@ class QuotationResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+from app.schemas.crm import LeadResponse

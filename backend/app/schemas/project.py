@@ -44,6 +44,15 @@ class SprintUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class WalletSummary(BaseModel):
+    total_agreed_value: Decimal
+    total_received: Decimal
+    total_spent: Decimal
+    pending_approvals: Decimal
+
+    model_config = {"from_attributes": True}
+
+
 class ProjectResponse(BaseModel):
     id: UUID
     name: str
@@ -57,6 +66,7 @@ class ProjectResponse(BaseModel):
     supervisor_id: Optional[UUID]
     site_address: Optional[str]
     sprints: List[SprintResponse] = []
+    wallet: Optional[WalletSummary] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

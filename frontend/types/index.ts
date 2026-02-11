@@ -44,8 +44,11 @@ export interface Lead {
   id: string
   name: string
   contact_number: string
+  email?: string
   source: string
   status: LeadStatus
+  location?: string
+  budget_range?: string
   assigned_to_id: string
   assigned_to?: User
   notes: string
@@ -222,8 +225,13 @@ export interface Project {
   start_date: string
   expected_end_date: string
   total_project_value: number
-  total_received: number
-  total_spent: number
+  wallet?: {
+    total_agreed_value: number
+    total_received: number
+    total_spent: number
+    current_balance: number
+    pending_approvals: number
+  }
   sprints: Sprint[]
   variation_orders: VariationOrder[]
   created_at: string
