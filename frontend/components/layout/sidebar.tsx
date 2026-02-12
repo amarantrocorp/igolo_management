@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuthStore } from "@/store/auth-store"
 import { cn } from "@/lib/utils"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import type { UserRole } from "@/types"
 import {
@@ -21,6 +20,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -150,57 +150,64 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300",
+        "relative flex flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-in-out",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo / Brand */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-        {!collapsed && (
+      <div className="flex h-16 items-center border-b border-sidebar-border px-4">
+        {!collapsed ? (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold text-sidebar-foreground">
-              IntDesignERP
+            <Sparkles className="h-5 w-5 text-gold" />
+            <span className="font-serif text-lg font-bold text-sidebar-foreground">
+              Igolo
             </span>
           </Link>
-        )}
-        {collapsed && (
+        ) : (
           <Link href="/dashboard" className="mx-auto">
-            <Building2 className="h-6 w-6 text-primary" />
+            <Sparkles className="h-5 w-5 text-gold" />
           </Link>
         )}
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 py-4">
+      <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-4 px-2">
           {filteredSections.map((section) => (
             <div key={section.label}>
-              {!collapsed && (
+              {!collapsed ? (
                 <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
                   {section.label}
                 </p>
+              ) : (
+                <Separator className="mx-auto mb-2 w-8 bg-sidebar-border" />
               )}
-              {collapsed && <Separator className="mx-auto mb-2 w-8 bg-sidebar-border" />}
               <ul className="space-y-1">
                 {section.items.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
                   const Icon = item.icon
                   return (
-                    <li key={item.href}>
+                    <li key={item.href} className="relative">
+                      {isActive && (
+                        <div className="absolute inset-0 rounded-md bg-sidebar-accent" />
+                      )}
                       <Link
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                           isActive
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            ? "text-sidebar-accent-foreground"
                             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                           collapsed && "justify-center px-2"
                         )}
                         title={collapsed ? item.title : undefined}
                       >
                         <Icon className="h-5 w-5 shrink-0" />
-                        {!collapsed && <span>{item.title}</span>}
+                        {!collapsed && (
+                          <span className="overflow-hidden whitespace-nowrap">
+                            {item.title}
+                          </span>
+                        )}
                       </Link>
                     </li>
                   )
@@ -209,7 +216,7 @@ export default function Sidebar() {
             </div>
           ))}
         </nav>
-      </ScrollArea>
+      </div>
 
       {/* Collapse Toggle */}
       <Button

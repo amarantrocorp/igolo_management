@@ -108,7 +108,7 @@ export default function ClientPortalPage() {
   }
 
   const totalValue = project.total_project_value
-  const received = project.total_received
+  const received = project.wallet?.total_received ?? 0
   const sortedSprints = [...(project.sprints ?? [])].sort(
     (a, b) => a.sequence_order - b.sequence_order
   )

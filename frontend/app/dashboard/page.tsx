@@ -20,6 +20,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import type { UserRole } from "@/types"
+import { GlowCard } from "@/components/ui/aceternity/moving-border"
 
 interface DashboardStats {
   total_leads?: number
@@ -48,24 +49,28 @@ function StatCard({
   trend?: string
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+    <GlowCard>
+      <div className="flex flex-row items-center justify-between pb-2">
+        <span className="text-sm font-medium text-muted-foreground">{title}</span>
+        <div className="rounded-md bg-gold/10 p-2">
+          <Icon className="h-4 w-4 text-gold" />
+        </div>
+      </div>
+      <div>
+        <div className="text-2xl font-bold font-serif">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </div>
         {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
         {trend && (
-          <div className="mt-1 flex items-center gap-1 text-xs text-green-600">
+          <div className="mt-2 flex items-center gap-1 text-xs text-green-500">
             <TrendingUp className="h-3 w-3" />
             {trend}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </GlowCard>
   )
 }
 
@@ -73,45 +78,27 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+        <h2 className="font-serif text-2xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
           Overview of your interior design business
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Leads"
-          value={stats.total_leads ?? 0}
-          description="Active leads in pipeline"
-          icon={Users}
-          trend="+12% from last month"
-        />
-        <StatCard
-          title="Active Projects"
-          value={stats.active_projects ?? 0}
-          description="Projects in progress"
-          icon={FolderKanban}
-        />
-        <StatCard
-          title="Pending Approvals"
-          value={stats.pending_approvals ?? 0}
-          description="Awaiting your action"
-          icon={ClipboardCheck}
-        />
-        <StatCard
-          title="Revenue"
-          value={`₹ ${(stats.total_revenue ?? 0).toLocaleString()}`}
-          description="Total received this month"
-          icon={DollarSign}
-          trend="+8% from last month"
-        />
+        {[
+          { title: "Total Leads", value: stats.total_leads ?? 0, description: "Active leads in pipeline", icon: Users, trend: "+12% from last month" },
+          { title: "Active Projects", value: stats.active_projects ?? 0, description: "Projects in progress", icon: FolderKanban },
+          { title: "Pending Approvals", value: stats.pending_approvals ?? 0, description: "Awaiting your action", icon: ClipboardCheck },
+          { title: "Revenue", value: `₹ ${(stats.total_revenue ?? 0).toLocaleString()}`, description: "Total received this month", icon: DollarSign, trend: "+8% from last month" },
+        ].map((card) => (
+          <StatCard key={card.title} {...card} />
+        ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="h-full">
           <CardHeader>
-            <CardTitle className="text-lg">Financial Overview</CardTitle>
+            <CardTitle className="font-serif text-lg">Financial Overview</CardTitle>
             <CardDescription>Month-to-date summary</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -133,8 +120,7 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Net Balance</span>
                 <span className="font-bold">
-                  $
-                  {(
+                  ₹{(
                     (stats.total_revenue ?? 0) - (stats.total_spent ?? 0)
                   ).toLocaleString()}
                 </span>
@@ -143,13 +129,13 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
+            <CardTitle className="font-serif text-lg">Quick Actions</CardTitle>
             <CardDescription>Common tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="flex items-center gap-3 rounded-md border p-3">
+            <div className="flex items-center gap-3 rounded-md border p-3 transition-colors hover:border-gold/30 hover:bg-gold/5">
               <AlertCircle className="h-4 w-4 text-warning" />
               <div className="flex-1">
                 <p className="text-sm font-medium">
@@ -160,7 +146,7 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-md border p-3">
+            <div className="flex items-center gap-3 rounded-md border p-3 transition-colors hover:border-gold/30 hover:bg-gold/5">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div className="flex-1">
                 <p className="text-sm font-medium">
@@ -179,43 +165,37 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
 }
 
 function SalesBdeDashboard({ stats }: { stats: DashboardStats }) {
+  const cards = [
+    { title: "My Leads", value: stats.my_leads ?? 0, description: "Leads assigned to you", icon: Users },
+    { title: "Quotes Sent", value: stats.quotes_sent ?? 0, description: "Quotations pending response", icon: FileText },
+    {
+      title: "Conversion Rate",
+      value: stats.my_leads && stats.my_leads > 0
+        ? `${Math.round(((stats.quotes_sent ?? 0) / stats.my_leads) * 100)}%`
+        : "0%",
+      description: "Leads to quote ratio",
+      icon: TrendingUp,
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Sales Dashboard</h2>
+        <h2 className="font-serif text-2xl font-bold tracking-tight">Sales Dashboard</h2>
         <p className="text-muted-foreground">
           Track your leads and quotation progress
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="My Leads"
-          value={stats.my_leads ?? 0}
-          description="Leads assigned to you"
-          icon={Users}
-        />
-        <StatCard
-          title="Quotes Sent"
-          value={stats.quotes_sent ?? 0}
-          description="Quotations pending response"
-          icon={FileText}
-        />
-        <StatCard
-          title="Conversion Rate"
-          value={
-            stats.my_leads && stats.my_leads > 0
-              ? `${Math.round(((stats.quotes_sent ?? 0) / stats.my_leads) * 100)}%`
-              : "0%"
-          }
-          description="Leads to quote ratio"
-          icon={TrendingUp}
-        />
+        {cards.map((card) => (
+          <StatCard key={card.title} {...card} />
+        ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Recent Activity</CardTitle>
+          <CardTitle className="font-serif text-lg">Recent Activity</CardTitle>
           <CardDescription>Your latest lead interactions</CardDescription>
         </CardHeader>
         <CardContent>
@@ -230,10 +210,16 @@ function SalesBdeDashboard({ stats }: { stats: DashboardStats }) {
 }
 
 function SupervisorDashboard({ stats }: { stats: DashboardStats }) {
+  const cards = [
+    { title: "Active Projects", value: stats.active_projects ?? 0, description: "Assigned to you", icon: FolderKanban },
+    { title: "Today's Tasks", value: stats.todays_tasks ?? 0, description: "Tasks to complete today", icon: ClipboardCheck },
+    { title: "Pending Logs", value: 0, description: "Daily logs awaiting submission", icon: Clock },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">
+        <h2 className="font-serif text-2xl font-bold tracking-tight">
           Supervisor Dashboard
         </h2>
         <p className="text-muted-foreground">
@@ -242,29 +228,14 @@ function SupervisorDashboard({ stats }: { stats: DashboardStats }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="Active Projects"
-          value={stats.active_projects ?? 0}
-          description="Assigned to you"
-          icon={FolderKanban}
-        />
-        <StatCard
-          title="Today's Tasks"
-          value={stats.todays_tasks ?? 0}
-          description="Tasks to complete today"
-          icon={ClipboardCheck}
-        />
-        <StatCard
-          title="Pending Logs"
-          value={0}
-          description="Daily logs awaiting submission"
-          icon={Clock}
-        />
+        {cards.map((card) => (
+          <StatCard key={card.title} {...card} />
+        ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Today&apos;s Schedule</CardTitle>
+          <CardTitle className="font-serif text-lg">Today&apos;s Schedule</CardTitle>
           <CardDescription>Tasks and site visits for today</CardDescription>
         </CardHeader>
         <CardContent>
@@ -282,7 +253,7 @@ function ClientDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">My Project</h2>
+        <h2 className="font-serif text-2xl font-bold tracking-tight">My Project</h2>
         <p className="text-muted-foreground">
           Track the progress of your interior design project
         </p>
@@ -290,7 +261,7 @@ function ClientDashboard({ stats }: { stats: DashboardStats }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Project Status</CardTitle>
+          <CardTitle className="font-serif text-lg">Project Status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
@@ -306,7 +277,7 @@ function ClientDashboard({ stats }: { stats: DashboardStats }) {
               </div>
               <div className="h-2 w-full rounded-full bg-secondary">
                 <div
-                  className="h-2 rounded-full bg-primary transition-all"
+                  className="h-2 rounded-full bg-gold transition-all duration-1000 ease-out"
                   style={{ width: `${stats.project_progress}%` }}
                 />
               </div>
@@ -344,7 +315,9 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-lg text-muted-foreground">{welcomeMessage}</p>
-        <Badge variant="outline">{role?.replace("_", " ")}</Badge>
+        <Badge variant="outline" className="border-gold/30 text-gold">
+          {role?.replace("_", " ")}
+        </Badge>
       </div>
 
       {(role === "SUPER_ADMIN" || role === "MANAGER") && (

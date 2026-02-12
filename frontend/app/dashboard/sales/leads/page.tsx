@@ -275,8 +275,8 @@ export default function LeadsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <Users className="h-6 w-6" />
+            <h2 className="flex items-center gap-2 font-serif text-2xl font-bold tracking-tight">
+              <Users className="h-6 w-6 text-gold" />
               Leads Pipeline
             </h2>
             <p className="text-muted-foreground">
@@ -704,50 +704,50 @@ export default function LeadsPage() {
                   </TableCell>
                 </TableRow>
               ) : filteredLeads.length > 0 ? (
-                filteredLeads.map((lead) => (
-                  <TableRow
-                    key={lead.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() =>
-                      router.push(`/dashboard/sales/leads/${lead.id}`)
-                    }
-                  >
-                    <TableCell className="font-medium">{lead.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm">{lead.contact_number}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {lead.property_type ? (
+                  filteredLeads.map((lead) => (
+                    <TableRow
+                      key={lead.id}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        router.push(`/dashboard/sales/leads/${lead.id}`)
+                      }
+                    >
+                      <TableCell className="font-medium">{lead.name}</TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1.5">
-                          <Building2 className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">
-                            {lead.property_type.replace("_", " ")}
-                            {lead.carpet_area ? ` - ${lead.carpet_area} sqft` : ""}
-                          </span>
+                          <Phone className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm">{lead.contact_number}</span>
                         </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">--</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{lead.source}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(lead.status)}>
-                        {lead.status.replace("_", " ")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {lead.assigned_to?.full_name ?? "Unassigned"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(lead.created_at).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                      <TableCell>
+                        {lead.property_type ? (
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">
+                              {lead.property_type.replace("_", " ")}
+                              {lead.carpet_area ? ` - ${lead.carpet_area} sqft` : ""}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">--</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{lead.source}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(lead.status)}>
+                          {lead.status.replace("_", " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {lead.assigned_to?.full_name ?? "Unassigned"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">

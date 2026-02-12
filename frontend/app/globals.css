@@ -40,6 +40,9 @@
 
     --radius: 0.5rem;
 
+    --gold: 38 70% 65%;
+    --gold-foreground: 38 10% 10%;
+
     --sidebar: 222.2 84% 4.9%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-accent: 217.2 32.6% 17.5%;
@@ -105,8 +108,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
+}
+
+@keyframes border-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================================
