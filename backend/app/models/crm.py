@@ -1,10 +1,11 @@
 import enum
 import uuid
+from datetime import date as date_type
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import Enum, ForeignKey, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Date, Enum, Float, ForeignKey, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -20,9 +21,35 @@ class LeadStatus(str, enum.Enum):
     LOST = "LOST"
 
 
+class PropertyType(str, enum.Enum):
+    APARTMENT = "APARTMENT"
+    VILLA = "VILLA"
+    INDEPENDENT_HOUSE = "INDEPENDENT_HOUSE"
+    PENTHOUSE = "PENTHOUSE"
+    STUDIO = "STUDIO"
+    OFFICE = "OFFICE"
+    RETAIL = "RETAIL"
+    OTHER = "OTHER"
+
+
+class PropertyStatus(str, enum.Enum):
+    UNDER_CONSTRUCTION = "UNDER_CONSTRUCTION"
+    READY_TO_MOVE = "READY_TO_MOVE"
+    OCCUPIED = "OCCUPIED"
+    RENOVATION = "RENOVATION"
+
+
+class SiteVisitAvailability(str, enum.Enum):
+    WEEKDAYS = "WEEKDAYS"
+    WEEKENDS = "WEEKENDS"
+    ANYTIME = "ANYTIME"
+    NOT_AVAILABLE = "NOT_AVAILABLE"
+
+
 class Lead(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "leads"
 
+    # ── Contact ──
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_number: Mapped[str] = mapped_column(String(20), nullable=False)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -31,8 +58,28 @@ class Lead(Base, UUIDMixin, TimestampMixin):
         Enum(LeadStatus), default=LeadStatus.NEW, nullable=False
     )
     location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    budget_range: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ── Project Details (Enrichment) ──
+    property_type: Mapped[Optional[PropertyType]] = mapped_column(
+        Enum(PropertyType), nullable=True
+    )
+    property_status: Mapped[Optional[PropertyStatus]] = mapped_column(
+        Enum(PropertyStatus), nullable=True
+    )
+    carpet_area: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    scope_of_work: Mapped[Optional[list]] = mapped_column(
+        ARRAY(String), nullable=True
+    )
+    floor_plan_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # ── Preferences ──
+    budget_range: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    design_style: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    possession_date: Mapped[Optional[date_type]] = mapped_column(Date, nullable=True)
+    site_visit_availability: Mapped[Optional[SiteVisitAvailability]] = mapped_column(
+        Enum(SiteVisitAvailability), nullable=True
+    )
 
     assigned_to_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False

@@ -41,7 +41,7 @@ async def list_quotations(
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
-        role_required(["SALES", "MANAGER", "SUPER_ADMIN"])
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
 ):
     """List quotations with optional filters for lead and status."""
@@ -61,7 +61,7 @@ async def get_quotation(
     quote_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
-        role_required(["SALES", "MANAGER", "SUPER_ADMIN"])
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
 ):
     """Retrieve a single quotation with its rooms and items."""

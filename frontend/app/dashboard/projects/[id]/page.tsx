@@ -68,6 +68,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuthStore } from "@/store/auth-store"
 import { cn } from "@/lib/utils"
 
 // ---- Sprint Status helpers ----
@@ -143,7 +144,7 @@ function OverviewTab({ project }: { project: Project }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalValue.toLocaleString()}
+              ₹{totalValue.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -162,7 +163,7 @@ function OverviewTab({ project }: { project: Project }) {
                 balance >= 0 ? "text-green-600" : "text-destructive"
               )}
             >
-              ${balance.toLocaleString()}
+              ₹{balance.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               Received - Spent
@@ -222,13 +223,13 @@ function OverviewTab({ project }: { project: Project }) {
           <div className="grid grid-cols-3 gap-4 pt-2">
             <div className="rounded-md border p-3 text-center">
               <p className="text-2xl font-bold text-green-600">
-                ${received.toLocaleString()}
+                ₹{received.toLocaleString()}
               </p>
               <p className="text-xs text-muted-foreground">Received</p>
             </div>
             <div className="rounded-md border p-3 text-center">
               <p className="text-2xl font-bold text-red-600">
-                ${spent.toLocaleString()}
+                ₹{spent.toLocaleString()}
               </p>
               <p className="text-xs text-muted-foreground">Spent</p>
             </div>
@@ -239,7 +240,7 @@ function OverviewTab({ project }: { project: Project }) {
                   balance >= 0 ? "text-blue-600" : "text-destructive"
                 )}
               >
-                ${Math.abs(balance).toLocaleString()}
+                ₹{Math.abs(balance).toLocaleString()}
               </p>
               <p className="text-xs text-muted-foreground">
                 {balance >= 0 ? "Available" : "Over Budget"}
@@ -417,6 +418,15 @@ function SprintsTab({
 
 // ---- Finance Tab ----
 
+const SOURCE_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  INFLOW: [{ value: "CLIENT", label: "Client" }],
+  OUTFLOW: [
+    { value: "VENDOR", label: "Vendor" },
+    { value: "LABOR", label: "Labor" },
+    { value: "PETTY_CASH", label: "Petty Cash" },
+  ],
+}
+
 function FinanceTab({ projectId }: { projectId: string }) {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const { toast } = useToast()
@@ -447,6 +457,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
       category: "INFLOW",
     },
   })
+
 
   const paymentMutation = useMutation({
     mutationFn: async (data: RecordPaymentFormValues) => {
@@ -491,7 +502,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ${totalReceived.toLocaleString()}
+              ₹{totalReceived.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -503,7 +514,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              ${totalSpent.toLocaleString()}
+              ₹{totalSpent.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -522,7 +533,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
                 balance >= 0 ? "text-blue-600" : "text-destructive"
               )}
             >
-              ${Math.abs(balance).toLocaleString()}
+              ₹{Math.abs(balance).toLocaleString()}
             </div>
             {balance < 0 && (
               <p className="text-xs text-destructive">Over budget</p>
@@ -558,12 +569,14 @@ function FinanceTab({ projectId }: { projectId: string }) {
                     <Label>Type</Label>
                     <Select
                       value={paymentForm.watch("category")}
-                      onValueChange={(v) =>
+                      onValueChange={(v) => {
+                        const cat = v as "INFLOW" | "OUTFLOW"
+                        paymentForm.setValue("category", cat)
                         paymentForm.setValue(
-                          "category",
-                          v as "INFLOW" | "OUTFLOW"
+                          "source",
+                          SOURCE_OPTIONS[cat][0].value as "CLIENT" | "VENDOR" | "LABOR" | "PETTY_CASH"
                         )
-                      }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -590,17 +603,18 @@ function FinanceTab({ projectId }: { projectId: string }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CLIENT">Client</SelectItem>
-                        <SelectItem value="VENDOR">Vendor</SelectItem>
-                        <SelectItem value="LABOR">Labor</SelectItem>
-                        <SelectItem value="PETTY_CASH">Petty Cash</SelectItem>
+                        {SOURCE_OPTIONS[paymentForm.watch("category")].map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="payment_amount">Amount ($)</Label>
+                  <Label htmlFor="payment_amount">Amount (₹)</Label>
                   <Input
                     id="payment_amount"
                     type="number"
@@ -701,7 +715,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
                             : "text-red-600"
                         )}
                       >
-                        {txn.category === "INFLOW" ? "+" : "-"}$
+                        {txn.category === "INFLOW" ? "+" : "-"}₹
                         {txn.amount.toLocaleString()}
                       </TableCell>
                       <TableCell>
@@ -831,6 +845,8 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
   const [voOpen, setVoOpen] = useState(false)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const userRole = useAuthStore((s) => s.user?.role)
+  const canManageVO = ["SUPER_ADMIN", "MANAGER"].includes(userRole ?? "")
 
   const { data: vos = [], isLoading } = useQuery<VariationOrder[]>({
     queryKey: ["project-vos", projectId],
@@ -845,6 +861,28 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
     defaultValues: {
       description: "",
       additional_cost: 0,
+    },
+  })
+
+  const updateVOMutation = useMutation({
+    mutationFn: async ({ voId, status }: { voId: string; status: VOStatus }) => {
+      await api.patch(`/projects/${projectId}/variation-orders/${voId}`, { status })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-vos", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["project-wallet", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+      toast({
+        title: "Variation order updated",
+        description: "The VO status has been updated.",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update variation order.",
+        variant: "destructive",
+      })
     },
   })
 
@@ -910,7 +948,7 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="vo_cost">Additional Cost ($)</Label>
+                  <Label htmlFor="vo_cost">Additional Cost (₹)</Label>
                   <Input
                     id="vo_cost"
                     type="number"
@@ -972,6 +1010,7 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
                 <TableHead>Additional Cost</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                {canManageVO && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -982,12 +1021,64 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
                   </TableCell>
                   <TableCell className="text-sm">{vo.description}</TableCell>
                   <TableCell className="font-medium">
-                    ${vo.additional_cost.toLocaleString()}
+                    ₹{vo.additional_cost.toLocaleString()}
                   </TableCell>
                   <TableCell>{getVOStatusBadge(vo.status)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(vo.created_at), "MMM d, yyyy")}
                   </TableCell>
+                  {canManageVO && (
+                    <TableCell>
+                      {vo.status === "REQUESTED" && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 border-green-600 hover:bg-green-50"
+                            disabled={updateVOMutation.isPending}
+                            onClick={() =>
+                              updateVOMutation.mutate({ voId: vo.id, status: "APPROVED" })
+                            }
+                          >
+                            {updateVOMutation.isPending && (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            )}
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive hover:bg-destructive/10"
+                            disabled={updateVOMutation.isPending}
+                            onClick={() =>
+                              updateVOMutation.mutate({ voId: vo.id, status: "REJECTED" })
+                            }
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                      {vo.status === "APPROVED" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          disabled={updateVOMutation.isPending}
+                          onClick={() =>
+                            updateVOMutation.mutate({ voId: vo.id, status: "PAID" })
+                          }
+                        >
+                          {updateVOMutation.isPending && (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          )}
+                          Mark as Paid
+                        </Button>
+                      )}
+                      {(vo.status === "REJECTED" || vo.status === "PAID") && (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

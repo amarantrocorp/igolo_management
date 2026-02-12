@@ -9,7 +9,13 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.models.finance import ProjectWallet
+from app.models.crm import Client
+from app.models.finance import (
+    ProjectWallet,
+    Transaction,
+    TransactionCategory,
+    TransactionStatus,
+)
 from app.models.project import (
     DailyLog,
     Project,
@@ -25,6 +31,7 @@ from app.schemas.project import (
     ProjectConvert,
     ProjectUpdate,
     SprintUpdate,
+    TransactionCreate,
     VariationOrderCreate,
     VariationOrderUpdate,
 )
@@ -157,6 +164,10 @@ async def get_project(project_id: UUID, db: AsyncSession) -> Project:
             selectinload(Project.sprints),
             selectinload(Project.variation_orders),
             selectinload(Project.wallet),
+            selectinload(Project.client).options(
+                selectinload(Client.user),
+                selectinload(Client.lead),
+            ),
         )
         .where(Project.id == project_id)
     )
@@ -176,6 +187,10 @@ async def get_projects(
     query = select(Project).options(
         selectinload(Project.sprints),
         selectinload(Project.wallet),
+        selectinload(Project.client).options(
+            selectinload(Client.user),
+            selectinload(Client.lead),
+        ),
     )
 
     if status_filter:
@@ -309,6 +324,24 @@ async def list_daily_logs(
     return list(result.scalars().all())
 
 
+async def list_variation_orders(
+    project_id: UUID,
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 50,
+) -> List[VariationOrder]:
+    """Retrieve a paginated list of variation orders for a project."""
+    query = (
+        select(VariationOrder)
+        .where(VariationOrder.project_id == project_id)
+        .order_by(VariationOrder.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
 async def create_variation_order(
     project_id: UUID,
     data: VariationOrderCreate,
@@ -373,3 +406,78 @@ async def update_variation_order(
     await db.commit()
     await db.refresh(vo)
     return vo
+
+
+# ---------------------------------------------------------------------------
+# Financials & Transactions
+# ---------------------------------------------------------------------------
+
+
+async def get_project_financial_health(
+    project_id: UUID, db: AsyncSession
+) -> ProjectWallet:
+    """Retrieve the project wallet and financial summary."""
+    result = await db.execute(
+        select(ProjectWallet).where(ProjectWallet.project_id == project_id)
+    )
+    wallet = result.scalar_one_or_none()
+    if not wallet:
+        # Should exist if project exists, but safe fallback or 404
+        # Check project existence first
+        await get_project(project_id, db)
+        raise NotFoundException(detail="Project wallet not found")
+    return wallet
+
+
+async def create_transaction(
+    project_id: UUID, data: TransactionCreate, user_id: UUID, db: AsyncSession
+) -> Transaction:
+    """Record a financial transaction and update the project wallet."""
+    # 1. Get Project Wallet
+    wallet = await get_project_financial_health(project_id, db)
+
+    # 2. Create Transaction Record
+    transaction = Transaction(
+        project_id=project_id,
+        category=data.category,
+        source=data.source,
+        amount=data.amount,
+        description=data.description,
+        reference_id=data.reference_id,
+        proof_doc_url=data.proof_doc_url,
+        recorded_by_id=user_id,
+        status=TransactionStatus.CLEARED,  # Auto-cleared for now
+    )
+    db.add(transaction)
+
+    # 3. Update Wallet Balance
+    if data.category == TransactionCategory.INFLOW:
+        wallet.total_received += data.amount
+    elif data.category == TransactionCategory.OUTFLOW:
+        wallet.total_spent += data.amount
+
+    db.add(wallet)
+    await db.commit()
+    await db.refresh(transaction)
+    return transaction
+
+
+async def list_transactions(
+    project_id: UUID,
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 50,
+) -> List[Transaction]:
+    """List all financial transactions for a project."""
+    query = (
+        select(Transaction)
+        .where(Transaction.project_id == project_id)
+        .order_by(Transaction.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+

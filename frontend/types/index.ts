@@ -40,6 +40,28 @@ export type LeadStatus =
   | "CONVERTED"
   | "LOST"
 
+export type PropertyType =
+  | "APARTMENT"
+  | "VILLA"
+  | "INDEPENDENT_HOUSE"
+  | "PENTHOUSE"
+  | "STUDIO"
+  | "OFFICE"
+  | "RETAIL"
+  | "OTHER"
+
+export type PropertyStatus =
+  | "UNDER_CONSTRUCTION"
+  | "READY_TO_MOVE"
+  | "OCCUPIED"
+  | "RENOVATION"
+
+export type SiteVisitAvailability =
+  | "WEEKDAYS"
+  | "WEEKENDS"
+  | "ANYTIME"
+  | "NOT_AVAILABLE"
+
 export interface Lead {
   id: string
   name: string
@@ -48,11 +70,24 @@ export interface Lead {
   source: string
   status: LeadStatus
   location?: string
-  budget_range?: string
+  notes?: string
   assigned_to_id: string
   assigned_to?: User
-  notes: string
   quotations?: Quotation[]
+
+  // Project Details
+  property_type?: PropertyType
+  property_status?: PropertyStatus
+  carpet_area?: number
+  scope_of_work?: string[]
+  floor_plan_url?: string
+
+  // Preferences
+  budget_range?: string
+  design_style?: string
+  possession_date?: string
+  site_visit_availability?: SiteVisitAvailability
+
   created_at: string
   updated_at: string
 }
@@ -89,6 +124,7 @@ export interface Quotation {
   total_amount: number
   status: QuoteStatus
   valid_until: string
+  project_id?: string
   rooms: QuoteRoom[]
   created_at: string
   updated_at: string
@@ -261,6 +297,8 @@ export interface VariationOrder {
   description: string
   additional_cost: number
   status: VOStatus
+  linked_sprint_id?: string
+  requested_by_id?: string
   created_at: string
   updated_at: string
 }

@@ -174,10 +174,10 @@ export default function ClientPortalPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${totalValue.toLocaleString()}
+                ₹{totalValue.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
-                ${received.toLocaleString()} paid so far
+                ₹{received.toLocaleString()} paid so far
               </p>
             </CardContent>
           </Card>
@@ -401,7 +401,7 @@ export default function ClientPortalPage() {
                           {payment.description}
                         </TableCell>
                         <TableCell className="font-medium text-green-600">
-                          ${payment.amount.toLocaleString()}
+                          ₹{payment.amount.toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -428,15 +428,15 @@ export default function ClientPortalPage() {
               <div>
                 <p className="text-sm font-medium">Total Paid</p>
                 <p className="text-xs text-muted-foreground">
-                  Out of ${totalValue.toLocaleString()} project value
+                  Out of ₹{totalValue.toLocaleString()} project value
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-green-600">
-                  ${received.toLocaleString()}
+                  ₹{received.toLocaleString()}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  ${(totalValue - received).toLocaleString()} remaining
+                  ₹{(totalValue - received).toLocaleString()} remaining
                 </p>
               </div>
             </div>

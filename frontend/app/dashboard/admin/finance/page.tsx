@@ -67,7 +67,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${totalIn.toLocaleString()}
+                ₹{totalIn.toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -79,7 +79,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                ${totalOut.toLocaleString()}
+                ₹{totalOut.toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -91,7 +91,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${(totalIn - totalOut).toLocaleString()}
+                ₹{(totalIn - totalOut).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -139,7 +139,7 @@ export default function FinancePage() {
                           {txn.description}
                         </TableCell>
                         <TableCell className="font-medium">
-                          ${txn.amount.toLocaleString()}
+                          ₹{txn.amount.toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{txn.status}</Badge>

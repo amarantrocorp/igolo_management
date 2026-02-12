@@ -203,7 +203,7 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${totalCost.toLocaleString()}
+                ₹{totalCost.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
                 For selected week
@@ -218,7 +218,7 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${totalApproved.toLocaleString()}
+                ₹{totalApproved.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
                 Ready for payout
@@ -233,7 +233,7 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                ${totalPending.toLocaleString()}
+                ₹{totalPending.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
                 Awaiting approval
@@ -287,7 +287,7 @@ export default function PayrollPage() {
                         <TableCell>{entry.total_workers}</TableCell>
                         <TableCell>{entry.total_hours}h</TableCell>
                         <TableCell className="font-semibold">
-                          ${entry.calculated_cost.toLocaleString()}
+                          ₹{entry.calculated_cost.toLocaleString()}
                         </TableCell>
                         <TableCell>{getStatusBadge(entry.status)}</TableCell>
                         <TableCell>

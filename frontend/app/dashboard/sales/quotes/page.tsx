@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import api from "@/lib/api"
+import { useAuthStore } from "@/store/auth-store"
 import RoleGuard from "@/components/auth/role-guard"
 import type { Quotation, QuoteStatus } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,8 @@ function getStatusBadgeVariant(status: QuoteStatus) {
 const ALLOWED_ROLES = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]
 
 export default function QuotesPage() {
+  const userRole = useAuthStore((s) => s.user?.role)
+  const canCreate = userRole !== "BDE"
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
@@ -90,12 +93,14 @@ export default function QuotesPage() {
             </p>
           </div>
 
-          <Link href="/dashboard/sales/quotes/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Quote
-            </Button>
-          </Link>
+          {canCreate && (
+            <Link href="/dashboard/sales/quotes/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Quote
+              </Button>
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-4">

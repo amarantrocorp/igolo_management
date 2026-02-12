@@ -87,7 +87,7 @@ export default function ClientPaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ${totalPaid.toLocaleString()}
+              ₹{totalPaid.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               Across all cleared payments
@@ -129,7 +129,7 @@ export default function ClientPaymentsPage() {
                         </TableCell>
                         <TableCell>{payment.description}</TableCell>
                         <TableCell className="font-medium text-green-600">
-                          ${payment.amount.toLocaleString()}
+                          ₹{payment.amount.toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <Badge

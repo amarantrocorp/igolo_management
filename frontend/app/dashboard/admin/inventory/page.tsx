@@ -190,7 +190,7 @@ export default function InventoryPage() {
       accessorKey: "base_price",
       header: "Base Price",
       cell: ({ row }) => (
-        <span>${row.original.base_price.toLocaleString()}</span>
+        <span>₹{row.original.base_price.toLocaleString()}</span>
       ),
     },
     {
@@ -198,7 +198,7 @@ export default function InventoryPage() {
       header: "Selling Price",
       cell: ({ row }) => (
         <span className="font-medium">
-          ${row.original.selling_price.toLocaleString()}
+          ₹{row.original.selling_price.toLocaleString()}
         </span>
       ),
     },
@@ -334,7 +334,7 @@ export default function InventoryPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="base_price">Base Price ($)</Label>
+                      <Label htmlFor="base_price">Base Price (₹)</Label>
                       <Input
                         id="base_price"
                         type="number"
@@ -349,7 +349,7 @@ export default function InventoryPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="selling_price">Selling Price ($)</Label>
+                      <Label htmlFor="selling_price">Selling Price (₹)</Label>
                       <Input
                         id="selling_price"
                         type="number"

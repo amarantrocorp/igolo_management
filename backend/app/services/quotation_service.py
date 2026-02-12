@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.crm import Lead, LeadStatus
+from app.models.project import Project
 from app.models.quotation import QuoteItem, QuoteRoom, QuoteStatus, Quotation
 from app.schemas.quotation import QuotationCreate
 
@@ -95,6 +96,23 @@ async def create_quotation(
     return await get_quotation(quotation.id, db)
 
 
+async def _attach_project_ids(
+    quotations: List[Quotation], db: AsyncSession
+) -> None:
+    """Look up linked project IDs and set them as transient attributes."""
+    if not quotations:
+        return
+    quote_ids = [q.id for q in quotations]
+    result = await db.execute(
+        select(Project.accepted_quotation_id, Project.id).where(
+            Project.accepted_quotation_id.in_(quote_ids)
+        )
+    )
+    mapping = {row[0]: row[1] for row in result.all()}
+    for q in quotations:
+        q.project_id = mapping.get(q.id)
+
+
 async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
     """Retrieve a quotation by ID with rooms and items eagerly loaded."""
     result = await db.execute(
@@ -108,6 +126,7 @@ async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
     quotation = result.scalar_one_or_none()
     if not quotation:
         raise NotFoundException(detail=f"Quotation with id '{quote_id}' not found")
+    await _attach_project_ids([quotation], db)
     return quotation
 
 
@@ -128,7 +147,9 @@ async def get_quotations(
 
     query = query.order_by(Quotation.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    quotations = list(result.scalars().all())
+    await _attach_project_ids(quotations, db)
+    return quotations
 
 
 async def finalize_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:

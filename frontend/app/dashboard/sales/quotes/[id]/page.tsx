@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/api"
+import { useAuthStore } from "@/store/auth-store"
 import RoleGuard from "@/components/auth/role-guard"
 import QuotePreview from "@/components/sales/quote-preview"
 import type { QuoteItemForm, QuoteRoomForm } from "@/types/quote"
@@ -74,13 +75,14 @@ interface ApiQuoteRoom {
 interface ApiQuotation {
   id: string
   lead_id: string
-  lead?: Lead // Make sure Lead is imported
+  lead?: Lead
   version: number
   total_amount: number | string
   status: string
   valid_until: string | null
   notes: string | null
   created_by_id: string
+  project_id?: string | null
   rooms: ApiQuoteRoom[]
   created_at: string
   updated_at: string
@@ -149,12 +151,15 @@ function getStatusBadge(status: string) {
   }
 }
 
-const ALLOWED_ROLES = ["SUPER_ADMIN", "MANAGER", "SALES"]
+const ALLOWED_ROLES = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]
 
 export default function QuoteViewPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
+
+  const userRole = useAuthStore((s) => s.user?.role)
+  const canEdit = userRole !== "BDE"
 
   const [editMode, setEditMode] = useState(false)
   const [editRooms, setEditRooms] = useState<QuoteRoomForm[]>([])
@@ -234,6 +239,8 @@ export default function QuoteViewPage() {
       return res.data
     },
     onSuccess: (data: { id: string }) => {
+      queryClient.invalidateQueries({ queryKey: ["quotation", id] })
+      queryClient.invalidateQueries({ queryKey: ["leads-for-quote"] })
       setShowConvertDialog(false)
       router.push(`/dashboard/projects/${data.id}`)
     },
@@ -405,8 +412,8 @@ export default function QuoteViewPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Edit toggle for drafts — hidden once lead is converted */}
-          {isDraft && !editMode && !isLeadConverted && (
+          {/* Edit toggle for drafts — hidden for BDE and once lead is converted */}
+          {canEdit && isDraft && !editMode && !isLeadConverted && (
             <Button variant="outline" size="sm" onClick={enterEditMode}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit
@@ -419,8 +426,8 @@ export default function QuoteViewPage() {
             </Button>
           )}
 
-          {/* Status actions — hidden once lead is converted */}
-          {isDraft && !editMode && !isLeadConverted && (
+          {/* Status actions — hidden for BDE and once lead is converted */}
+          {canEdit && isDraft && !editMode && !isLeadConverted && (
             <Button
               variant="outline"
               size="sm"
@@ -435,7 +442,7 @@ export default function QuoteViewPage() {
               Mark as Sent
             </Button>
           )}
-          {quote.status === "SENT" && !isLeadConverted && (
+          {canEdit && quote.status === "SENT" && !isLeadConverted && (
             <Button
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -451,8 +458,8 @@ export default function QuoteViewPage() {
             </Button>
           )}
 
-          {/* Convert to Project — only for APPROVED quotes, hidden once lead is converted */}
-          {quote.status === "APPROVED" && !isLeadConverted && (
+          {/* Convert to Project — hidden for BDE, only for APPROVED quotes without an existing project */}
+          {canEdit && quote.status === "APPROVED" && !quote.project_id && (
             <Button
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-white"

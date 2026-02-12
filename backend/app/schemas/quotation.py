@@ -61,13 +61,14 @@ class QuotationUpdate(BaseModel):
 class QuotationResponse(BaseModel):
     id: UUID
     lead_id: UUID
-    lead: Optional["LeadResponse"]
+    lead: Optional["LeadResponse"] = None
     version: int
     total_amount: Decimal
     status: QuoteStatus
     valid_until: Optional[datetime]
     notes: Optional[str]
     created_by_id: UUID
+    project_id: Optional[UUID] = None
     rooms: List[QuoteRoomResponse] = []
     created_at: datetime
     updated_at: datetime

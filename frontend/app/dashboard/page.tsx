@@ -101,7 +101,7 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
         />
         <StatCard
           title="Revenue"
-          value={`$${(stats.total_revenue ?? 0).toLocaleString()}`}
+          value={`₹ ${(stats.total_revenue ?? 0).toLocaleString()}`}
           description="Total received this month"
           icon={DollarSign}
           trend="+8% from last month"
@@ -120,13 +120,13 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
                 Total Received
               </span>
               <span className="font-semibold text-green-600">
-                ${(stats.total_revenue ?? 0).toLocaleString()}
+                ₹{(stats.total_revenue ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Total Spent</span>
               <span className="font-semibold text-red-600">
-                ${(stats.total_spent ?? 0).toLocaleString()}
+                ₹{(stats.total_spent ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="border-t pt-2">

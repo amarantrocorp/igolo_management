@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.models.project import ProjectStatus, SprintStatus, VOStatus
+from app.schemas.crm import ClientResponse
 
 
 class ProjectConvert(BaseModel):
@@ -53,10 +54,22 @@ class WalletSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class WalletResponse(BaseModel):
+    project_id: UUID
+    total_agreed_value: Decimal
+    total_received: Decimal
+    total_spent: Decimal
+    current_balance: Decimal
+    pending_approvals: Decimal
+
+    model_config = {"from_attributes": True}
+
+
 class ProjectResponse(BaseModel):
     id: UUID
     name: str
     client_id: UUID
+    client: Optional[ClientResponse] = None
     accepted_quotation_id: UUID
     status: ProjectStatus
     start_date: date
@@ -92,6 +105,34 @@ class VariationOrderResponse(BaseModel):
     status: VOStatus
     linked_sprint_id: Optional[UUID]
     requested_by_id: UUID
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
+
+
+class TransactionCreate(BaseModel):
+    amount: Decimal
+    description: str
+    source: TransactionSource
+    category: TransactionCategory
+    reference_id: Optional[str] = None
+    proof_doc_url: Optional[str] = None
+
+
+class TransactionResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    category: TransactionCategory
+    source: TransactionSource
+    amount: Decimal
+    description: Optional[str]
+    reference_id: Optional[str]
+    proof_doc_url: Optional[str]
+    status: TransactionStatus
+    recorded_by_id: UUID
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -113,7 +113,7 @@ async def update_project(
 
 
 @router.patch(
-    "/projects/{project_id}/sprints/{sprint_id}",
+    "/{project_id}/sprints/{sprint_id}",
     response_model=SprintResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -140,7 +140,7 @@ async def update_sprint(
 
 
 @router.post(
-    "/projects/{project_id}/daily-logs",
+    "/{project_id}/daily-logs",
     response_model=DailyLogResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -160,7 +160,7 @@ async def create_daily_log(
 
 
 @router.get(
-    "/projects/{project_id}/daily-logs",
+    "/{project_id}/daily-logs",
     response_model=list[DailyLogResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -190,8 +190,27 @@ async def list_daily_logs(
 # ---------------------------------------------------------------------------
 
 
+@router.get(
+    "/{project_id}/variation-orders",
+    response_model=list[VariationOrderResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_variation_orders(
+    project_id: UUID,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List variation orders for a project."""
+    vos = await project_service.list_variation_orders(
+        project_id=project_id, db=db, skip=skip, limit=limit
+    )
+    return vos
+
+
 @router.post(
-    "/projects/{project_id}/variation-orders",
+    "/{project_id}/variation-orders",
     response_model=VariationOrderResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -210,7 +229,7 @@ async def create_variation_order(
 
 
 @router.patch(
-    "/projects/{project_id}/variation-orders/{vo_id}",
+    "/{project_id}/variation-orders/{vo_id}",
     response_model=VariationOrderResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -229,3 +248,68 @@ async def update_variation_order(
         vo_id=vo_id, data=payload, db=db
     )
     return vo
+
+
+# ---------------------------------------------------------------------------
+# Financials & Transactions
+# ---------------------------------------------------------------------------
+
+
+from app.schemas.project import TransactionCreate, TransactionResponse, WalletResponse
+
+
+@router.get(
+    "/{project_id}/financial-health",
+    response_model=WalletResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_project_financial_health(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Retrieve the financial health (wallet) of a project."""
+    wallet = await project_service.get_project_financial_health(
+        project_id=project_id, db=db
+    )
+    return wallet
+
+
+@router.post(
+    "/{project_id}/transactions",
+    response_model=TransactionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_transaction(
+    project_id: UUID,
+    payload: TransactionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Record a new financial transaction (money in/out)."""
+    transaction = await project_service.create_transaction(
+        project_id=project_id,
+        data=payload,
+        user_id=current_user.id,
+        db=db,
+    )
+    return transaction
+
+
+@router.get(
+    "/{project_id}/transactions",
+    response_model=list[TransactionResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_transactions(
+    project_id: UUID,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """List financial transactions for a project."""
+    transactions = await project_service.list_transactions(
+        project_id=project_id, db=db, skip=skip, limit=limit
+    )
+    return transactions
