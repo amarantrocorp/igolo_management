@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictException, NotFoundException
 from app.core.security import get_password_hash, verify_password
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
 

@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.models.quotation import QuoteStatus
+from app.schemas.crm import LeadResponse
 
 
 class QuoteItemCreate(BaseModel):
@@ -74,5 +75,3 @@ class QuotationResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-
-from app.schemas.crm import LeadResponse

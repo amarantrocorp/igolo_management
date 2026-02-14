@@ -16,9 +16,12 @@ from app.schemas.project import (
     ProjectUpdate,
     SprintResponse,
     SprintUpdate,
+    TransactionCreate,
+    TransactionResponse,
     VariationOrderCreate,
     VariationOrderResponse,
     VariationOrderUpdate,
+    WalletResponse,
 )
 from app.services import project_service
 
@@ -253,9 +256,6 @@ async def update_variation_order(
 # ---------------------------------------------------------------------------
 # Financials & Transactions
 # ---------------------------------------------------------------------------
-
-
-from app.schemas.project import TransactionCreate, TransactionResponse, WalletResponse
 
 
 @router.get(

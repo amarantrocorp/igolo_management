@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import enum
 import uuid
-from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.project import Project
+    from app.models.user import User
 
 
 class TransactionCategory(str, enum.Enum):

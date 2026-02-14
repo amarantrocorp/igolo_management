@@ -10,7 +10,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select
-from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.session import AsyncSessionLocal
 from app.models.user import User, UserRole
@@ -55,7 +54,7 @@ async def seed_super_admin():
         )
         db.add(admin)
         await db.commit()
-        print(f"Super Admin created: admin@intdesignerp.com (password: Admin@123456)")
+        print("Super Admin created: admin@intdesignerp.com (password: Admin@123456)")
 
 
 async def main():

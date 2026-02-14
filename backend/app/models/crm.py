@@ -1,14 +1,20 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import date as date_type
-from decimal import Decimal
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Date, Enum, Float, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.project import Project
+    from app.models.quotation import Quotation
+    from app.models.user import User
 
 
 class LeadStatus(str, enum.Enum):

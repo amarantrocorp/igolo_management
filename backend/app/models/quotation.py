@@ -1,14 +1,21 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.crm import Lead
+    from app.models.inventory import Item
+    from app.models.user import User
 
 
 class QuoteStatus(str, enum.Enum):

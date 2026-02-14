@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 import enum
 import uuid
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
     Boolean,
     Date,
-    DateTime,
     Enum,
-    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -20,6 +20,12 @@ from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.crm import Client
+    from app.models.finance import ProjectWallet
+    from app.models.quotation import Quotation
+    from app.models.user import User
 
 
 class ProjectStatus(str, enum.Enum):

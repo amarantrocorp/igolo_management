@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import enum
-import uuid
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.crm import Client, Lead
+    from app.models.notification import Notification
 
 
 class UserRole(str, enum.Enum):

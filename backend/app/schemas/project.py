@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
 from app.models.project import ProjectStatus, SprintStatus, VOStatus
 from app.schemas.crm import ClientResponse
 
@@ -108,9 +109,6 @@ class VariationOrderResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
 
 
 class TransactionCreate(BaseModel):
