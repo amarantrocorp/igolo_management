@@ -31,7 +31,6 @@ from app.schemas.inventory import (
     VendorUpdate,
 )
 
-
 # ---------------------------------------------------------------------------
 # Item Management
 # ---------------------------------------------------------------------------
@@ -89,9 +88,7 @@ async def get_item(item_id: UUID, db: AsyncSession) -> Item:
     return item
 
 
-async def update_item(
-    item_id: UUID, data: ItemUpdate, db: AsyncSession
-) -> Item:
+async def update_item(item_id: UUID, data: ItemUpdate, db: AsyncSession) -> Item:
     """Update inventory item fields. Only non-None fields are applied."""
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
@@ -129,9 +126,7 @@ async def create_vendor(data: VendorCreate, db: AsyncSession) -> Vendor:
     return vendor
 
 
-async def get_vendors(
-    db: AsyncSession, skip: int = 0, limit: int = 50
-) -> List[Vendor]:
+async def get_vendors(db: AsyncSession, skip: int = 0, limit: int = 50) -> List[Vendor]:
     """Retrieve a paginated list of vendors."""
     result = await db.execute(
         select(Vendor).order_by(Vendor.name).offset(skip).limit(limit)
@@ -226,9 +221,7 @@ async def _get_purchase_order(po_id: UUID, db: AsyncSession) -> PurchaseOrder:
     )
     po = result.scalar_one_or_none()
     if not po:
-        raise NotFoundException(
-            detail=f"Purchase Order with id '{po_id}' not found"
-        )
+        raise NotFoundException(detail=f"Purchase Order with id '{po_id}' not found")
     return po
 
 
@@ -315,9 +308,7 @@ async def receive_purchase_order(
 
             # Update wallet
             wallet_result = await db.execute(
-                select(ProjectWallet).where(
-                    ProjectWallet.project_id == po.project_id
-                )
+                select(ProjectWallet).where(ProjectWallet.project_id == po.project_id)
             )
             wallet = wallet_result.scalar_one_or_none()
             if wallet:

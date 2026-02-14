@@ -80,7 +80,9 @@ class Project(Base, UUIDMixin, TimestampMixin):
     client: Mapped["Client"] = relationship("Client", back_populates="projects")
     accepted_quotation: Mapped["Quotation"] = relationship("Quotation")
     manager: Mapped[Optional["User"]] = relationship("User", foreign_keys=[manager_id])
-    supervisor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[supervisor_id])
+    supervisor: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[supervisor_id]
+    )
     sprints: Mapped[List["Sprint"]] = relationship(
         "Sprint", back_populates="project", cascade="all, delete-orphan"
     )
@@ -99,7 +101,9 @@ class Sprint(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "sprints"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     sequence_order: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -124,7 +128,9 @@ class VariationOrder(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "variation_orders"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     additional_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
@@ -139,7 +145,9 @@ class VariationOrder(Base, UUIDMixin, TimestampMixin):
     )
 
     # Relationships
-    project: Mapped["Project"] = relationship("Project", back_populates="variation_orders")
+    project: Mapped["Project"] = relationship(
+        "Project", back_populates="variation_orders"
+    )
     linked_sprint: Mapped[Optional["Sprint"]] = relationship("Sprint")
     requested_by: Mapped["User"] = relationship("User")
 
@@ -148,7 +156,9 @@ class DailyLog(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "daily_logs"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     sprint_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sprints.id"), nullable=False

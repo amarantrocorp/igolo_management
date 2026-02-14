@@ -28,9 +28,7 @@ async def get_wallet(project_id: UUID, db: AsyncSession) -> ProjectWallet:
     )
     wallet = result.scalar_one_or_none()
     if not wallet:
-        raise NotFoundException(
-            detail=f"Wallet for project '{project_id}' not found"
-        )
+        raise NotFoundException(detail=f"Wallet for project '{project_id}' not found")
     return wallet
 
 
@@ -112,14 +110,10 @@ async def verify_transaction(txn_id: UUID, db: AsyncSession) -> Transaction:
     For INFLOW: Increases total_received on the wallet.
     For OUTFLOW: Moves amount from pending_approvals to total_spent.
     """
-    result = await db.execute(
-        select(Transaction).where(Transaction.id == txn_id)
-    )
+    result = await db.execute(select(Transaction).where(Transaction.id == txn_id))
     transaction = result.scalar_one_or_none()
     if not transaction:
-        raise NotFoundException(
-            detail=f"Transaction with id '{txn_id}' not found"
-        )
+        raise NotFoundException(detail=f"Transaction with id '{txn_id}' not found")
 
     if transaction.status != TransactionStatus.PENDING:
         raise BadRequestException(
@@ -164,7 +158,10 @@ async def get_financial_health(project_id: UUID, db: AsyncSession) -> dict:
     # Margin calculation: how much profit margin remains
     if wallet.total_agreed_value > Decimal("0.00"):
         estimated_margin_percent = float(
-            ((wallet.total_agreed_value - wallet.total_spent) / wallet.total_agreed_value)
+            (
+                (wallet.total_agreed_value - wallet.total_spent)
+                / wallet.total_agreed_value
+            )
             * Decimal("100")
         )
     else:

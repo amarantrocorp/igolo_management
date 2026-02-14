@@ -45,9 +45,7 @@ async def get_user_by_id(user_id: UUID, db: AsyncSession) -> User:
     return user
 
 
-async def get_users(
-    db: AsyncSession, skip: int = 0, limit: int = 50
-) -> List[User]:
+async def get_users(db: AsyncSession, skip: int = 0, limit: int = 50) -> List[User]:
     """Retrieve a paginated list of users."""
     result = await db.execute(
         select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)

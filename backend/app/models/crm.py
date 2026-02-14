@@ -74,9 +74,7 @@ class Lead(Base, UUIDMixin, TimestampMixin):
         Enum(PropertyStatus), nullable=True
     )
     carpet_area: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    scope_of_work: Mapped[Optional[list]] = mapped_column(
-        ARRAY(String), nullable=True
-    )
+    scope_of_work: Mapped[Optional[list]] = mapped_column(ARRAY(String), nullable=True)
     floor_plan_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # ── Preferences ──

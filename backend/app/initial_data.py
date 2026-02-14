@@ -2,6 +2,7 @@
 Seed script: Creates the first Super Admin user and base data.
 Run: python -m app.initial_data
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -13,7 +14,6 @@ from sqlalchemy import select
 from app.core.security import get_password_hash
 from app.db.session import AsyncSessionLocal
 from app.models.user import User, UserRole
-
 
 SEED_CATEGORIES = [
     "Plywood",

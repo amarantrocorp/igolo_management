@@ -32,9 +32,7 @@ router = APIRouter()
 async def create_item(
     payload: ItemCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new inventory item."""
     item = await inventory_service.create_item(data=payload, db=db)
@@ -61,7 +59,9 @@ async def list_items(
     return items
 
 
-@router.get("/items/{item_id}", response_model=ItemResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/items/{item_id}", response_model=ItemResponse, status_code=status.HTTP_200_OK
+)
 async def get_item(
     item_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -72,14 +72,14 @@ async def get_item(
     return item
 
 
-@router.put("/items/{item_id}", response_model=ItemResponse, status_code=status.HTTP_200_OK)
+@router.put(
+    "/items/{item_id}", response_model=ItemResponse, status_code=status.HTTP_200_OK
+)
 async def update_item(
     item_id: UUID,
     payload: ItemUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing inventory item."""
     item = await inventory_service.update_item(item_id=item_id, data=payload, db=db)
@@ -91,20 +91,22 @@ async def update_item(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/vendors", response_model=VendorResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vendors", response_model=VendorResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_vendor(
     payload: VendorCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new vendor."""
     vendor = await inventory_service.create_vendor(data=payload, db=db)
     return vendor
 
 
-@router.get("/vendors", response_model=list[VendorResponse], status_code=status.HTTP_200_OK)
+@router.get(
+    "/vendors", response_model=list[VendorResponse], status_code=status.HTTP_200_OK
+)
 async def list_vendors(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -112,14 +114,14 @@ async def list_vendors(
     current_user: User = Depends(get_current_user),
 ):
     """List vendors."""
-    vendors = await inventory_service.get_vendors(
-        db=db, skip=skip, limit=limit
-    )
+    vendors = await inventory_service.get_vendors(db=db, skip=skip, limit=limit)
     return vendors
 
 
 @router.get(
-    "/vendors/{vendor_id}", response_model=VendorResponse, status_code=status.HTTP_200_OK
+    "/vendors/{vendor_id}",
+    response_model=VendorResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def get_vendor(
     vendor_id: UUID,
@@ -132,15 +134,15 @@ async def get_vendor(
 
 
 @router.put(
-    "/vendors/{vendor_id}", response_model=VendorResponse, status_code=status.HTTP_200_OK
+    "/vendors/{vendor_id}",
+    response_model=VendorResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def update_vendor(
     vendor_id: UUID,
     payload: VendorUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing vendor."""
     vendor = await inventory_service.update_vendor(

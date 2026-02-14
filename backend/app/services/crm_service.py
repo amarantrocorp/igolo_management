@@ -96,22 +96,16 @@ async def convert_lead_to_client(lead_id: UUID, db: AsyncSession) -> Client:
         raise BadRequestException(detail="Lead has already been converted to a client")
 
     # Check if a client record already exists for this lead
-    existing_client = await db.execute(
-        select(Client).where(Client.lead_id == lead_id)
-    )
+    existing_client = await db.execute(select(Client).where(Client.lead_id == lead_id))
     if existing_client.scalar_one_or_none():
-        raise BadRequestException(
-            detail="A client record already exists for this lead"
-        )
+        raise BadRequestException(detail="A client record already exists for this lead")
 
     # Create a User account with CLIENT role for the lead
     # Use lead email or generate a placeholder if not available
     client_email = lead.email or f"client_{lead.contact_number}@placeholder.local"
 
     # Check if a user with this email already exists
-    existing_user = await db.execute(
-        select(User).where(User.email == client_email)
-    )
+    existing_user = await db.execute(select(User).where(User.email == client_email))
     if existing_user.scalar_one_or_none():
         raise BadRequestException(
             detail=f"A user with email '{client_email}' already exists. "

@@ -22,9 +22,7 @@ router = APIRouter()
 async def create_quotation(
     payload: QuotationCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["SALES", "MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new quotation in DRAFT status with nested rooms and items."""
     quotation = await quotation_service.create_quotation(
@@ -77,15 +75,11 @@ async def get_quotation(
 async def finalize_quotation(
     quote_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["SALES", "MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Finalize a DRAFT quotation, freezing it as a versioned snapshot.
     Creates a new version if previous versions exist for the same lead."""
-    quotation = await quotation_service.finalize_quotation(
-        quote_id=quote_id, db=db
-    )
+    quotation = await quotation_service.finalize_quotation(quote_id=quote_id, db=db)
     return quotation
 
 
@@ -98,9 +92,7 @@ async def update_quotation_status(
     quote_id: UUID,
     payload: QuotationUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["SALES", "MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Update the status of a quotation (e.g., SENT, APPROVED, REJECTED)."""
     quotation = await quotation_service.update_quotation_status(

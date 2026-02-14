@@ -15,7 +15,9 @@ api_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
 api_router.include_router(crm_router, prefix="/crm", tags=["Sales Pipeline"])
 api_router.include_router(quotes_router, prefix="/quotes", tags=["Sales Pipeline"])
 api_router.include_router(inventory_router, prefix="/inventory", tags=["Inventory"])
-api_router.include_router(projects_router, prefix="/projects", tags=["Project Execution"])
+api_router.include_router(
+    projects_router, prefix="/projects", tags=["Project Execution"]
+)
 api_router.include_router(finance_router, prefix="/finance", tags=["Finance"])
 api_router.include_router(labor_router, prefix="/labor", tags=["Labor"])
 api_router.include_router(users_router, prefix="/users", tags=["Users"])

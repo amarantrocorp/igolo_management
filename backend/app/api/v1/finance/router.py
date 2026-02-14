@@ -27,15 +27,11 @@ router = APIRouter()
 async def get_financial_health(
     project_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get the financial health summary for a project including balance,
     spending power, and estimated margin."""
-    health = await finance_service.get_financial_health(
-        project_id=project_id, db=db
-    )
+    health = await finance_service.get_financial_health(project_id=project_id, db=db)
     return health
 
 
@@ -111,9 +107,7 @@ async def verify_transaction(
     """Verify a pending transaction by marking it as CLEARED. When a PENDING
     INFLOW transaction is verified, the project wallet is credited. For OUTFLOW
     transactions, the amount moves from pending_approvals to total_spent."""
-    transaction = await finance_service.verify_transaction(
-        txn_id=txn_id, db=db
-    )
+    transaction = await finance_service.verify_transaction(txn_id=txn_id, db=db)
     return transaction
 
 

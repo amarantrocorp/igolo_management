@@ -28,20 +28,22 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 
-@router.post("/teams", response_model=LaborTeamResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/teams", response_model=LaborTeamResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_labor_team(
     payload: LaborTeamCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new labor team."""
     team = await labor_service.create_labor_team(data=payload, db=db)
     return team
 
 
-@router.get("/teams", response_model=list[LaborTeamResponse], status_code=status.HTTP_200_OK)
+@router.get(
+    "/teams", response_model=list[LaborTeamResponse], status_code=status.HTTP_200_OK
+)
 async def list_labor_teams(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -73,9 +75,7 @@ async def update_labor_team(
     team_id: UUID,
     payload: LaborTeamUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing labor team."""
     team = await labor_service.update_team(team_id=team_id, data=payload, db=db)
@@ -96,14 +96,10 @@ async def add_worker(
     team_id: UUID,
     payload: WorkerCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Add a worker to a labor team."""
-    worker = await labor_service.add_worker(
-        team_id=team_id, data=payload, db=db
-    )
+    worker = await labor_service.add_worker(team_id=team_id, data=payload, db=db)
     return worker
 
 
@@ -125,7 +121,8 @@ async def log_attendance(
     ),
 ):
     """Log daily attendance for a labor team on a project sprint.
-    Automatically calculates cost as workers_present * daily_rate * (total_hours / 8)."""
+    Automatically calculates cost as workers_present * daily_rate * (total_hours / 8).
+    """
     log = await labor_service.log_attendance(
         data=payload, user_id=current_user.id, db=db
     )
@@ -147,9 +144,7 @@ async def get_payroll_summary(
     week_start: date = Query(...),
     week_end: date = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get weekly payroll summary grouped by team. Optionally filter by project
     and date range (week_start to week_end)."""

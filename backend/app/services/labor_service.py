@@ -29,15 +29,12 @@ from app.schemas.labor import (
 )
 from app.services.finance_service import authorize_expense
 
-
 # ---------------------------------------------------------------------------
 # Labor Team Management
 # ---------------------------------------------------------------------------
 
 
-async def create_labor_team(
-    data: LaborTeamCreate, db: AsyncSession
-) -> LaborTeam:
+async def create_labor_team(data: LaborTeamCreate, db: AsyncSession) -> LaborTeam:
     """Create a new labor team."""
     team = LaborTeam(
         name=data.name,
@@ -109,14 +106,10 @@ async def update_team(
 # ---------------------------------------------------------------------------
 
 
-async def add_worker(
-    team_id: UUID, data: WorkerCreate, db: AsyncSession
-) -> Worker:
+async def add_worker(team_id: UUID, data: WorkerCreate, db: AsyncSession) -> Worker:
     """Add a worker to an existing labor team."""
     # Validate team exists
-    team_result = await db.execute(
-        select(LaborTeam).where(LaborTeam.id == team_id)
-    )
+    team_result = await db.execute(select(LaborTeam).where(LaborTeam.id == team_id))
     team = team_result.scalar_one_or_none()
     if not team:
         raise NotFoundException(detail=f"Labor team with id '{team_id}' not found")
@@ -155,9 +148,7 @@ async def log_attendance(
     )
     team = team_result.scalar_one_or_none()
     if not team:
-        raise NotFoundException(
-            detail=f"Labor team with id '{data.team_id}' not found"
-        )
+        raise NotFoundException(detail=f"Labor team with id '{data.team_id}' not found")
 
     # Calculate cost: workers * daily_rate * (hours / 8)
     calculated_cost = (
@@ -291,9 +282,7 @@ async def approve_payroll(
         category=TransactionCategory.OUTFLOW,
         source=TransactionSource.LABOR,
         amount=total_cost,
-        description=(
-            f"Weekly labor payroll approval - {len(logs)} attendance log(s)"
-        ),
+        description=(f"Weekly labor payroll approval - {len(logs)} attendance log(s)"),
         recorded_by_id=user_id,
         status=TransactionStatus.CLEARED,
     )
@@ -350,6 +339,4 @@ async def approve_payroll_by_filters(
             )
         )
 
-    return await approve_payroll(
-        attendance_ids=attendance_ids, user_id=user_id, db=db
-    )
+    return await approve_payroll(attendance_ids=attendance_ids, user_id=user_id, db=db)

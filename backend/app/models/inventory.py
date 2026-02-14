@@ -39,7 +39,9 @@ class Item(Base, UUIDMixin, TimestampMixin):
     image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Relationships
-    suppliers: Mapped[List["VendorItem"]] = relationship("VendorItem", back_populates="item")
+    suppliers: Mapped[List["VendorItem"]] = relationship(
+        "VendorItem", back_populates="item"
+    )
     stock_transactions: Mapped[List["StockTransaction"]] = relationship(
         "StockTransaction", back_populates="item"
     )
@@ -97,7 +99,9 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin):
     status: Mapped[POStatus] = mapped_column(
         Enum(POStatus), default=POStatus.DRAFT, nullable=False
     )
-    is_project_specific: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_project_specific: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True
     )
@@ -122,7 +126,9 @@ class POItem(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "po_items"
 
     purchase_order_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("purchase_orders.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("purchase_orders.id", ondelete="CASCADE"),
+        nullable=False,
     )
     item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("items.id"), nullable=False

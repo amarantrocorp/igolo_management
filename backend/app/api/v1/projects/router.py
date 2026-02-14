@@ -55,9 +55,7 @@ async def convert_quote_to_project(
     return project
 
 
-@router.get(
-    "", response_model=list[ProjectResponse], status_code=status.HTTP_200_OK
-)
+@router.get("", response_model=list[ProjectResponse], status_code=status.HTTP_200_OK)
 async def list_projects(
     status_filter: Optional[ProjectStatus] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
@@ -99,9 +97,7 @@ async def update_project(
     project_id: UUID,
     payload: ProjectUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update project details (status, manager, supervisor, site address)."""
     project = await project_service.update_project(
@@ -125,9 +121,7 @@ async def update_sprint(
     sprint_id: UUID,
     payload: SprintUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a sprint (status, end_date, notes). If end_date is changed,
     triggers the Ripple Date Update algorithm to shift all dependent sprints."""
@@ -241,15 +235,11 @@ async def update_variation_order(
     vo_id: UUID,
     payload: VariationOrderUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a Variation Order (approve, reject, or link to a sprint).
     VO work cannot start until VO payment is received."""
-    vo = await project_service.update_variation_order(
-        vo_id=vo_id, data=payload, db=db
-    )
+    vo = await project_service.update_variation_order(vo_id=vo_id, data=payload, db=db)
     return vo
 
 

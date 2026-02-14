@@ -55,9 +55,7 @@ class LaborTeam(Base, UUIDMixin, TimestampMixin):
     payment_model: Mapped[PaymentModel] = mapped_column(
         Enum(PaymentModel), nullable=False
     )
-    default_daily_rate: Mapped[Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False
-    )
+    default_daily_rate: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     supervisor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
@@ -76,15 +74,15 @@ class Worker(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "workers"
 
     team_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("labor_teams.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("labor_teams.id", ondelete="CASCADE"),
+        nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     skill_level: Mapped[SkillLevel] = mapped_column(
         Enum(SkillLevel), default=SkillLevel.HELPER, nullable=False
     )
-    daily_rate: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(10, 2), nullable=True
-    )
+    daily_rate: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Relationships
@@ -106,9 +104,7 @@ class AttendanceLog(Base, UUIDMixin, TimestampMixin):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     workers_present: Mapped[int] = mapped_column(Integer, nullable=False)
     total_hours: Mapped[float] = mapped_column(Float, default=8.0, nullable=False)
-    calculated_cost: Mapped[Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False
-    )
+    calculated_cost: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[AttendanceStatus] = mapped_column(
         Enum(AttendanceStatus), default=AttendanceStatus.PENDING, nullable=False
     )
@@ -121,5 +117,7 @@ class AttendanceLog(Base, UUIDMixin, TimestampMixin):
     # Relationships
     project: Mapped["Project"] = relationship("Project")
     sprint: Mapped["Sprint"] = relationship("Sprint")
-    team: Mapped["LaborTeam"] = relationship("LaborTeam", back_populates="attendance_logs")
+    team: Mapped["LaborTeam"] = relationship(
+        "LaborTeam", back_populates="attendance_logs"
+    )
     logged_by: Mapped["User"] = relationship("User")

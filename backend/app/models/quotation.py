@@ -59,7 +59,9 @@ class QuoteRoom(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "quote_rooms"
 
     quotation_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("quotations.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("quotations.id", ondelete="CASCADE"),
+        nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     area_sqft: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -75,7 +77,9 @@ class QuoteItem(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "quote_items"
 
     room_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("quote_rooms.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("quote_rooms.id", ondelete="CASCADE"),
+        nullable=False,
     )
     inventory_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("items.id"), nullable=True

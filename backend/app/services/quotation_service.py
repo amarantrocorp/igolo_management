@@ -24,9 +24,7 @@ async def create_quotation(
     The quotation total_amount is the sum of all item final_prices across all rooms.
     """
     # Block quote creation for converted leads
-    lead_result = await db.execute(
-        select(Lead).where(Lead.id == data.lead_id)
-    )
+    lead_result = await db.execute(select(Lead).where(Lead.id == data.lead_id))
     lead = lead_result.scalar_one_or_none()
     if not lead:
         raise NotFoundException(detail="Lead not found")
@@ -71,7 +69,10 @@ async def create_quotation(
             final_price = (
                 item_data.unit_price
                 * Decimal(str(item_data.quantity))
-                * (Decimal("1") + Decimal(str(item_data.markup_percentage)) / Decimal("100"))
+                * (
+                    Decimal("1")
+                    + Decimal(str(item_data.markup_percentage)) / Decimal("100")
+                )
             )
             final_price = final_price.quantize(Decimal("0.01"))
 
@@ -96,9 +97,7 @@ async def create_quotation(
     return await get_quotation(quotation.id, db)
 
 
-async def _attach_project_ids(
-    quotations: List[Quotation], db: AsyncSession
-) -> None:
+async def _attach_project_ids(quotations: List[Quotation], db: AsyncSession) -> None:
     """Look up linked project IDs and set them as transient attributes."""
     if not quotations:
         return

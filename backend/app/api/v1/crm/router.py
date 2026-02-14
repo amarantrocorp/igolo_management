@@ -56,7 +56,9 @@ async def list_leads(
     return leads
 
 
-@router.get("/leads/{lead_id}", response_model=LeadResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/leads/{lead_id}", response_model=LeadResponse, status_code=status.HTTP_200_OK
+)
 async def get_lead(
     lead_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -69,7 +71,9 @@ async def get_lead(
     return lead
 
 
-@router.put("/leads/{lead_id}", response_model=LeadResponse, status_code=status.HTTP_200_OK)
+@router.put(
+    "/leads/{lead_id}", response_model=LeadResponse, status_code=status.HTTP_200_OK
+)
 async def update_lead(
     lead_id: UUID,
     payload: LeadUpdate,
@@ -79,9 +83,7 @@ async def update_lead(
     ),
 ):
     """Update an existing lead."""
-    lead = await crm_service.update_lead(
-        lead_id=lead_id, data=payload, db=db
-    )
+    lead = await crm_service.update_lead(lead_id=lead_id, data=payload, db=db)
     return lead
 
 
@@ -97,7 +99,5 @@ async def convert_lead_to_client(
 ):
     """Convert a qualified lead into a client. Creates a User account with CLIENT role
     and a Client record linked to the original lead."""
-    client = await crm_service.convert_lead_to_client(
-        lead_id=lead_id, db=db
-    )
+    client = await crm_service.convert_lead_to_client(lead_id=lead_id, db=db)
     return client

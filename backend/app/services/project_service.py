@@ -37,9 +37,7 @@ from app.schemas.project import (
 )
 
 
-async def convert_quote_to_project(
-    data: ProjectConvert, db: AsyncSession
-) -> Project:
+async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Project:
     """Convert an approved quotation into a project.
 
     Steps:
@@ -109,9 +107,7 @@ async def convert_quote_to_project(
     # Ensure the lead is marked as CONVERTED
     from app.models.crm import Lead, LeadStatus
 
-    lead_result = await db.execute(
-        select(Lead).where(Lead.id == quotation.lead_id)
-    )
+    lead_result = await db.execute(select(Lead).where(Lead.id == quotation.lead_id))
     lead = lead_result.scalar_one_or_none()
     if lead and lead.status != LeadStatus.CONVERTED:
         lead.status = LeadStatus.CONVERTED
@@ -374,14 +370,10 @@ async def update_variation_order(
     If the status changes to PAID, the project wallet's total_agreed_value and
     total_received are both increased by the VO's additional_cost.
     """
-    result = await db.execute(
-        select(VariationOrder).where(VariationOrder.id == vo_id)
-    )
+    result = await db.execute(select(VariationOrder).where(VariationOrder.id == vo_id))
     vo = result.scalar_one_or_none()
     if not vo:
-        raise NotFoundException(
-            detail=f"Variation Order with id '{vo_id}' not found"
-        )
+        raise NotFoundException(detail=f"Variation Order with id '{vo_id}' not found")
 
     update_data = data.model_dump(exclude_unset=True)
     old_status = vo.status
@@ -390,11 +382,13 @@ async def update_variation_order(
         setattr(vo, field, value)
 
     # If status changes to PAID, update the wallet
-    if "status" in update_data and update_data["status"] == VOStatus.PAID and old_status != VOStatus.PAID:
+    if (
+        "status" in update_data
+        and update_data["status"] == VOStatus.PAID
+        and old_status != VOStatus.PAID
+    ):
         wallet_result = await db.execute(
-            select(ProjectWallet).where(
-                ProjectWallet.project_id == vo.project_id
-            )
+            select(ProjectWallet).where(ProjectWallet.project_id == vo.project_id)
         )
         wallet = wallet_result.scalar_one_or_none()
         if wallet:
@@ -478,6 +472,3 @@ async def list_transactions(
     )
     result = await db.execute(query)
     return list(result.scalars().all())
-
-
-

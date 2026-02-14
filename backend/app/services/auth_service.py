@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.schemas.auth import Token
-from app.services.user_service import authenticate_user as _authenticate_user, get_user_by_id
+from app.services.user_service import (
+    authenticate_user as _authenticate_user,
+    get_user_by_id,
+)
 
 
 async def authenticate_user(email: str, password: str, db: AsyncSession) -> Token:
