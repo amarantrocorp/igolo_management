@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -99,6 +99,57 @@ function getRoleBadgeVariant(role: string) {
   }
 }
 
+const columns: ColumnDef<User>[] = [
+  {
+    accessorKey: "full_name",
+    header: "Name",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          {row.original.full_name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)}
+        </div>
+        <span className="font-medium">{row.original.full_name}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+  },
+  {
+    accessorKey: "role",
+    header: "Role",
+    cell: ({ row }) => (
+      <Badge variant={getRoleBadgeVariant(row.original.role)}>
+        {row.original.role.replace("_", " ")}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "is_active",
+    header: "Status",
+    cell: ({ row }) => (
+      <Badge variant={row.original.is_active ? "success" : "secondary"}>
+        {row.original.is_active ? "Active" : "Inactive"}
+      </Badge>
+    ),
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: () => (
+      <Button variant="ghost" size="sm">
+        Edit
+      </Button>
+    ),
+  },
+]
+
 export default function UsersPage() {
   const [open, setOpen] = useState(false)
   const [globalFilter, setGlobalFilter] = useState("")
@@ -142,66 +193,6 @@ export default function UsersPage() {
       role: "SALES",
     },
   })
-
-  const columns: ColumnDef<User>[] = [
-    {
-      accessorKey: "full_name",
-      header: "Name",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-            {row.original.full_name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)}
-          </div>
-          <span className="font-medium">{row.original.full_name}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-    },
-    {
-      accessorKey: "role",
-      header: "Role",
-      cell: ({ row }) => (
-        <Badge variant={getRoleBadgeVariant(row.original.role)}>
-          {row.original.role.replace("_", " ")}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "is_active",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={row.original.is_active ? "success" : "secondary"}>
-          {row.original.is_active ? "Active" : "Inactive"}
-        </Badge>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            toast({
-              title: "Edit user",
-              description: `Editing ${row.original.full_name} is not yet implemented.`,
-            })
-          }}
-        >
-          Edit
-        </Button>
-      ),
-    },
-  ]
 
   const table = useReactTable({
     data: users,

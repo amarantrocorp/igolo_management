@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import { CreditCard, DollarSign, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { formatCurrency } from "@/lib/utils"
 
 interface Transaction {
   id: string
@@ -51,7 +52,7 @@ export default function ClientPaymentsPage() {
   )
   const totalPaid = payments
     .filter((p) => p.status === "CLEARED")
-    .reduce((sum, p) => sum + p.amount, 0)
+    .reduce((sum, p) => sum + Number(p.amount ?? 0), 0)
 
   return (
     <RoleGuard allowedRoles={["CLIENT", "SUPER_ADMIN", "MANAGER"]}>
@@ -87,7 +88,7 @@ export default function ClientPaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ₹{totalPaid.toLocaleString()}
+              {formatCurrency(totalPaid)}
             </div>
             <p className="text-xs text-muted-foreground">
               Across all cleared payments
@@ -129,7 +130,7 @@ export default function ClientPaymentsPage() {
                         </TableCell>
                         <TableCell>{payment.description}</TableCell>
                         <TableCell className="font-medium text-green-600">
-                          ₹{payment.amount.toLocaleString()}
+                          {formatCurrency(payment.amount)}
                         </TableCell>
                         <TableCell>
                           <Badge

@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { DollarSign, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 interface Transaction {
   id: string
@@ -43,8 +44,8 @@ export default function FinancePage() {
 
   const inflows = transactions.filter((t) => t.category === "INFLOW")
   const outflows = transactions.filter((t) => t.category === "OUTFLOW")
-  const totalIn = inflows.reduce((sum, t) => sum + t.amount, 0)
-  const totalOut = outflows.reduce((sum, t) => sum + t.amount, 0)
+  const totalIn = inflows.reduce((sum, t) => sum + Number(t.amount ?? 0), 0)
+  const totalOut = outflows.reduce((sum, t) => sum + Number(t.amount ?? 0), 0)
 
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
@@ -67,7 +68,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ₹{totalIn.toLocaleString()}
+                {formatCurrency(totalIn)}
               </div>
             </CardContent>
           </Card>
@@ -79,7 +80,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                ₹{totalOut.toLocaleString()}
+                {formatCurrency(totalOut)}
               </div>
             </CardContent>
           </Card>
@@ -91,7 +92,7 @@ export default function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₹{(totalIn - totalOut).toLocaleString()}
+                {formatCurrency(totalIn - totalOut)}
               </div>
             </CardContent>
           </Card>
@@ -139,7 +140,7 @@ export default function FinancePage() {
                           {txn.description}
                         </TableCell>
                         <TableCell className="font-medium">
-                          ₹{txn.amount.toLocaleString()}
+                          {formatCurrency(txn.amount)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{txn.status}</Badge>

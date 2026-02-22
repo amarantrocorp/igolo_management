@@ -8,13 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user, role_required
 from app.db.session import get_db
 from app.models.user import User
+from app.models.inventory import POStatus
 from app.schemas.inventory import (
     ItemCreate,
     ItemResponse,
     ItemUpdate,
     PurchaseOrderCreate,
     PurchaseOrderResponse,
+    StockTransactionResponse,
     VendorCreate,
+    VendorItemCreate,
+    VendorItemResponse,
     VendorResponse,
     VendorUpdate,
 )
@@ -43,18 +47,20 @@ async def create_item(
 async def list_items(
     category: Optional[str] = Query(None),
     low_stock: Optional[bool] = Query(None),
+    search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List inventory items with optional filters for category and low stock."""
+    """List inventory items with optional filters for category, low stock, and search."""
     items = await inventory_service.get_items(
         db=db,
         skip=skip,
         limit=limit,
         category=category,
         low_stock_only=low_stock or False,
+        search=search,
     )
     return items
 
@@ -182,16 +188,25 @@ async def create_purchase_order(
 async def list_purchase_orders(
     vendor_id: Optional[UUID] = Query(None),
     project_id: Optional[UUID] = Query(None),
+    po_status: Optional[str] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List Purchase Orders with optional vendor and project filters."""
+    """List Purchase Orders with optional vendor, project, and status filters."""
+    status_filter = None
+    if po_status:
+        try:
+            status_filter = POStatus(po_status)
+        except ValueError:
+            pass
+
     orders = await inventory_service.get_purchase_orders(
         db=db,
         vendor_id=vendor_id,
         project_id=project_id,
+        status_filter=status_filter,
         skip=skip,
         limit=limit,
     )
@@ -252,3 +267,78 @@ async def issue_stock_to_project(
     # Return the updated item
     item = await inventory_service.get_item(item_id=item_id, db=db)
     return item
+
+
+# ---------------------------------------------------------------------------
+# Item Suppliers (VendorItem)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/items/{item_id}/suppliers",
+    response_model=VendorItemResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_supplier_to_item(
+    item_id: UUID,
+    payload: VendorItemCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Link a vendor as a supplier for an inventory item."""
+    vendor_item = await inventory_service.add_vendor_to_item(
+        item_id=item_id, data=payload, db=db
+    )
+    return vendor_item
+
+
+@router.get(
+    "/items/{item_id}/suppliers",
+    response_model=list[VendorItemResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_item_suppliers(
+    item_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all vendors that supply a given item."""
+    return await inventory_service.get_item_suppliers(item_id=item_id, db=db)
+
+
+@router.delete(
+    "/items/{item_id}/suppliers/{vendor_item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_supplier_from_item(
+    item_id: UUID,
+    vendor_item_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Remove a vendor-item link."""
+    await inventory_service.remove_vendor_from_item(
+        item_id=item_id, vendor_item_id=vendor_item_id, db=db
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stock History
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/items/{item_id}/stock-history",
+    response_model=list[StockTransactionResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_item_stock_history(
+    item_id: UUID,
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get recent stock transactions for an inventory item."""
+    return await inventory_service.get_item_stock_transactions(
+        item_id=item_id, db=db, limit=limit
+    )

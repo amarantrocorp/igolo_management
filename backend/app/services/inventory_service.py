@@ -22,12 +22,14 @@ from app.models.inventory import (
     StockTransaction,
     StockTransactionType,
     Vendor,
+    VendorItem,
 )
 from app.schemas.inventory import (
     ItemCreate,
     ItemUpdate,
     PurchaseOrderCreate,
     VendorCreate,
+    VendorItemCreate,
     VendorUpdate,
 )
 
@@ -51,8 +53,8 @@ async def create_item(data: ItemCreate, db: AsyncSession) -> Item:
     )
     db.add(item)
     await db.commit()
-    await db.refresh(item)
-    return item
+    # Re-fetch with suppliers eagerly loaded to avoid MissingGreenlet
+    return await get_item(item.id, db)
 
 
 async def get_items(
@@ -61,18 +63,23 @@ async def get_items(
     limit: int = 50,
     category: Optional[str] = None,
     low_stock_only: bool = False,
+    search: Optional[str] = None,
 ) -> List[Item]:
     """Retrieve a paginated list of inventory items.
 
-    Supports filtering by category and showing only low-stock items
-    (where current_stock < reorder_level).
+    Supports filtering by category, showing only low-stock items
+    (where current_stock < reorder_level), and text search on name.
     """
-    query = select(Item)
+    query = select(Item).options(
+        selectinload(Item.suppliers).selectinload(VendorItem.vendor)
+    )
 
     if category:
         query = query.where(Item.category == category)
     if low_stock_only:
         query = query.where(Item.current_stock < Item.reorder_level)
+    if search:
+        query = query.where(Item.name.ilike(f"%{search}%"))
 
     query = query.order_by(Item.name).offset(skip).limit(limit)
     result = await db.execute(query)
@@ -80,8 +87,15 @@ async def get_items(
 
 
 async def get_item(item_id: UUID, db: AsyncSession) -> Item:
-    """Retrieve a single inventory item by ID."""
-    result = await db.execute(select(Item).where(Item.id == item_id))
+    """Retrieve a single inventory item by ID with suppliers and stock history."""
+    result = await db.execute(
+        select(Item)
+        .options(
+            selectinload(Item.suppliers).selectinload(VendorItem.vendor),
+            selectinload(Item.stock_transactions),
+        )
+        .where(Item.id == item_id)
+    )
     item = result.scalar_one_or_none()
     if not item:
         raise NotFoundException(detail=f"Item with id '{item_id}' not found")
@@ -101,8 +115,8 @@ async def update_item(item_id: UUID, data: ItemUpdate, db: AsyncSession) -> Item
 
     db.add(item)
     await db.commit()
-    await db.refresh(item)
-    return item
+    # Re-fetch with suppliers eagerly loaded to avoid MissingGreenlet
+    return await get_item(item_id, db)
 
 
 # ---------------------------------------------------------------------------
@@ -213,10 +227,13 @@ async def create_purchase_order(
 
 
 async def _get_purchase_order(po_id: UUID, db: AsyncSession) -> PurchaseOrder:
-    """Internal helper to fetch a PO with its items loaded."""
+    """Internal helper to fetch a PO with its items and vendor loaded."""
     result = await db.execute(
         select(PurchaseOrder)
-        .options(selectinload(PurchaseOrder.items))
+        .options(
+            selectinload(PurchaseOrder.vendor),
+            selectinload(PurchaseOrder.items).selectinload(POItem.item),
+        )
         .where(PurchaseOrder.id == po_id)
     )
     po = result.scalar_one_or_none()
@@ -229,15 +246,21 @@ async def get_purchase_orders(
     db: AsyncSession,
     vendor_id: Optional[UUID] = None,
     project_id: Optional[UUID] = None,
+    status_filter: Optional[POStatus] = None,
     skip: int = 0,
     limit: int = 50,
 ) -> List[PurchaseOrder]:
     """Retrieve a paginated list of purchase orders with optional filters."""
-    query = select(PurchaseOrder).options(selectinload(PurchaseOrder.items))
+    query = select(PurchaseOrder).options(
+        selectinload(PurchaseOrder.vendor),
+        selectinload(PurchaseOrder.items).selectinload(POItem.item),
+    )
     if vendor_id:
         query = query.where(PurchaseOrder.vendor_id == vendor_id)
     if project_id:
         query = query.where(PurchaseOrder.project_id == project_id)
+    if status_filter:
+        query = query.where(PurchaseOrder.status == status_filter)
     query = query.order_by(PurchaseOrder.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
@@ -317,8 +340,8 @@ async def receive_purchase_order(
 
     db.add(po)
     await db.commit()
-    await db.refresh(po)
-    return po
+    # Re-fetch with relationships eagerly loaded to avoid MissingGreenlet
+    return await _get_purchase_order(po.id, db)
 
 
 async def issue_stock_to_project(
@@ -360,3 +383,94 @@ async def issue_stock_to_project(
     await db.commit()
     await db.refresh(stock_txn)
     return stock_txn
+
+
+# ---------------------------------------------------------------------------
+# Vendor-Item (Supplier) Management
+# ---------------------------------------------------------------------------
+
+
+async def add_vendor_to_item(
+    item_id: UUID, data: VendorItemCreate, db: AsyncSession
+) -> VendorItem:
+    """Link a vendor as a supplier for an inventory item."""
+    # Validate item exists
+    item_result = await db.execute(select(Item).where(Item.id == item_id))
+    if not item_result.scalar_one_or_none():
+        raise NotFoundException(detail=f"Item with id '{item_id}' not found")
+
+    # Validate vendor exists
+    vendor_result = await db.execute(select(Vendor).where(Vendor.id == data.vendor_id))
+    if not vendor_result.scalar_one_or_none():
+        raise NotFoundException(detail=f"Vendor with id '{data.vendor_id}' not found")
+
+    # Check for duplicate
+    dup_result = await db.execute(
+        select(VendorItem).where(
+            VendorItem.item_id == item_id,
+            VendorItem.vendor_id == data.vendor_id,
+        )
+    )
+    if dup_result.scalar_one_or_none():
+        raise BadRequestException(detail="This vendor is already linked to this item")
+
+    vendor_item = VendorItem(
+        item_id=item_id,
+        vendor_id=data.vendor_id,
+        vendor_price=data.vendor_price,
+        lead_time_days=data.lead_time_days,
+    )
+    db.add(vendor_item)
+    await db.commit()
+
+    # Re-fetch with vendor eagerly loaded
+    result = await db.execute(
+        select(VendorItem)
+        .options(selectinload(VendorItem.vendor))
+        .where(VendorItem.id == vendor_item.id)
+    )
+    return result.scalar_one()
+
+
+async def remove_vendor_from_item(
+    item_id: UUID, vendor_item_id: UUID, db: AsyncSession
+) -> None:
+    """Unlink a vendor from an inventory item."""
+    result = await db.execute(
+        select(VendorItem).where(
+            VendorItem.id == vendor_item_id,
+            VendorItem.item_id == item_id,
+        )
+    )
+    vendor_item = result.scalar_one_or_none()
+    if not vendor_item:
+        raise NotFoundException(detail="Vendor-item link not found")
+
+    await db.delete(vendor_item)
+    await db.commit()
+
+
+async def get_item_suppliers(
+    item_id: UUID, db: AsyncSession
+) -> List[VendorItem]:
+    """List all vendors that supply a given item."""
+    result = await db.execute(
+        select(VendorItem)
+        .options(selectinload(VendorItem.vendor))
+        .where(VendorItem.item_id == item_id)
+        .order_by(VendorItem.vendor_price)
+    )
+    return list(result.scalars().all())
+
+
+async def get_item_stock_transactions(
+    item_id: UUID, db: AsyncSession, limit: int = 20
+) -> List[StockTransaction]:
+    """Get recent stock transactions for a given item."""
+    result = await db.execute(
+        select(StockTransaction)
+        .where(StockTransaction.item_id == item_id)
+        .order_by(StockTransaction.created_at.desc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())

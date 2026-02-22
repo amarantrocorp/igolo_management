@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -33,6 +33,7 @@ import {
   ChevronRight,
   ExternalLink,
 } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 function getStatusBadgeVariant(status: ProjectStatus) {
   switch (status) {
@@ -49,6 +50,102 @@ function getStatusBadgeVariant(status: ProjectStatus) {
   }
 }
 
+const columns: ColumnDef<Project>[] = [
+  {
+    id: "project_name",
+    header: "Project",
+    cell: ({ row }) => {
+      const clientName =
+        row.original.client?.user?.full_name ??
+        row.original.client?.lead?.name ??
+        "Unknown Client"
+      return (
+        <div>
+          <span className="font-medium">{clientName}&apos;s Project</span>
+          <p className="text-xs text-muted-foreground font-mono">
+            PRJ-{row.original.id.slice(0, 8).toUpperCase()}
+          </p>
+        </div>
+      )
+    },
+  },
+  {
+    id: "client",
+    header: "Client",
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.client?.user?.full_name ?? "N/A"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => (
+      <Badge variant={getStatusBadgeVariant(row.original.status)}>
+        {row.original.status.replace("_", " ")}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "start_date",
+    header: "Start Date",
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.start_date
+          ? new Date(row.original.start_date).toLocaleDateString()
+          : "--"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "total_project_value",
+    header: "Value",
+    cell: ({ row }) => (
+      <span className="font-semibold">
+        {formatCurrency(row.original.total_project_value)}
+      </span>
+    ),
+  },
+  {
+    id: "financial",
+    header: "Received / Spent",
+    cell: ({ row }) => {
+      const wallet = row.original.wallet
+      const received = Number(wallet?.total_received ?? 0)
+      const spent = Number(wallet?.total_spent ?? 0)
+      return (
+        <div className="space-y-0.5">
+          <p className="text-xs">
+            <span className="text-green-600">
+              {formatCurrency(received)}
+            </span>{" "}
+            received
+          </p>
+          <p className="text-xs">
+            <span className="text-red-600">
+              {formatCurrency(spent)}
+            </span>{" "}
+            spent
+          </p>
+        </div>
+      )
+    },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => (
+      <Link href={`/dashboard/projects/${row.original.id}`}>
+        <Button variant="ghost" size="sm">
+          <ExternalLink className="mr-1 h-3 w-3" />
+          View
+        </Button>
+      </Link>
+    ),
+  },
+]
+
 export default function ProjectsPage() {
   const [globalFilter, setGlobalFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -61,106 +158,13 @@ export default function ProjectsPage() {
     },
   })
 
-  const filteredProjects = projects.filter((project) => {
-    if (statusFilter !== "all" && project.status !== statusFilter) return false
-    return true
-  })
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      if (statusFilter !== "all" && project.status !== statusFilter) return false
+      return true
+    })
+  }, [projects, statusFilter])
 
-  const columns: ColumnDef<Project>[] = [
-    {
-      id: "project_name",
-      header: "Project",
-      cell: ({ row }) => {
-        const clientName =
-          row.original.client?.user?.full_name ??
-          row.original.client?.lead?.name ??
-          "Unknown Client"
-        return (
-          <div>
-            <span className="font-medium">{clientName}&apos;s Project</span>
-            <p className="text-xs text-muted-foreground font-mono">
-              PRJ-{row.original.id.slice(0, 8).toUpperCase()}
-            </p>
-          </div>
-        )
-      },
-    },
-    {
-      id: "client",
-      header: "Client",
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.client?.user?.full_name ?? "N/A"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={getStatusBadgeVariant(row.original.status)}>
-          {row.original.status.replace("_", " ")}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "start_date",
-      header: "Start Date",
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.start_date
-            ? new Date(row.original.start_date).toLocaleDateString()
-            : "--"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "total_project_value",
-      header: "Value",
-      cell: ({ row }) => (
-        <span className="font-semibold">
-          {Number(row.original.total_project_value || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
-        </span>
-      ),
-    },
-    {
-      id: "financial",
-      header: "Received / Spent",
-      cell: ({ row }) => {
-        const wallet = row.original.wallet
-        const received = Number(wallet?.total_received ?? 0)
-        const spent = Number(wallet?.total_spent ?? 0)
-        return (
-          <div className="space-y-0.5">
-            <p className="text-xs">
-              <span className="text-green-600">
-                {received.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
-              </span>{" "}
-              received
-            </p>
-            <p className="text-xs">
-              <span className="text-red-600">
-                {spent.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
-              </span>{" "}
-              spent
-            </p>
-          </div>
-        )
-      },
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <Link href={`/dashboard/projects/${row.original.id}`}>
-          <Button variant="ghost" size="sm">
-            <ExternalLink className="mr-1 h-3 w-3" />
-            View
-          </Button>
-        </Link>
-      ),
-    },
-  ]
 
   const table = useReactTable({
     data: filteredProjects,

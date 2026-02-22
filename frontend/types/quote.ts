@@ -1,5 +1,7 @@
 // Shared form-state types used by both the Quote Form and Quote Preview
 
+import { formatCurrency } from "@/lib/utils"
+
 export interface QuoteItemForm {
   id: string
   description: string
@@ -7,6 +9,7 @@ export interface QuoteItemForm {
   unit: string
   unit_price: string
   markup_percentage: string
+  inventory_item_id?: string
 }
 
 export interface QuoteRoomForm {
@@ -27,10 +30,4 @@ export function calcRoomTotal(room: QuoteRoomForm): number {
   return room.items.reduce((sum, item) => sum + calcItemTotal(item), 0)
 }
 
-export function formatINR(value: number): string {
-  return value.toLocaleString("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 2,
-  })
-}
+export const formatINR = formatCurrency

@@ -18,6 +18,9 @@ import type {
   VariationOrder,
   ProjectWallet,
   VOStatus,
+  AttendanceLog,
+  LaborTeam,
+  AttendanceStatus,
 } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,10 +69,12 @@ import {
   Plus,
   Image as ImageIcon,
   AlertCircle,
+  HardHat,
+  Users,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuthStore } from "@/store/auth-store"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 
 // ---- Sprint Status helpers ----
 
@@ -123,7 +128,13 @@ type CreateVOFormValues = z.infer<typeof createVOSchema>
 
 // ---- Overview Tab ----
 
-function OverviewTab({ project }: { project: Project }) {
+function OverviewTab({
+  project,
+  projectId,
+}: {
+  project: Project
+  projectId: string
+}) {
   const totalValue = Number(project.total_project_value ?? 0)
   const received = Number(project.wallet?.total_received ?? 0)
   const spent = Number(project.wallet?.total_spent ?? 0)
@@ -131,7 +142,31 @@ function OverviewTab({ project }: { project: Project }) {
   const completedSprints =
     project.sprints?.filter((s) => s.status === "COMPLETED").length ?? 0
   const totalSprints = project.sprints?.length ?? 6
-  const progressPercent = Math.round((completedSprints / totalSprints) * 100)
+  const progressPercent = totalSprints > 0 ? Math.round((completedSprints / totalSprints) * 100) : 0
+
+  // Fetch labor cost breakdown from transactions
+  const { data: transactions = [] } = useQuery<Transaction[]>({
+    queryKey: ["project-transactions", projectId],
+    queryFn: async () => {
+      const response = await api.get(`/projects/${projectId}/transactions`)
+      return response.data.items ?? response.data
+    },
+  })
+
+  const laborCost = transactions
+    .filter((t) => t.category === "OUTFLOW" && t.source === "LABOR")
+    .reduce((sum, t) => sum + Number(t.amount ?? 0), 0)
+  const materialCost = transactions
+    .filter((t) => t.category === "OUTFLOW" && t.source === "VENDOR")
+    .reduce((sum, t) => sum + Number(t.amount ?? 0), 0)
+  const otherCost = transactions
+    .filter(
+      (t) =>
+        t.category === "OUTFLOW" &&
+        t.source !== "LABOR" &&
+        t.source !== "VENDOR"
+    )
+    .reduce((sum, t) => sum + Number(t.amount ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -144,7 +179,7 @@ function OverviewTab({ project }: { project: Project }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ₹{totalValue.toLocaleString()}
+              {formatCurrency(totalValue)}
             </div>
           </CardContent>
         </Card>
@@ -163,7 +198,7 @@ function OverviewTab({ project }: { project: Project }) {
                 balance >= 0 ? "text-green-600" : "text-destructive"
               )}
             >
-              ₹{balance.toLocaleString()}
+              {formatCurrency(balance)}
             </div>
             <p className="text-xs text-muted-foreground">
               Received - Spent
@@ -223,13 +258,13 @@ function OverviewTab({ project }: { project: Project }) {
           <div className="grid grid-cols-3 gap-4 pt-2">
             <div className="rounded-md border p-3 text-center">
               <p className="text-2xl font-bold text-green-600">
-                ₹{received.toLocaleString()}
+                {formatCurrency(received)}
               </p>
               <p className="text-xs text-muted-foreground">Received</p>
             </div>
             <div className="rounded-md border p-3 text-center">
               <p className="text-2xl font-bold text-red-600">
-                ₹{spent.toLocaleString()}
+                {formatCurrency(spent)}
               </p>
               <p className="text-xs text-muted-foreground">Spent</p>
             </div>
@@ -240,7 +275,7 @@ function OverviewTab({ project }: { project: Project }) {
                   balance >= 0 ? "text-blue-600" : "text-destructive"
                 )}
               >
-                ₹{Math.abs(balance).toLocaleString()}
+                {formatCurrency(Math.abs(balance))}
               </p>
               <p className="text-xs text-muted-foreground">
                 {balance >= 0 ? "Available" : "Over Budget"}
@@ -249,6 +284,58 @@ function OverviewTab({ project }: { project: Project }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Cost Breakdown */}
+      {spent > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Cost Breakdown</CardTitle>
+            <CardDescription>
+              How expenses are distributed across categories
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-md border p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <HardHat className="h-4 w-4 text-orange-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Labor</span>
+                </div>
+                <p className="text-xl font-bold text-orange-600">
+                  {formatCurrency(laborCost)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {spent > 0 ? Math.round((laborCost / spent) * 100) : 0}% of spend
+                </p>
+              </div>
+              <div className="rounded-md border p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <DollarSign className="h-4 w-4 text-purple-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Materials</span>
+                </div>
+                <p className="text-xl font-bold text-purple-600">
+                  {formatCurrency(materialCost)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {spent > 0 ? Math.round((materialCost / spent) * 100) : 0}% of spend
+                </p>
+              </div>
+              <div className="rounded-md border p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Clock className="h-4 w-4 text-gray-600" />
+                  <span className="text-xs font-medium text-muted-foreground">Other</span>
+                </div>
+                <p className="text-xl font-bold text-gray-600">
+                  {formatCurrency(otherCost)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {spent > 0 ? Math.round((otherCost / spent) * 100) : 0}% of spend
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
@@ -317,7 +404,7 @@ function SprintsTab({
         ) {
           const total = sprintEnd.getTime() - sprintStart.getTime()
           const elapsed = now.getTime() - sprintStart.getTime()
-          progress = Math.min(Math.max(Math.round((elapsed / total) * 100), 0), 100)
+          progress = total > 0 ? Math.min(Math.max(Math.round((elapsed / total) * 100), 0), 100) : 0
         }
 
         return (
@@ -485,9 +572,9 @@ function FinanceTab({ projectId }: { projectId: string }) {
     },
   })
 
-  const totalReceived = wallet?.total_received ?? 0
-  const totalSpent = wallet?.total_spent ?? 0
-  const balance = wallet?.current_balance ?? totalReceived - totalSpent
+  const totalReceived = Number(wallet?.total_received ?? 0)
+  const totalSpent = Number(wallet?.total_spent ?? 0)
+  const balance = Number(wallet?.current_balance ?? totalReceived - totalSpent)
 
   return (
     <div className="space-y-6">
@@ -502,7 +589,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ₹{totalReceived.toLocaleString()}
+              {formatCurrency(totalReceived)}
             </div>
           </CardContent>
         </Card>
@@ -514,7 +601,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              ₹{totalSpent.toLocaleString()}
+              {formatCurrency(totalSpent)}
             </div>
           </CardContent>
         </Card>
@@ -533,7 +620,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
                 balance >= 0 ? "text-blue-600" : "text-destructive"
               )}
             >
-              ₹{Math.abs(balance).toLocaleString()}
+              {formatCurrency(Math.abs(balance))}
             </div>
             {balance < 0 && (
               <p className="text-xs text-destructive">Over budget</p>
@@ -715,8 +802,8 @@ function FinanceTab({ projectId }: { projectId: string }) {
                             : "text-red-600"
                         )}
                       >
-                        {txn.category === "INFLOW" ? "+" : "-"}₹
-                        {txn.amount.toLocaleString()}
+                        {txn.category === "INFLOW" ? "+" : "-"}
+                        {formatCurrency(txn.amount)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -1021,7 +1108,7 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
                   </TableCell>
                   <TableCell className="text-sm">{vo.description}</TableCell>
                   <TableCell className="font-medium">
-                    ₹{vo.additional_cost.toLocaleString()}
+                    {formatCurrency(vo.additional_cost)}
                   </TableCell>
                   <TableCell>{getVOStatusBadge(vo.status)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -1085,6 +1172,407 @@ function VariationOrdersTab({ projectId }: { projectId: string }) {
           </Table>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---- Labor Tab ----
+
+const logAttendanceSchema = z.object({
+  team_id: z.string().min(1, "Select a team"),
+  sprint_id: z.string().min(1, "Select a sprint"),
+  date: z.string().min(1, "Date is required"),
+  workers_present: z.coerce.number().min(1, "At least 1 worker required"),
+  total_hours: z.coerce.number().min(0.5, "Minimum 0.5 hours").max(24),
+  notes: z.string().optional(),
+})
+
+type LogAttendanceFormValues = z.infer<typeof logAttendanceSchema>
+
+function getAttendanceStatusBadge(status: AttendanceStatus) {
+  switch (status) {
+    case "PAID":
+      return <Badge variant="success">Paid</Badge>
+    case "APPROVED_BY_MANAGER":
+      return <Badge variant="default">Approved</Badge>
+    case "PENDING":
+      return <Badge variant="warning">Pending</Badge>
+    default:
+      return <Badge variant="secondary">{status}</Badge>
+  }
+}
+
+function LaborTab({
+  projectId,
+  sprints,
+}: {
+  projectId: string
+  sprints: Sprint[]
+}) {
+  const [logOpen, setLogOpen] = useState(false)
+  const [sprintFilter, setSprintFilter] = useState<string>("all")
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+
+  const { data: attendanceLogs = [], isLoading } = useQuery<AttendanceLog[]>({
+    queryKey: ["project-attendance", projectId, sprintFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ project_id: projectId })
+      if (sprintFilter !== "all") {
+        params.set("sprint_id", sprintFilter)
+      }
+      const response = await api.get(`/labor/attendance?${params.toString()}`)
+      return response.data.items ?? response.data
+    },
+  })
+
+  const { data: teams = [] } = useQuery<LaborTeam[]>({
+    queryKey: ["labor-teams"],
+    queryFn: async () => {
+      const response = await api.get("/labor/teams")
+      return response.data.items ?? response.data
+    },
+  })
+
+  const attendanceForm = useForm<LogAttendanceFormValues>({
+    resolver: zodResolver(logAttendanceSchema),
+    defaultValues: {
+      team_id: "",
+      sprint_id: "",
+      date: format(new Date(), "yyyy-MM-dd"),
+      workers_present: 1,
+      total_hours: 8,
+      notes: "",
+    },
+  })
+
+  const logMutation = useMutation({
+    mutationFn: async (data: LogAttendanceFormValues) => {
+      await api.post("/labor/attendance", {
+        project_id: projectId,
+        ...data,
+        notes: data.notes || undefined,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["project-attendance", projectId],
+      })
+      setLogOpen(false)
+      attendanceForm.reset({
+        team_id: "",
+        sprint_id: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        workers_present: 1,
+        total_hours: 8,
+        notes: "",
+      })
+      toast({
+        title: "Attendance logged",
+        description: "Daily attendance has been recorded successfully.",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to log attendance. Check inputs and try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const activeSprint = sprints.find((s) => s.status === "ACTIVE")
+
+  const teamMap = new Map(teams.map((t) => [t.id, t]))
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+            <HardHat className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceLogs.length}</div>
+            <p className="text-xs text-muted-foreground">Attendance records</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Labor Cost</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(
+                attendanceLogs.reduce(
+                  (sum, log) => sum + Number(log.calculated_cost ?? 0),
+                  0
+                )
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Across all teams</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Teams Active</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {new Set(attendanceLogs.map((l) => l.team_id)).size}
+            </div>
+            <p className="text-xs text-muted-foreground">Unique teams logged</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters + Log Button */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Select value={sprintFilter} onValueChange={setSprintFilter}>
+          <SelectTrigger className="w-[250px]">
+            <SelectValue placeholder="All Sprints" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sprints</SelectItem>
+            {[...sprints]
+              .sort((a, b) => a.sequence_order - b.sequence_order)
+              .map((sprint) => (
+                <SelectItem key={sprint.id} value={sprint.id}>
+                  {sprint.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+
+        <Dialog open={logOpen} onOpenChange={setLogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Log Attendance
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Log Daily Attendance</DialogTitle>
+              <DialogDescription>
+                Record attendance for a labor team working on this project.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={attendanceForm.handleSubmit((data) =>
+                logMutation.mutate(data)
+              )}
+            >
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Labor Team</Label>
+                  <Select
+                    value={attendanceForm.watch("team_id")}
+                    onValueChange={(v) => attendanceForm.setValue("team_id", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.map((team) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name} ({team.specialization})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {attendanceForm.formState.errors.team_id && (
+                    <p className="text-xs text-destructive">
+                      {attendanceForm.formState.errors.team_id.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Sprint</Label>
+                  <Select
+                    value={attendanceForm.watch("sprint_id")}
+                    onValueChange={(v) =>
+                      attendanceForm.setValue("sprint_id", v)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sprint" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[...sprints]
+                        .sort((a, b) => a.sequence_order - b.sequence_order)
+                        .map((sprint) => (
+                          <SelectItem key={sprint.id} value={sprint.id}>
+                            {sprint.name}
+                            {sprint.id === activeSprint?.id ? " (Active)" : ""}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {attendanceForm.formState.errors.sprint_id && (
+                    <p className="text-xs text-destructive">
+                      {attendanceForm.formState.errors.sprint_id.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="att_date">Date</Label>
+                    <Input
+                      id="att_date"
+                      type="date"
+                      {...attendanceForm.register("date")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="att_workers">Workers</Label>
+                    <Input
+                      id="att_workers"
+                      type="number"
+                      min={1}
+                      {...attendanceForm.register("workers_present")}
+                    />
+                    {attendanceForm.formState.errors.workers_present && (
+                      <p className="text-xs text-destructive">
+                        {attendanceForm.formState.errors.workers_present.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="att_hours">Hours</Label>
+                    <Input
+                      id="att_hours"
+                      type="number"
+                      step="0.5"
+                      min={0.5}
+                      max={24}
+                      {...attendanceForm.register("total_hours")}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="att_notes">Notes (optional)</Label>
+                  <Input
+                    id="att_notes"
+                    placeholder="e.g., Completed wardrobe framing in master bedroom"
+                    {...attendanceForm.register("notes")}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={logMutation.isPending}>
+                  {logMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Log Attendance
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Attendance Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Attendance Records</CardTitle>
+          <CardDescription>
+            Daily labor attendance logged for this project
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Workers</TableHead>
+                  <TableHead>Hours</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : attendanceLogs.length ? (
+                  attendanceLogs.map((log) => {
+                    const team = teamMap.get(log.team_id)
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-sm">
+                          {format(new Date(log.date), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">
+                              {team?.name ?? log.team?.name ?? "Unknown"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {team?.specialization ??
+                                log.team?.specialization ??
+                                ""}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{log.workers_present}</TableCell>
+                        <TableCell>{log.total_hours}h</TableCell>
+                        <TableCell className="font-semibold">
+                          {formatCurrency(log.calculated_cost)}
+                        </TableCell>
+                        <TableCell>
+                          {getAttendanceStatusBadge(log.status)}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                          {log.notes ?? "—"}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <HardHat className="h-8 w-8 text-muted-foreground" />
+                        <p className="text-muted-foreground">
+                          No attendance records for this project
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Click &quot;Log Attendance&quot; to record daily labor
+                          attendance
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -1173,11 +1661,12 @@ export default function ProjectDetailPage() {
             <TabsTrigger value="sprints">Sprints</TabsTrigger>
             <TabsTrigger value="finance">Finance</TabsTrigger>
             <TabsTrigger value="daily-logs">Daily Logs</TabsTrigger>
+            <TabsTrigger value="labor">Labor</TabsTrigger>
             <TabsTrigger value="variation-orders">Variation Orders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
-            <OverviewTab project={project} />
+            <OverviewTab project={project} projectId={projectId} />
           </TabsContent>
 
           <TabsContent value="sprints">
@@ -1193,6 +1682,13 @@ export default function ProjectDetailPage() {
 
           <TabsContent value="daily-logs">
             <DailyLogsTab projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="labor">
+            <LaborTab
+              projectId={projectId}
+              sprints={project.sprints ?? []}
+            />
           </TabsContent>
 
           <TabsContent value="variation-orders">

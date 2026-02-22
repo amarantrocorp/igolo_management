@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from "date-fns"
+import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 import RoleGuard from "@/components/auth/role-guard"
-import type { Project, AttendanceLog, LaborTeam } from "@/types"
+import type { Project } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -38,19 +39,22 @@ import {
   DollarSign,
   CheckCircle,
   Clock,
+  ExternalLink,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { formatCurrency } from "@/lib/utils"
 
 interface PayrollEntry {
   team_id: string
   team_name: string
   specialization: string
+  project_id: string
+  project_name: string
   days_worked: number
   total_workers: number
   total_hours: number
   calculated_cost: number
   status: string
-  logs: AttendanceLog[]
 }
 
 interface PayrollSummary {
@@ -78,6 +82,7 @@ export default function PayrollPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const router = useRouter()
 
   const currentDate = new Date()
   const targetDate = weekOffset === 0
@@ -113,31 +118,47 @@ export default function PayrollPage() {
   })
 
   const approveMutation = useMutation({
-    mutationFn: async (teamId: string) => {
-      await api.post("/labor/payroll/approve", {
+    mutationFn: async ({
+      teamId,
+      projectId,
+    }: {
+      teamId: string
+      projectId: string
+    }) => {
+      const params = new URLSearchParams({
         team_id: teamId,
         week_start: format(weekStart, "yyyy-MM-dd"),
         week_end: format(weekEnd, "yyyy-MM-dd"),
-        project_id: selectedProject !== "all" ? selectedProject : undefined,
+        project_id: projectId,
       })
+      await api.post(`/labor/payroll/approve?${params.toString()}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payroll"] })
-      toast({ title: "Payroll approved", description: "Team payout has been approved and recorded." })
+      toast({
+        title: "Payroll approved",
+        description:
+          "Team payout has been approved and deducted from project wallet.",
+      })
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to approve payroll. Ensure project has sufficient funds.",
+        description:
+          "Failed to approve payroll. Ensure project has sufficient funds.",
         variant: "destructive",
       })
     },
   })
 
   const entries = payrollData?.entries ?? []
-  const totalCost = payrollData?.total_cost ?? 0
-  const totalApproved = payrollData?.total_approved ?? 0
-  const totalPending = payrollData?.total_pending ?? 0
+  const totalCost = Number(payrollData?.total_cost ?? 0)
+  const totalApproved = Number(payrollData?.total_approved ?? 0)
+  const totalPending = Number(payrollData?.total_pending ?? 0)
+
+  // Determine column count based on whether we show the project column
+  const showProjectColumn = selectedProject === "all"
+  const colSpan = showProjectColumn ? 9 : 8
 
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER", "SUPERVISOR"]}>
@@ -203,7 +224,7 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₹{totalCost.toLocaleString()}
+                {formatCurrency(totalCost)}
               </div>
               <p className="text-xs text-muted-foreground">
                 For selected week
@@ -218,10 +239,10 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ₹{totalApproved.toLocaleString()}
+                {formatCurrency(totalApproved)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Ready for payout
+                Deducted from project wallets
               </p>
             </CardContent>
           </Card>
@@ -233,7 +254,7 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                ₹{totalPending.toLocaleString()}
+                {formatCurrency(totalPending)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Awaiting approval
@@ -245,9 +266,12 @@ export default function PayrollPage() {
         {/* Payroll Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Attendance Summary by Team</CardTitle>
+            <CardTitle className="text-lg">
+              Attendance Summary by Team
+            </CardTitle>
             <CardDescription>
               Grouped labor attendance for the selected week
+              {showProjectColumn ? " across all projects" : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -256,6 +280,7 @@ export default function PayrollPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Team Name</TableHead>
+                    {showProjectColumn && <TableHead>Project</TableHead>}
                     <TableHead>Specialization</TableHead>
                     <TableHead>Days Worked</TableHead>
                     <TableHead>Avg. Workers/Day</TableHead>
@@ -268,16 +293,33 @@ export default function PayrollPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={colSpan} className="h-24 text-center">
                         <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                       </TableCell>
                     </TableRow>
                   ) : entries.length ? (
                     entries.map((entry) => (
-                      <TableRow key={entry.team_id}>
+                      <TableRow
+                        key={`${entry.team_id}-${entry.project_id}`}
+                      >
                         <TableCell className="font-medium">
                           {entry.team_name}
                         </TableCell>
+                        {showProjectColumn && (
+                          <TableCell>
+                            <button
+                              className="flex items-center gap-1 text-sm text-primary hover:underline"
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/projects/${entry.project_id}`
+                                )
+                              }
+                            >
+                              {entry.project_name}
+                              <ExternalLink className="h-3 w-3" />
+                            </button>
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Badge variant="outline">
                             {entry.specialization}
@@ -287,7 +329,7 @@ export default function PayrollPage() {
                         <TableCell>{entry.total_workers}</TableCell>
                         <TableCell>{entry.total_hours}h</TableCell>
                         <TableCell className="font-semibold">
-                          ₹{entry.calculated_cost.toLocaleString()}
+                          {formatCurrency(entry.calculated_cost)}
                         </TableCell>
                         <TableCell>{getStatusBadge(entry.status)}</TableCell>
                         <TableCell>
@@ -295,7 +337,10 @@ export default function PayrollPage() {
                             <Button
                               size="sm"
                               onClick={() =>
-                                approveMutation.mutate(entry.team_id)
+                                approveMutation.mutate({
+                                  teamId: entry.team_id,
+                                  projectId: entry.project_id,
+                                })
                               }
                               disabled={approveMutation.isPending}
                             >
@@ -320,14 +365,15 @@ export default function PayrollPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={colSpan} className="h-24 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <HardHat className="h-8 w-8 text-muted-foreground" />
                           <p className="text-muted-foreground">
                             No attendance records for this week
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Select a different week or project to view payroll data
+                            Select a different week or project to view payroll
+                            data
                           </p>
                         </div>
                       </TableCell>

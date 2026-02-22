@@ -1,6 +1,9 @@
 "use client"
 
 import { useAuthStore } from "@/store/auth-store"
+import { useQuery } from "@tanstack/react-query"
+import { format, startOfWeek, endOfWeek } from "date-fns"
+import api from "@/lib/api"
 import {
   Card,
   CardContent,
@@ -18,8 +21,11 @@ import {
   ClipboardCheck,
   Clock,
   AlertCircle,
+  HardHat,
+  Package,
 } from "lucide-react"
-import type { UserRole } from "@/types"
+import type { UserRole, Item } from "@/types"
+import { formatCurrency } from "@/lib/utils"
 import { GlowCard } from "@/components/ui/aceternity/moving-border"
 
 interface DashboardStats {
@@ -74,7 +80,41 @@ function StatCard({
   )
 }
 
+interface PayrollSummary {
+  entries: { team_id: string; project_id: string; calculated_cost: number; status: string }[]
+  total_cost: number
+  total_approved: number
+  total_pending: number
+}
+
 function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
+  const now = new Date()
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
+
+  const { data: payroll } = useQuery<PayrollSummary>({
+    queryKey: ["dashboard-payroll", format(weekStart, "yyyy-MM-dd")],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        week_start: format(weekStart, "yyyy-MM-dd"),
+        week_end: format(weekEnd, "yyyy-MM-dd"),
+      })
+      const response = await api.get(`/labor/payroll?${params.toString()}`)
+      return response.data
+    },
+  })
+
+  const pendingPayroll = Number(payroll?.total_pending ?? 0)
+  const pendingEntries = payroll?.entries?.filter((e) => e.status === "PENDING").length ?? 0
+
+  const { data: lowStockItems = [] } = useQuery<Item[]>({
+    queryKey: ["dashboard-low-stock"],
+    queryFn: async () => {
+      const response = await api.get("/inventory/items?low_stock=true&limit=5")
+      return response.data.items ?? response.data
+    },
+  })
+
   return (
     <div className="space-y-6">
       <div>
@@ -89,7 +129,7 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
           { title: "Total Leads", value: stats.total_leads ?? 0, description: "Active leads in pipeline", icon: Users, trend: "+12% from last month" },
           { title: "Active Projects", value: stats.active_projects ?? 0, description: "Projects in progress", icon: FolderKanban },
           { title: "Pending Approvals", value: stats.pending_approvals ?? 0, description: "Awaiting your action", icon: ClipboardCheck },
-          { title: "Revenue", value: `₹ ${(stats.total_revenue ?? 0).toLocaleString()}`, description: "Total received this month", icon: DollarSign, trend: "+8% from last month" },
+          { title: "Revenue", value: formatCurrency(stats.total_revenue), description: "Total received this month", icon: DollarSign, trend: "+8% from last month" },
         ].map((card) => (
           <StatCard key={card.title} {...card} />
         ))}
@@ -107,22 +147,22 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
                 Total Received
               </span>
               <span className="font-semibold text-green-600">
-                ₹{(stats.total_revenue ?? 0).toLocaleString()}
+                {formatCurrency(stats.total_revenue)}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Total Spent</span>
               <span className="font-semibold text-red-600">
-                ₹{(stats.total_spent ?? 0).toLocaleString()}
+                {formatCurrency(stats.total_spent)}
               </span>
             </div>
             <div className="border-t pt-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Net Balance</span>
                 <span className="font-bold">
-                  ₹{(
-                    (stats.total_revenue ?? 0) - (stats.total_spent ?? 0)
-                  ).toLocaleString()}
+                  {formatCurrency(
+                    Number(stats.total_revenue ?? 0) - Number(stats.total_spent ?? 0)
+                  )}
                 </span>
               </div>
             </div>
@@ -146,6 +186,34 @@ function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
                 </p>
               </div>
             </div>
+            {pendingPayroll > 0 && (
+              <div className="flex items-center gap-3 rounded-md border border-orange-200 bg-orange-50/50 p-3 transition-colors hover:border-gold/30 hover:bg-gold/5 dark:border-orange-900/30 dark:bg-orange-950/20">
+                <HardHat className="h-4 w-4 text-orange-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {formatCurrency(pendingPayroll)} pending payroll
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {pendingEntries} team{pendingEntries !== 1 ? "s" : ""} awaiting
+                    approval this week
+                  </p>
+                </div>
+              </div>
+            )}
+            {lowStockItems.length > 0 && (
+              <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50/50 p-3 transition-colors hover:border-gold/30 hover:bg-gold/5 dark:border-red-900/30 dark:bg-red-950/20">
+                <Package className="h-4 w-4 text-red-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {lowStockItems.length} item{lowStockItems.length !== 1 ? "s" : ""} low on stock
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {lowStockItems.slice(0, 3).map((i) => i.name).join(", ")}
+                    {lowStockItems.length > 3 ? "..." : ""}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3 rounded-md border p-3 transition-colors hover:border-gold/30 hover:bg-gold/5">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div className="flex-1">

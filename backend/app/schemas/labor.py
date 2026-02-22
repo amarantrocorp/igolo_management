@@ -95,9 +95,21 @@ class AttendanceLogResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class PayrollSummary(BaseModel):
+class PayrollEntry(BaseModel):
     team_id: UUID
     team_name: str
-    total_days: int
-    total_cost: Decimal
+    specialization: str
+    project_id: UUID
+    project_name: str
+    days_worked: int
+    total_workers: int
+    total_hours: float
+    calculated_cost: Decimal
     status: str
+
+
+class PayrollWeeklySummary(BaseModel):
+    entries: List[PayrollEntry]
+    total_cost: Decimal
+    total_approved: Decimal
+    total_pending: Decimal

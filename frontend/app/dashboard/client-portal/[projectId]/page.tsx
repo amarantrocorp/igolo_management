@@ -40,7 +40,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 
 function getSprintStatusBadge(status: SprintStatus) {
   switch (status) {
@@ -107,8 +107,8 @@ export default function ClientPortalPage() {
     )
   }
 
-  const totalValue = project.total_project_value
-  const received = project.wallet?.total_received ?? 0
+  const totalValue = Number(project.total_project_value ?? 0)
+  const received = Number(project.wallet?.total_received ?? 0)
   const sortedSprints = [...(project.sprints ?? [])].sort(
     (a, b) => a.sequence_order - b.sequence_order
   )
@@ -116,7 +116,7 @@ export default function ClientPortalPage() {
     (s) => s.status === "COMPLETED"
   ).length
   const totalSprints = sortedSprints.length || 6
-  const progressPercent = Math.round((completedSprints / totalSprints) * 100)
+  const progressPercent = totalSprints > 0 ? Math.round((completedSprints / totalSprints) * 100) : 0
 
   const clientPayments = transactions.filter(
     (t) => t.category === "INFLOW" && t.source === "CLIENT"
@@ -174,10 +174,10 @@ export default function ClientPortalPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₹{totalValue.toLocaleString()}
+                {formatCurrency(totalValue)}
               </div>
               <p className="text-xs text-muted-foreground">
-                ₹{received.toLocaleString()} paid so far
+                {formatCurrency(received)} paid so far
               </p>
             </CardContent>
           </Card>
@@ -401,7 +401,7 @@ export default function ClientPortalPage() {
                           {payment.description}
                         </TableCell>
                         <TableCell className="font-medium text-green-600">
-                          ₹{payment.amount.toLocaleString()}
+                          {formatCurrency(payment.amount)}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -428,15 +428,15 @@ export default function ClientPortalPage() {
               <div>
                 <p className="text-sm font-medium">Total Paid</p>
                 <p className="text-xs text-muted-foreground">
-                  Out of ₹{totalValue.toLocaleString()} project value
+                  Out of {formatCurrency(totalValue)} project value
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-green-600">
-                  ₹{received.toLocaleString()}
+                  {formatCurrency(received)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  ₹{(totalValue - received).toLocaleString()} remaining
+                  {formatCurrency(totalValue - received)} remaining
                 </p>
               </div>
             </div>

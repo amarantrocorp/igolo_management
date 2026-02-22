@@ -25,6 +25,7 @@ import {
   Plus,
   ExternalLink,
 } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 const QUOTE_STATUSES: QuoteStatus[] = [
   "DRAFT",
@@ -163,10 +164,7 @@ export default function QuotesPage() {
                       <Badge variant="outline">v{q.version}</Badge>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      {Number(q.total_amount).toLocaleString("en-IN", {
-                        style: "currency",
-                        currency: "INR",
-                      })}
+                      {formatCurrency(q.total_amount)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(q.status)}>

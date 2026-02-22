@@ -169,32 +169,41 @@ export interface QuoteFormValues {
 export interface Item {
   id: string
   name: string
+  sku?: string
   category: string
   unit: string
   base_price: number
   selling_price: number
   current_stock: number
   reorder_level: number
+  image_url?: string
+  is_low_stock?: boolean
+  supplier_count?: number
   suppliers?: VendorItem[]
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface Vendor {
   id: string
   name: string
-  contact_info: string
+  contact_person?: string
+  phone?: string
+  email?: string
+  address?: string
+  gst_number?: string
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface VendorItem {
   id: string
   vendor_id: string
-  vendor?: Vendor
+  vendor_name?: string
   item_id: string
-  item?: Item
-  unit_price: number
+  vendor_price: number
+  lead_time_days?: number
+  created_at: string
 }
 
 export type POStatus = "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED"
@@ -202,22 +211,23 @@ export type POStatus = "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED"
 export interface PurchaseOrder {
   id: string
   vendor_id: string
-  vendor?: Vendor
+  vendor_name?: string
   status: POStatus
   is_project_specific: boolean
   project_id?: string
   project?: Project
   items: POItem[]
   total_amount: number
+  notes?: string
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface POItem {
   id: string
-  purchase_order_id: string
+  purchase_order_id?: string
   item_id: string
-  item?: Item
+  item_name?: string
   quantity: number
   unit_price: number
   total_price: number
@@ -232,13 +242,13 @@ export type StockTransactionType =
 export interface StockTransaction {
   id: string
   item_id: string
-  item?: Item
   quantity: number
   transaction_type: StockTransactionType
-  reference_id: string
+  reference_id?: string
   performed_by: string
-  timestamp: string
   unit_cost_at_time: number
+  notes?: string
+  created_at: string
 }
 
 // ============================================================
@@ -375,6 +385,8 @@ export type LaborSpecialization =
   | "CARPENTRY"
   | "PAINTING"
   | "ELECTRICAL"
+  | "PLUMBING"
+  | "GENERAL"
 
 export type PaymentModel = "DAILY_WAGE" | "CONTRACT_FIXED"
 
@@ -393,6 +405,7 @@ export interface LaborTeam {
   specialization: LaborSpecialization
   payment_model: PaymentModel
   default_daily_rate: number
+  supervisor_id?: string
   workers?: Worker[]
   created_at: string
   updated_at: string
@@ -405,6 +418,7 @@ export interface Worker {
   name: string
   skill_level: SkillLevel
   daily_rate: number
+  phone?: string
   created_at: string
   updated_at: string
 }
@@ -421,6 +435,8 @@ export interface AttendanceLog {
   calculated_cost: number
   status: AttendanceStatus
   site_photo_url?: string
+  notes?: string
+  logged_by_id?: string
   created_at: string
   updated_at: string
 }

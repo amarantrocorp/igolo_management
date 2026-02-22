@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation"
 import api from "@/lib/api"
 import RoleGuard from "@/components/auth/role-guard"
 import QuotePreview from "@/components/sales/quote-preview"
-import type { Lead } from "@/types"
+import type { Lead, Item } from "@/types"
 import type { QuoteItemForm, QuoteRoomForm } from "@/types/quote"
 import { calcItemTotal, calcRoomTotal, formatINR } from "@/types/quote"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -19,6 +20,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Table,
   TableBody,
@@ -38,6 +45,8 @@ import {
   EyeOff,
   Printer,
   AlertTriangle,
+  Package,
+  Search,
 } from "lucide-react"
 
 function newItem(): QuoteItemForm {
@@ -82,6 +91,49 @@ export default function NewQuotePage() {
       return res.data.items ?? res.data
     },
   })
+
+  // Fetch inventory items for picker
+  const { data: inventoryItems = [] } = useQuery<Item[]>({
+    queryKey: ["inventory-for-quote"],
+    queryFn: async () => {
+      const res = await api.get("/inventory/items?limit=200")
+      return res.data.items ?? res.data
+    },
+  })
+
+  // Item picker state
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerRoomId, setPickerRoomId] = useState("")
+  const [pickerSearch, setPickerSearch] = useState("")
+  const [pickerCategory, setPickerCategory] = useState("all")
+
+  const openPicker = useCallback((roomId: string) => {
+    setPickerRoomId(roomId)
+    setPickerSearch("")
+    setPickerCategory("all")
+    setPickerOpen(true)
+  }, [])
+
+  const pickItem = useCallback(
+    (invItem: Item) => {
+      const item: QuoteItemForm = {
+        id: crypto.randomUUID(),
+        description: invItem.name,
+        quantity: "1",
+        unit: invItem.unit,
+        unit_price: invItem.selling_price.toString(),
+        markup_percentage: "0",
+        inventory_item_id: invItem.id,
+      }
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.id === pickerRoomId ? { ...r, items: [...r.items, item] } : r
+        )
+      )
+      setPickerOpen(false)
+    },
+    [pickerRoomId]
+  )
 
   // Create mutation
   const createMutation = useMutation({
@@ -196,6 +248,7 @@ export default function NewQuotePage() {
             unit: item.unit,
             unit_price: parseFloat(item.unit_price),
             markup_percentage: parseFloat(item.markup_percentage) || 0,
+            inventory_item_id: item.inventory_item_id || undefined,
           })),
         })),
       }
@@ -404,23 +457,31 @@ export default function NewQuotePage() {
                       {room.items.map((item, ii) => (
                         <TableRow key={item.id}>
                           <TableCell>
-                            <Input
-                              placeholder="Item description"
-                              value={item.description}
-                              onChange={(e) =>
-                                updateItem(
-                                  room.id,
-                                  item.id,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                              className={
-                                errors[`room_${ri}_item_${ii}_desc`]
-                                  ? "border-destructive"
-                                  : ""
-                              }
-                            />
+                            <div className="space-y-1">
+                              <Input
+                                placeholder="Item description"
+                                value={item.description}
+                                onChange={(e) =>
+                                  updateItem(
+                                    room.id,
+                                    item.id,
+                                    "description",
+                                    e.target.value
+                                  )
+                                }
+                                className={
+                                  errors[`room_${ri}_item_${ii}_desc`]
+                                    ? "border-destructive"
+                                    : ""
+                                }
+                              />
+                              {item.inventory_item_id && (
+                                <Badge variant="secondary" className="text-[10px] gap-1">
+                                  <Package className="h-2.5 w-2.5" />
+                                  Warehouse Item
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -522,15 +583,26 @@ export default function NewQuotePage() {
                   </p>
                 )}
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addItem(room.id)}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add Item
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addItem(room.id)}
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add Custom Item
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openPicker(room.id)}
+                  >
+                    <Package className="mr-1.5 h-3.5 w-3.5" />
+                    Pick from Inventory
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -599,6 +671,85 @@ export default function NewQuotePage() {
           </div>
         )}
       </div>
+
+      {/* Inventory Item Picker Dialog */}
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-xl max-h-[70vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Pick from Inventory
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search items..."
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <select
+              value={pickerCategory}
+              onChange={(e) => setPickerCategory(e.target.value)}
+              className="flex h-10 w-[150px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All</option>
+              {Array.from(new Set(inventoryItems.map((i) => i.category))).map(
+                (cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                )
+              )}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            {inventoryItems
+              .filter((i) => {
+                if (pickerCategory !== "all" && i.category !== pickerCategory) return false
+                if (pickerSearch && !i.name.toLowerCase().includes(pickerSearch.toLowerCase())) return false
+                return true
+              })
+              .map((invItem) => {
+                const isLow = invItem.current_stock < invItem.reorder_level
+                return (
+                  <button
+                    key={invItem.id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:bg-accent"
+                    onClick={() => pickItem(invItem)}
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{invItem.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {invItem.category} &middot; {invItem.unit}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge
+                        variant={isLow ? "destructive" : "secondary"}
+                        className="text-xs"
+                      >
+                        {invItem.current_stock} in stock
+                      </Badge>
+                      <span className="text-sm font-medium">
+                        {formatINR(invItem.selling_price)}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            {inventoryItems.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No inventory items found.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </RoleGuard>
   )
 }

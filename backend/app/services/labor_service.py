@@ -47,8 +47,13 @@ async def create_labor_team(data: LaborTeamCreate, db: AsyncSession) -> LaborTea
     )
     db.add(team)
     await db.commit()
-    await db.refresh(team)
-    return team
+    # Re-fetch with workers eagerly loaded for the response model
+    result = await db.execute(
+        select(LaborTeam)
+        .options(selectinload(LaborTeam.workers))
+        .where(LaborTeam.id == team.id)
+    )
+    return result.scalar_one()
 
 
 async def get_labor_teams(
@@ -97,8 +102,13 @@ async def update_team(
 
     db.add(team)
     await db.commit()
-    await db.refresh(team)
-    return team
+    # Re-fetch with workers eagerly loaded for the response model
+    result = await db.execute(
+        select(LaborTeam)
+        .options(selectinload(LaborTeam.workers))
+        .where(LaborTeam.id == team.id)
+    )
+    return result.scalar_one()
 
 
 # ---------------------------------------------------------------------------
@@ -187,45 +197,132 @@ async def get_weekly_payroll(
     week_end: date,
     db: AsyncSession,
     project_id: UUID | None = None,
-) -> List[dict]:
-    """Get weekly payroll summary grouped by team.
+) -> dict:
+    """Get weekly payroll summary grouped by team AND project.
 
-    Optionally filter by project_id. Returns a list of dicts with team_id,
-    team_name, total_days, total_cost, and status for attendance logs within
-    the given date range.
+    Queries ALL attendance statuses in the date range, groups by
+    (team_id, project_id) so each row represents one team's work on
+    one project, and returns enriched entries with totals.
     """
+    from collections import defaultdict
+
+    from app.models.crm import Client
+    from app.models.project import Project
+
     query = (
-        select(
-            AttendanceLog.team_id,
-            LaborTeam.name.label("team_name"),
-            func.count(AttendanceLog.id).label("total_days"),
-            func.sum(AttendanceLog.calculated_cost).label("total_cost"),
+        select(AttendanceLog)
+        .options(
+            selectinload(AttendanceLog.team),
+            selectinload(AttendanceLog.project)
+            .selectinload(Project.client)
+            .selectinload(Client.user),
         )
-        .join(LaborTeam, AttendanceLog.team_id == LaborTeam.id)
         .where(
             AttendanceLog.date >= week_start,
             AttendanceLog.date <= week_end,
-            AttendanceLog.status == AttendanceStatus.PENDING,
         )
-        .group_by(AttendanceLog.team_id, LaborTeam.name)
     )
 
     if project_id is not None:
         query = query.where(AttendanceLog.project_id == project_id)
 
     result = await db.execute(query)
+    logs = list(result.scalars().all())
 
-    rows = result.all()
-    return [
-        {
-            "team_id": row.team_id,
-            "team_name": row.team_name,
-            "total_days": row.total_days,
-            "total_cost": row.total_cost,
-            "status": "PENDING",
-        }
-        for row in rows
-    ]
+    # Group by (team_id, project_id) for per-project-per-team rows
+    grouped: dict = defaultdict(list)
+    for log in logs:
+        grouped[(log.team_id, log.project_id)].append(log)
+
+    entries = []
+    total_cost = Decimal("0.00")
+    total_approved = Decimal("0.00")
+    total_pending = Decimal("0.00")
+
+    for (tid, pid), team_logs in grouped.items():
+        team = team_logs[0].team
+        proj = team_logs[0].project
+        cost = sum((lg.calculated_cost for lg in team_logs), Decimal("0.00"))
+        hours = sum(lg.total_hours for lg in team_logs)
+        workers_avg = sum(lg.workers_present for lg in team_logs) // max(len(team_logs), 1)
+        statuses = {lg.status for lg in team_logs}
+
+        if len(statuses) == 1:
+            entry_status = statuses.pop().value
+        elif AttendanceStatus.PENDING in statuses:
+            entry_status = "PENDING"
+        else:
+            entry_status = "APPROVED_BY_MANAGER"
+
+        pending_cost = sum(
+            (lg.calculated_cost for lg in team_logs if lg.status == AttendanceStatus.PENDING),
+            Decimal("0.00"),
+        )
+        approved_cost = cost - pending_cost
+
+        total_cost += cost
+        total_approved += approved_cost
+        total_pending += pending_cost
+
+        # Derive a human-readable project name from eagerly loaded chain
+        client_name = None
+        if proj and proj.client and proj.client.user:
+            client_name = proj.client.user.full_name
+        project_name = (
+            f"{client_name}'s Project" if client_name else f"Project {str(pid)[:8]}"
+        )
+
+        entries.append(
+            {
+                "team_id": tid,
+                "team_name": team.name,
+                "specialization": team.specialization.value,
+                "project_id": pid,
+                "project_name": project_name,
+                "days_worked": len(team_logs),
+                "total_workers": workers_avg,
+                "total_hours": hours,
+                "calculated_cost": cost,
+                "status": entry_status,
+            }
+        )
+
+    return {
+        "entries": entries,
+        "total_cost": total_cost,
+        "total_approved": total_approved,
+        "total_pending": total_pending,
+    }
+
+
+async def list_attendance_logs(
+    db: AsyncSession,
+    project_id: UUID | None = None,
+    sprint_id: UUID | None = None,
+    team_id: UUID | None = None,
+    status: AttendanceStatus | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    skip: int = 0,
+    limit: int = 50,
+) -> List[AttendanceLog]:
+    """List attendance logs with optional filters and pagination."""
+    query = select(AttendanceLog).options(selectinload(AttendanceLog.team))
+    if project_id:
+        query = query.where(AttendanceLog.project_id == project_id)
+    if sprint_id:
+        query = query.where(AttendanceLog.sprint_id == sprint_id)
+    if team_id:
+        query = query.where(AttendanceLog.team_id == team_id)
+    if status:
+        query = query.where(AttendanceLog.status == status)
+    if date_from:
+        query = query.where(AttendanceLog.date >= date_from)
+    if date_to:
+        query = query.where(AttendanceLog.date <= date_to)
+    query = query.order_by(AttendanceLog.date.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return list(result.scalars().all())
 
 
 async def approve_payroll(

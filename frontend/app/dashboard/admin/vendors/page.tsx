@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -43,33 +43,82 @@ import {
   Store,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
-const createVendorSchema = z.object({
+const vendorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   contact_person: z.string().min(2, "Contact person is required"),
   phone: z.string().min(1, "Phone number is required"),
   email: z.string().email("Invalid email").or(z.literal("")).optional(),
   address: z.string().optional(),
+  gst_number: z.string().optional(),
 })
 
-type CreateVendorFormValues = z.infer<typeof createVendorSchema>
+type VendorFormValues = z.infer<typeof vendorSchema>
 
-interface VendorExtended extends Vendor {
-  contact_person?: string
-  phone?: string
-  email?: string
-  address?: string
-}
+const columns: ColumnDef<Vendor>[] = [
+  {
+    accessorKey: "name",
+    header: "Vendor Name",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          {row.original.name.charAt(0).toUpperCase()}
+        </div>
+        <span className="font-medium">{row.original.name}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "contact_person",
+    header: "Contact Person",
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.contact_person || "--"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "phone",
+    header: "Phone",
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.phone || "--"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.email || "--"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "created_at",
+    header: "Added",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {row.original.created_at
+          ? new Date(row.original.created_at).toLocaleDateString()
+          : "--"}
+      </span>
+    ),
+  },
+]
 
 export default function VendorsPage() {
-  const [open, setOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editVendor, setEditVendor] = useState<Vendor | null>(null)
   const [globalFilter, setGlobalFilter] = useState("")
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
-  const { data: vendors = [], isLoading } = useQuery<VendorExtended[]>({
+  const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
     queryKey: ["vendors"],
     queryFn: async () => {
       const response = await api.get("/inventory/vendors")
@@ -77,18 +126,38 @@ export default function VendorsPage() {
     },
   })
 
+  const createForm = useForm<VendorFormValues>({
+    resolver: zodResolver(vendorSchema),
+    defaultValues: {
+      name: "",
+      contact_person: "",
+      phone: "",
+      email: "",
+      address: "",
+      gst_number: "",
+    },
+  })
+
+  const editForm = useForm<VendorFormValues>({
+    resolver: zodResolver(vendorSchema),
+  })
+
   const createMutation = useMutation({
-    mutationFn: async (data: CreateVendorFormValues) => {
+    mutationFn: async (data: VendorFormValues) => {
       const response = await api.post("/inventory/vendors", {
         name: data.name,
-        contact_info: `${data.contact_person} | ${data.phone}${data.email ? ` | ${data.email}` : ""}`,
+        contact_person: data.contact_person,
+        phone: data.phone,
+        email: data.email || null,
+        address: data.address || null,
+        gst_number: data.gst_number || null,
       })
       return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors"] })
-      setOpen(false)
-      form.reset()
+      setCreateOpen(false)
+      createForm.reset()
       toast({ title: "Vendor added", description: "New vendor created successfully." })
     },
     onError: () => {
@@ -100,95 +169,67 @@ export default function VendorsPage() {
     },
   })
 
-  const form = useForm<CreateVendorFormValues>({
-    resolver: zodResolver(createVendorSchema),
-    defaultValues: {
-      name: "",
-      contact_person: "",
-      phone: "",
-      email: "",
-      address: "",
+  const editMutation = useMutation({
+    mutationFn: async (data: VendorFormValues) => {
+      const response = await api.put(`/inventory/vendors/${editVendor!.id}`, {
+        name: data.name,
+        contact_person: data.contact_person,
+        phone: data.phone,
+        email: data.email || null,
+        address: data.address || null,
+        gst_number: data.gst_number || null,
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] })
+      setEditVendor(null)
+      toast({ title: "Vendor updated", description: "Vendor details saved." })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update vendor. Please try again.",
+        variant: "destructive",
+      })
     },
   })
 
-  const columns: ColumnDef<VendorExtended>[] = [
-    {
-      accessorKey: "name",
-      header: "Vendor Name",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-            {row.original.name.charAt(0).toUpperCase()}
-          </div>
-          <span className="font-medium">{row.original.name}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "contact_info",
-      header: "Contact Info",
-      cell: ({ row }) => {
-        const info = row.original.contact_info || ""
-        const parts = info.split(" | ")
-        return (
-          <div className="space-y-0.5">
-            {parts[0] && (
-              <p className="text-sm">{parts[0]}</p>
-            )}
-            {parts[1] && (
-              <p className="text-xs text-muted-foreground">{parts[1]}</p>
-            )}
-          </div>
-        )
+  const allColumns = useMemo<ColumnDef<Vendor>[]>(
+    () => [
+      ...columns,
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const v = row.original
+              editForm.reset({
+                name: v.name,
+                contact_person: v.contact_person || "",
+                phone: v.phone || "",
+                email: v.email || "",
+                address: v.address || "",
+                gst_number: v.gst_number || "",
+              })
+              setEditVendor(v)
+            }}
+          >
+            <Pencil className="mr-1 h-3 w-3" />
+            Edit
+          </Button>
+        ),
       },
-    },
-    {
-      id: "email",
-      header: "Email",
-      cell: ({ row }) => {
-        const info = row.original.contact_info || ""
-        const parts = info.split(" | ")
-        return parts[2] ? (
-          <span className="text-sm">{parts[2]}</span>
-        ) : (
-          <span className="text-sm text-muted-foreground">--</span>
-        )
-      },
-    },
-    {
-      accessorKey: "created_at",
-      header: "Added",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {row.original.created_at
-            ? new Date(row.original.created_at).toLocaleDateString()
-            : "--"}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            toast({
-              title: "Edit vendor",
-              description: `Editing ${row.original.name} is not yet implemented.`,
-            })
-          }}
-        >
-          Edit
-        </Button>
-      ),
-    },
-  ]
+    ],
+    [editForm]
+  )
 
   const table = useReactTable({
     data: vendors,
-    columns,
+    columns: allColumns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -201,8 +242,76 @@ export default function VendorsPage() {
     },
   })
 
+  function VendorFormFields({ form: f, isPending, onSubmit, onCancel, submitLabel }: {
+    form: ReturnType<typeof useForm<VendorFormValues>>
+    isPending: boolean
+    onSubmit: (data: VendorFormValues) => void
+    onCancel: () => void
+    submitLabel: string
+  }) {
+    return (
+      <form onSubmit={f.handleSubmit(onSubmit)}>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Vendor / Company Name</Label>
+            <Input placeholder="ABC Plywood Supplies" {...f.register("name")} />
+            {f.formState.errors.name && (
+              <p className="text-xs text-destructive">{f.formState.errors.name.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Contact Person</Label>
+            <Input placeholder="Rajesh Kumar" {...f.register("contact_person")} />
+            {f.formState.errors.contact_person && (
+              <p className="text-xs text-destructive">{f.formState.errors.contact_person.message}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input placeholder="+91 9876543210" {...f.register("phone")} />
+              {f.formState.errors.phone && (
+                <p className="text-xs text-destructive">{f.formState.errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Email (Optional)</Label>
+              <Input type="email" placeholder="vendor@example.com" {...f.register("email")} />
+              {f.formState.errors.email && (
+                <p className="text-xs text-destructive">{f.formState.errors.email.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>GST Number (Optional)</Label>
+            <Input placeholder="22AAAAA0000A1Z5" {...f.register("gst_number")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Address (Optional)</Label>
+            <Input placeholder="123 Industrial Area, City" {...f.register("address")} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitLabel}
+          </Button>
+        </DialogFooter>
+      </form>
+    )
+  }
+
   return (
-    <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
+    <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -215,7 +324,7 @@ export default function VendorsPage() {
             </p>
           </div>
 
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -229,96 +338,35 @@ export default function VendorsPage() {
                   Add a new supplier or vendor to the system.
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="vendor_name">Vendor / Company Name</Label>
-                    <Input
-                      id="vendor_name"
-                      placeholder="ABC Plywood Supplies"
-                      {...form.register("name")}
-                    />
-                    {form.formState.errors.name && (
-                      <p className="text-xs text-destructive">
-                        {form.formState.errors.name.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_person">Contact Person</Label>
-                    <Input
-                      id="contact_person"
-                      placeholder="Rajesh Kumar"
-                      {...form.register("contact_person")}
-                    />
-                    {form.formState.errors.contact_person && (
-                      <p className="text-xs text-destructive">
-                        {form.formState.errors.contact_person.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        placeholder="+91 9876543210"
-                        {...form.register("phone")}
-                      />
-                      {form.formState.errors.phone && (
-                        <p className="text-xs text-destructive">
-                          {form.formState.errors.phone.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="vendor_email">Email (Optional)</Label>
-                      <Input
-                        id="vendor_email"
-                        type="email"
-                        placeholder="vendor@example.com"
-                        {...form.register("email")}
-                      />
-                      {form.formState.errors.email && (
-                        <p className="text-xs text-destructive">
-                          {form.formState.errors.email.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address (Optional)</Label>
-                    <Input
-                      id="address"
-                      placeholder="123 Industrial Area, City"
-                      {...form.register("address")}
-                    />
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Add Vendor
-                  </Button>
-                </DialogFooter>
-              </form>
+              <VendorFormFields
+                form={createForm}
+                isPending={createMutation.isPending}
+                onSubmit={(data) => createMutation.mutate(data)}
+                onCancel={() => setCreateOpen(false)}
+                submitLabel="Add Vendor"
+              />
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Edit Dialog */}
+        <Dialog open={!!editVendor} onOpenChange={(open) => { if (!open) setEditVendor(null) }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Vendor</DialogTitle>
+              <DialogDescription>
+                Update vendor details.
+              </DialogDescription>
+            </DialogHeader>
+            <VendorFormFields
+              form={editForm}
+              isPending={editMutation.isPending}
+              onSubmit={(data) => editMutation.mutate(data)}
+              onCancel={() => setEditVendor(null)}
+              submitLabel="Save Changes"
+            />
+          </DialogContent>
+        </Dialog>
 
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">
@@ -353,7 +401,7 @@ export default function VendorsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={allColumns.length} className="h-24 text-center">
                     <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                   </TableCell>
                 </TableRow>
@@ -372,7 +420,7 @@ export default function VendorsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={allColumns.length} className="h-24 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Store className="h-8 w-8 text-muted-foreground" />
                       <p className="text-muted-foreground">No vendors found</p>

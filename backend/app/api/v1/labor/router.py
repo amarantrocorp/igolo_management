@@ -8,13 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user, role_required
 from app.db.session import get_db
 from app.models.user import User
+from app.models.labor import AttendanceStatus
 from app.schemas.labor import (
     AttendanceLogCreate,
     AttendanceLogResponse,
     LaborTeamCreate,
     LaborTeamResponse,
     LaborTeamUpdate,
-    PayrollSummary,
+    PayrollWeeklySummary,
     WorkerCreate,
     WorkerResponse,
 )
@@ -129,6 +130,41 @@ async def log_attendance(
     return log
 
 
+@router.get(
+    "/attendance",
+    response_model=list[AttendanceLogResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_attendance(
+    project_id: Optional[UUID] = Query(None),
+    sprint_id: Optional[UUID] = Query(None),
+    team_id: Optional[UUID] = Query(None),
+    attendance_status: Optional[str] = Query(None, alias="status"),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
+    ),
+):
+    """List attendance logs with optional filters and pagination."""
+    parsed_status = AttendanceStatus(attendance_status) if attendance_status else None
+    logs = await labor_service.list_attendance_logs(
+        db=db,
+        project_id=project_id,
+        sprint_id=sprint_id,
+        team_id=team_id,
+        status=parsed_status,
+        date_from=date_from,
+        date_to=date_to,
+        skip=skip,
+        limit=limit,
+    )
+    return logs
+
+
 # ---------------------------------------------------------------------------
 # Payroll
 # ---------------------------------------------------------------------------
@@ -136,7 +172,7 @@ async def log_attendance(
 
 @router.get(
     "/payroll",
-    response_model=list[PayrollSummary],
+    response_model=PayrollWeeklySummary,
     status_code=status.HTTP_200_OK,
 )
 async def get_payroll_summary(

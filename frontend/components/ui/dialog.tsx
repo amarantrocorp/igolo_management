@@ -1,11 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /* ------------------------------------------------------------------ */
-/*  Lightweight Dialog — no Radix, no portals                         */
+/*  Lightweight Dialog — portal-based to avoid inline render issues    */
 /* ------------------------------------------------------------------ */
 
 interface DialogContextValue {
@@ -69,9 +70,17 @@ const DialogTrigger = React.forwardRef<
 })
 DialogTrigger.displayName = "DialogTrigger"
 
-/* ---- Portal (no-op wrapper for API compat) ---- */
+/* ---- Portal ---- */
 function DialogPortal({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!mounted) return null
+  return createPortal(children, document.body)
 }
 
 /* ---- Close ---- */
@@ -113,20 +122,28 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => {
   const { open, onOpenChange } = React.useContext(DialogCtx)
 
-  // Close on Escape
+  // Close on Escape & lock body scroll
   React.useEffect(() => {
     if (!open) return
+
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false)
     }
     document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
+
+    return () => {
+      document.removeEventListener("keydown", handler)
+      document.body.style.overflow = prevOverflow
+    }
   }, [open, onOpenChange])
 
   if (!open) return null
 
   return (
-    <>
+    <DialogPortal>
       <DialogOverlay onClick={() => onOpenChange(false)} />
       <div
         ref={ref}
@@ -136,6 +153,8 @@ const DialogContent = React.forwardRef<
           "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
           className
         )}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         {...props}
       >
         {children}
@@ -148,7 +167,7 @@ const DialogContent = React.forwardRef<
           <span className="sr-only">Close</span>
         </button>
       </div>
-    </>
+    </DialogPortal>
   )
 })
 DialogContent.displayName = "DialogContent"
