@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { cn, formatCurrency } from "@/lib/utils"
+import { PageHeader, MiniStatCard } from "@/components/layout/page-header"
 
 function getSprintStatusBadge(status: SprintStatus) {
   switch (status) {
@@ -125,83 +126,37 @@ export default function ClientPortalPage() {
   return (
     <RoleGuard allowedRoles={["CLIENT", "SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            My Project
-          </h2>
-          <p className="text-muted-foreground">
-            Track progress, view updates, and manage payments
-          </p>
-        </div>
+        <PageHeader
+          icon={CheckCircle}
+          title="My Project"
+          subtitle="Track progress, view updates, and manage payments"
+          gradient="linear-gradient(135deg, #CBB282, #A8956E)"
+        />
 
         {/* Status Overview */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Project Status
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <Badge
-                variant={
-                  project.status === "IN_PROGRESS"
-                    ? "default"
-                    : project.status === "COMPLETED"
-                    ? "success"
-                    : project.status === "ON_HOLD"
-                    ? "warning"
-                    : "secondary"
-                }
-                className="text-sm"
-              >
-                {project.status.replace("_", " ")}
-              </Badge>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {completedSprints} of {totalSprints} phases complete
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Project Value
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(totalValue)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {formatCurrency(received)} paid so far
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Timeline</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm font-medium">
-                {project.start_date
-                  ? format(new Date(project.start_date), "MMM d")
-                  : "TBD"}{" "}
-                -{" "}
-                {project.expected_end_date
-                  ? format(new Date(project.expected_end_date), "MMM d, yyyy")
-                  : "TBD"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Expected completion date
-              </p>
-            </CardContent>
-          </Card>
+          <MiniStatCard
+            title="Project Status"
+            value={project.status.replace("_", " ")}
+            icon={CheckCircle}
+            gradient="linear-gradient(135deg, #10B981, #059669)"
+          />
+          <MiniStatCard
+            title="Project Value"
+            value={formatCurrency(totalValue)}
+            icon={DollarSign}
+            gradient="linear-gradient(135deg, #CBB282, #A8956E)"
+          />
+          <MiniStatCard
+            title="Timeline"
+            value={`${project.start_date
+              ? format(new Date(project.start_date), "MMM d")
+              : "TBD"} - ${project.expected_end_date
+              ? format(new Date(project.expected_end_date), "MMM d")
+              : "TBD"}`}
+            icon={Calendar}
+            gradient="linear-gradient(135deg, #6366F1, #4F46E5)"
+          />
         </div>
 
         {/* Progress Bar */}

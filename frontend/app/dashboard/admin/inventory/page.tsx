@@ -59,6 +59,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { cn, formatCurrency } from "@/lib/utils"
+import { PageHeader } from "@/components/layout/page-header"
 
 const itemSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -599,18 +600,13 @@ export default function InventoryPage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <Package className="h-6 w-6" />
-              Inventory
-            </h2>
-            <p className="text-muted-foreground">
-              Manage inventory items, stock levels, and pricing
-            </p>
-          </div>
-
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <PageHeader
+          icon={Package}
+          title="Inventory"
+          subtitle="Manage inventory items, stock levels, and pricing"
+          gradient="linear-gradient(135deg, #06B6D4, #0891B2)"
+          action={
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -700,7 +696,8 @@ export default function InventoryPage() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
         {lowStockCount > 0 && (
           <div className="flex items-center gap-3 rounded-md border border-destructive/50 bg-destructive/5 p-4">

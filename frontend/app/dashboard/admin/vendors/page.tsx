@@ -46,6 +46,7 @@ import {
   Pencil,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/layout/page-header"
 
 const vendorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -313,41 +314,37 @@ export default function VendorsPage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <Store className="h-6 w-6" />
-              Vendors
-            </h2>
-            <p className="text-muted-foreground">
-              Manage vendor directory and contact information
-            </p>
-          </div>
-
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Vendor
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Vendor</DialogTitle>
-                <DialogDescription>
-                  Add a new supplier or vendor to the system.
-                </DialogDescription>
-              </DialogHeader>
-              <VendorFormFields
-                form={createForm}
-                isPending={createMutation.isPending}
-                onSubmit={(data) => createMutation.mutate(data)}
-                onCancel={() => setCreateOpen(false)}
-                submitLabel="Add Vendor"
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <PageHeader
+          icon={Store}
+          title="Vendors"
+          subtitle="Manage vendor directory and contact information"
+          gradient="linear-gradient(135deg, #14B8A6, #0D9488)"
+          action={
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Vendor
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Vendor</DialogTitle>
+                  <DialogDescription>
+                    Add a new supplier or vendor to the system.
+                  </DialogDescription>
+                </DialogHeader>
+                <VendorFormFields
+                  form={createForm}
+                  isPending={createMutation.isPending}
+                  onSubmit={(data) => createMutation.mutate(data)}
+                  onCancel={() => setCreateOpen(false)}
+                  submitLabel="Add Vendor"
+                />
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         {/* Edit Dialog */}
         <Dialog open={!!editVendor} onOpenChange={(open) => { if (!open) setEditVendor(null) }}>

@@ -53,6 +53,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/layout/page-header"
 
 const createUserSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -212,18 +213,13 @@ export default function UsersPage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <UserCog className="h-6 w-6" />
-              User Management
-            </h2>
-            <p className="text-muted-foreground">
-              Manage system users and their roles
-            </p>
-          </div>
-
-          <Dialog open={open} onOpenChange={setOpen}>
+        <PageHeader
+          icon={UserCog}
+          title="User Management"
+          subtitle="Manage system users and their roles"
+          gradient="linear-gradient(135deg, #6366F1, #4F46E5)"
+          action={
+            <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -323,7 +319,8 @@ export default function UsersPage() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">

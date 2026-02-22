@@ -24,6 +24,7 @@ import {
 import { CreditCard, DollarSign, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
+import { PageHeader, MiniStatCard } from "@/components/layout/page-header"
 
 interface Transaction {
   id: string
@@ -57,44 +58,33 @@ export default function ClientPaymentsPage() {
   return (
     <RoleGuard allowedRoles={["CLIENT", "SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <CreditCard className="h-6 w-6" />
-              Payments
-            </h2>
-            <p className="text-muted-foreground">
-              View your payment history and make new payments
-            </p>
-          </div>
-          <Button
-            onClick={() => {
-              toast({
-                title: "Payment gateway",
-                description:
-                  "Online payment integration is not yet available. Please contact your project manager.",
-              })
-            }}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            Make Payment
-          </Button>
-        </div>
+        <PageHeader
+          icon={CreditCard}
+          title="Payments"
+          subtitle="View your payment history and make new payments"
+          gradient="linear-gradient(135deg, #CBB282, #A8956E)"
+          action={
+            <Button
+              onClick={() => {
+                toast({
+                  title: "Payment gateway",
+                  description:
+                    "Online payment integration is not yet available. Please contact your project manager.",
+                })
+              }}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Make Payment
+            </Button>
+          }
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(totalPaid)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Across all cleared payments
-            </p>
-          </CardContent>
-        </Card>
+        <MiniStatCard
+          title="Total Paid"
+          value={formatCurrency(totalPaid)}
+          icon={DollarSign}
+          gradient="linear-gradient(135deg, #10B981, #059669)"
+        />
 
         <Card>
           <CardHeader>

@@ -55,6 +55,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
+import { PageHeader } from "@/components/layout/page-header"
 
 const SPECIALIZATIONS = [
   { value: "CIVIL", label: "Civil" },
@@ -270,119 +271,115 @@ export default function LaborTeamsPage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <HardHat className="h-6 w-6" />
-              Labor Teams
-            </h2>
-            <p className="text-muted-foreground">
-              Manage labor teams, workers, and specializations
-            </p>
-          </div>
-
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Team
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Labor Team</DialogTitle>
-                <DialogDescription>
-                  Add a new labor team to the system.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={createForm.handleSubmit((data) => createMutation.mutate(data))}>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Team Name</Label>
-                    <Input placeholder="Roy's Painting Crew" {...createForm.register("name")} />
-                    {createForm.formState.errors.name && (
-                      <p className="text-xs text-destructive">{createForm.formState.errors.name.message}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+        <PageHeader
+          icon={HardHat}
+          title="Labor Teams"
+          subtitle="Manage labor teams, workers, and specializations"
+          gradient="linear-gradient(135deg, #F43F5E, #E11D48)"
+          action={
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Team
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Labor Team</DialogTitle>
+                  <DialogDescription>
+                    Add a new labor team to the system.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={createForm.handleSubmit((data) => createMutation.mutate(data))}>
+                  <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label>Leader Name</Label>
-                      <Input placeholder="Rajesh Kumar" {...createForm.register("leader_name")} />
-                      {createForm.formState.errors.leader_name && (
-                        <p className="text-xs text-destructive">{createForm.formState.errors.leader_name.message}</p>
+                      <Label>Team Name</Label>
+                      <Input placeholder="Roy's Painting Crew" {...createForm.register("name")} />
+                      {createForm.formState.errors.name && (
+                        <p className="text-xs text-destructive">{createForm.formState.errors.name.message}</p>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <Label>Contact Number</Label>
-                      <Input placeholder="+91 9876543210" {...createForm.register("contact_number")} />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Leader Name</Label>
+                        <Input placeholder="Rajesh Kumar" {...createForm.register("leader_name")} />
+                        {createForm.formState.errors.leader_name && (
+                          <p className="text-xs text-destructive">{createForm.formState.errors.leader_name.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Contact Number</Label>
+                        <Input placeholder="+91 9876543210" {...createForm.register("contact_number")} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Specialization</Label>
+                        <Select
+                          value={createForm.watch("specialization")}
+                          onValueChange={(v) => createForm.setValue("specialization", v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SPECIALIZATIONS.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {createForm.formState.errors.specialization && (
+                          <p className="text-xs text-destructive">{createForm.formState.errors.specialization.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Payment Model</Label>
+                        <Select
+                          value={createForm.watch("payment_model")}
+                          onValueChange={(v) => createForm.setValue("payment_model", v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PAYMENT_MODELS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label>Specialization</Label>
-                      <Select
-                        value={createForm.watch("specialization")}
-                        onValueChange={(v) => createForm.setValue("specialization", v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SPECIALIZATIONS.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {createForm.formState.errors.specialization && (
-                        <p className="text-xs text-destructive">{createForm.formState.errors.specialization.message}</p>
+                      <Label>Default Daily Rate (per worker)</Label>
+                      <Input
+                        type="number"
+                        placeholder="800"
+                        {...createForm.register("default_daily_rate")}
+                      />
+                      {createForm.formState.errors.default_daily_rate && (
+                        <p className="text-xs text-destructive">{createForm.formState.errors.default_daily_rate.message}</p>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <Label>Payment Model</Label>
-                      <Select
-                        value={createForm.watch("payment_model")}
-                        onValueChange={(v) => createForm.setValue("payment_model", v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PAYMENT_MODELS.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Default Daily Rate (per worker)</Label>
-                    <Input
-                      type="number"
-                      placeholder="800"
-                      {...createForm.register("default_daily_rate")}
-                    />
-                    {createForm.formState.errors.default_daily_rate && (
-                      <p className="text-xs text-destructive">{createForm.formState.errors.default_daily_rate.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Team
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createMutation.isPending}>
+                      {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create Team
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">

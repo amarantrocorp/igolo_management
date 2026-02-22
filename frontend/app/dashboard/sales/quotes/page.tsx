@@ -26,6 +26,7 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { PageHeader } from "@/components/layout/page-header"
 
 const QUOTE_STATUSES: QuoteStatus[] = [
   "DRAFT",
@@ -83,26 +84,22 @@ export default function QuotesPage() {
   return (
     <RoleGuard allowedRoles={ALLOWED_ROLES}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <FileText className="h-6 w-6" />
-              Quotations
-            </h2>
-            <p className="text-muted-foreground">
-              Create, manage, and track client quotations
-            </p>
-          </div>
-
-          {canCreate && (
-            <Link href="/dashboard/sales/quotes/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Quote
-              </Button>
-            </Link>
-          )}
-        </div>
+        <PageHeader
+          icon={FileText}
+          title="Quotations"
+          subtitle="Create, manage, and track client quotations"
+          gradient="linear-gradient(135deg, #F59E0B, #D97706)"
+          action={
+            canCreate ? (
+              <Link href="/dashboard/sales/quotes/new">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Quote
+                </Button>
+              </Link>
+            ) : undefined
+          }
+        />
 
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">

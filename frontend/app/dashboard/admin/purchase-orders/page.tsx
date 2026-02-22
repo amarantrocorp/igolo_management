@@ -38,6 +38,7 @@ import {
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
 import { cn } from "@/lib/utils"
+import { PageHeader } from "@/components/layout/page-header"
 
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: "All", value: "ALL" },
@@ -215,196 +216,192 @@ export default function PurchaseOrdersPage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <ShoppingCart className="h-6 w-6" />
-              Purchase Orders
-            </h2>
-            <p className="text-muted-foreground">
-              Create, track, and receive purchase orders from vendors
-            </p>
-          </div>
+        <PageHeader
+          icon={ShoppingCart}
+          title="Purchase Orders"
+          subtitle="Create, track, and receive purchase orders from vendors"
+          gradient="linear-gradient(135deg, #0EA5E9, #0284C7)"
+          action={
+            <Dialog
+              open={createOpen}
+              onOpenChange={(open) => {
+                setCreateOpen(open)
+                if (!open) resetCreateForm()
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New PO
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Purchase Order</DialogTitle>
+                  <DialogDescription>
+                    Select a vendor, add items, and create a new purchase order.
+                  </DialogDescription>
+                </DialogHeader>
 
-          <Dialog
-            open={createOpen}
-            onOpenChange={(open) => {
-              setCreateOpen(open)
-              if (!open) resetCreateForm()
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New PO
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Purchase Order</DialogTitle>
-                <DialogDescription>
-                  Select a vendor, add items, and create a new purchase order.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-4">
-                {/* Vendor */}
-                <div className="space-y-2">
-                  <Label>Vendor</Label>
-                  <select
-                    value={selectedVendorId}
-                    onChange={(e) => setSelectedVendorId(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Select vendor</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Project toggle */}
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={isProjectSpecific}
-                      onChange={(e) => setIsProjectSpecific(e.target.checked)}
-                      className="rounded"
-                    />
-                    Project-Specific PO
-                  </label>
-                  {isProjectSpecific && (
-                    <Input
-                      placeholder="Project ID"
-                      value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
-                      className="max-w-xs"
-                    />
-                  )}
-                </div>
-
-                {/* Items list */}
-                {poItems.length > 0 && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead>Unit Price</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {poItems.map((pi, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-medium">{pi.item_name}</TableCell>
-                          <TableCell>{pi.quantity}</TableCell>
-                          <TableCell>{formatCurrency(pi.unit_price)}</TableCell>
-                          <TableCell className="font-medium">
-                            {formatCurrency(pi.quantity * pi.unit_price)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setPoItems((prev) => prev.filter((_, i) => i !== idx))}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-right font-medium">
-                          Total
-                        </TableCell>
-                        <TableCell className="font-bold">
-                          {formatCurrency(poTotal)}
-                        </TableCell>
-                        <TableCell />
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                )}
-
-                {/* Add item row */}
-                <div className="grid grid-cols-4 gap-2 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Item</Label>
+                <div className="space-y-4 py-4">
+                  {/* Vendor */}
+                  <div className="space-y-2">
+                    <Label>Vendor</Label>
                     <select
-                      value={addItemId}
-                      onChange={(e) => handleItemSelect(e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                      value={selectedVendorId}
+                      onChange={(e) => setSelectedVendorId(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <option value="">Select item</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name} ({i.current_stock} {i.unit})
-                        </option>
+                      <option value="">Select vendor</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Quantity</Label>
-                    <Input
-                      type="number"
+
+                  {/* Project toggle */}
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={isProjectSpecific}
+                        onChange={(e) => setIsProjectSpecific(e.target.checked)}
+                        className="rounded"
+                      />
+                      Project-Specific PO
+                    </label>
+                    {isProjectSpecific && (
+                      <Input
+                        placeholder="Project ID"
+                        value={projectId}
+                        onChange={(e) => setProjectId(e.target.value)}
+                        className="max-w-xs"
+                      />
+                    )}
+                  </div>
+
+                  {/* Items list */}
+                  {poItems.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Unit Price</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {poItems.map((pi, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">{pi.item_name}</TableCell>
+                            <TableCell>{pi.quantity}</TableCell>
+                            <TableCell>{formatCurrency(pi.unit_price)}</TableCell>
+                            <TableCell className="font-medium">
+                              {formatCurrency(pi.quantity * pi.unit_price)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPoItems((prev) => prev.filter((_, i) => i !== idx))}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-medium">
+                            Total
+                          </TableCell>
+                          <TableCell className="font-bold">
+                            {formatCurrency(poTotal)}
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  )}
+
+                  {/* Add item row */}
+                  <div className="grid grid-cols-4 gap-2 items-end">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Item</Label>
+                      <select
+                        value={addItemId}
+                        onChange={(e) => handleItemSelect(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                      >
+                        <option value="">Select item</option>
+                        {items.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.name} ({i.current_stock} {i.unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Quantity</Label>
+                      <Input
+                        type="number"
+                        className="h-9"
+                        value={addQty}
+                        onChange={(e) => setAddQty(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Unit Price</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="h-9"
+                        value={addPrice}
+                        onChange={(e) => setAddPrice(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      size="sm"
                       className="h-9"
-                      value={addQty}
-                      onChange={(e) => setAddQty(e.target.value)}
+                      onClick={handleAddItem}
+                      disabled={!addItemId || !addQty || !addPrice}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <Label>Notes (Optional)</Label>
+                    <Input
+                      placeholder="Internal notes..."
+                      value={poNotes}
+                      onChange={(e) => setPoNotes(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Unit Price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="h-9"
-                      value={addPrice}
-                      onChange={(e) => setAddPrice(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    onClick={handleAddItem}
-                    disabled={!addItemId || !addQty || !addPrice}
-                  >
-                    <Plus className="h-4 w-4" />
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCreateOpen(false)}>
+                    Cancel
                   </Button>
-                </div>
-
-                {/* Notes */}
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
-                  <Input
-                    placeholder="Internal notes..."
-                    value={poNotes}
-                    onChange={(e) => setPoNotes(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => createMutation.mutate()}
-                  disabled={
-                    !selectedVendorId ||
-                    poItems.length === 0 ||
-                    createMutation.isPending
-                  }
-                >
-                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create PO
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+                  <Button
+                    onClick={() => createMutation.mutate()}
+                    disabled={
+                      !selectedVendorId ||
+                      poItems.length === 0 ||
+                      createMutation.isPending
+                    }
+                  >
+                    {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create PO
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         {/* Status filter tabs */}
         <div className="flex gap-1 border-b">

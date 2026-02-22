@@ -5,13 +5,6 @@ import api from "@/lib/api"
 import RoleGuard from "@/components/auth/role-guard"
 import { Badge } from "@/components/ui/badge"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   Table,
   TableBody,
   TableCell,
@@ -19,8 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { DollarSign, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
+import { DollarSign, TrendingUp, TrendingDown, Loader2, Wallet } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { PageHeader, MiniStatCard } from "@/components/layout/page-header"
 
 interface Transaction {
   id: string
@@ -50,109 +44,91 @@ export default function FinancePage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
       <div className="space-y-6">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <DollarSign className="h-6 w-6" />
-            Finance
-          </h2>
-          <p className="text-muted-foreground">
-            Track payments, expenses, and project financial health
-          </p>
-        </div>
+        <PageHeader
+          icon={Wallet}
+          title="Finance"
+          subtitle="Track payments, expenses, and project financial health"
+          gradient="linear-gradient(135deg, #CBB282, #A8956E)"
+        />
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalIn)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Outflow</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {formatCurrency(totalOut)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(totalIn - totalOut)}
-              </div>
-            </CardContent>
-          </Card>
+          <MiniStatCard
+            title="Total Inflow"
+            value={formatCurrency(totalIn)}
+            icon={TrendingUp}
+            gradient="linear-gradient(135deg, #10B981, #059669)"
+          />
+          <MiniStatCard
+            title="Total Outflow"
+            value={formatCurrency(totalOut)}
+            icon={TrendingDown}
+            gradient="linear-gradient(135deg, #F43F5E, #E11D48)"
+          />
+          <MiniStatCard
+            title="Net Balance"
+            value={formatCurrency(totalIn - totalOut)}
+            icon={DollarSign}
+            gradient="linear-gradient(135deg, #CBB282, #A8956E)"
+          />
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>All financial transactions across projects</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="animate-fade-in-up delay-3 rounded-2xl border border-border/40 bg-card">
+          <div className="flex items-center justify-between border-b border-border/40 p-5">
+            <div>
+              <h3 className="font-semibold">Recent Transactions</h3>
+              <p className="text-xs text-muted-foreground">All financial transactions across projects</p>
+            </div>
+          </div>
+          <div className="p-0">
             {isLoading ? (
-              <div className="flex h-24 items-center justify-center">
+              <div className="flex h-32 items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : transactions.length === 0 ? (
-              <div className="flex h-24 flex-col items-center justify-center gap-2">
-                <DollarSign className="h-8 w-8 text-muted-foreground" />
-                <p className="text-muted-foreground">No transactions recorded yet</p>
+              <div className="flex h-32 flex-col items-center justify-center gap-2">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+                  <DollarSign className="h-6 w-6 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm text-muted-foreground">No transactions recorded yet</p>
               </div>
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions.slice(0, 20).map((txn) => (
+                    <TableRow key={txn.id}>
+                      <TableCell>
+                        <Badge
+                          variant={txn.category === "INFLOW" ? "success" : "destructive"}
+                        >
+                          {txn.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{txn.source}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {txn.description}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(txn.amount)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{txn.status}</Badge>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.slice(0, 20).map((txn) => (
-                      <TableRow key={txn.id}>
-                        <TableCell>
-                          <Badge
-                            variant={txn.category === "INFLOW" ? "success" : "destructive"}
-                          >
-                            {txn.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{txn.source}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {txn.description}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {formatCurrency(txn.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{txn.status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </RoleGuard>
   )

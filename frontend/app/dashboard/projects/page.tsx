@@ -33,7 +33,8 @@ import {
   ChevronRight,
   ExternalLink,
 } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
+import { PageHeader } from "@/components/layout/page-header"
 
 function getStatusBadgeVariant(status: ProjectStatus) {
   switch (status) {
@@ -186,15 +187,12 @@ export default function ProjectsPage() {
       allowedRoles={["SUPER_ADMIN", "MANAGER", "SUPERVISOR"]}
     >
       <div className="space-y-6">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <FolderKanban className="h-6 w-6" />
-            Projects
-          </h2>
-          <p className="text-muted-foreground">
-            Manage active projects, sprints, and execution timelines
-          </p>
-        </div>
+        <PageHeader
+          icon={FolderKanban}
+          title="Projects"
+          subtitle="Manage active projects, sprints, and execution timelines"
+          gradient="linear-gradient(135deg, #10B981, #059669)"
+        />
 
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">

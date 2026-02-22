@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/api"
 import RoleGuard from "@/components/auth/role-guard"
 import type { Lead, LeadStatus } from "@/types"
+import { useToast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -273,24 +275,19 @@ export default function LeadsPage() {
   return (
     <RoleGuard allowedRoles={ALLOWED_ROLES}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 font-serif text-2xl font-bold tracking-tight">
-              <Users className="h-6 w-6 text-gold" />
-              Leads Pipeline
-            </h2>
-            <p className="text-muted-foreground">
-              Track and manage leads through the sales pipeline
-            </p>
-          </div>
-
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetAndOpen}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Lead
-              </Button>
-            </DialogTrigger>
+        <PageHeader
+          icon={Users}
+          title="Leads Pipeline"
+          subtitle="Track and manage leads through the sales pipeline"
+          gradient="linear-gradient(135deg, #8B5CF6, #6366F1)"
+          action={
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetAndOpen}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Lead
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Create New Lead</DialogTitle>
@@ -646,7 +643,8 @@ export default function LeadsPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
         {/* Status Summary Pills */}
         <div className="flex flex-wrap gap-2">

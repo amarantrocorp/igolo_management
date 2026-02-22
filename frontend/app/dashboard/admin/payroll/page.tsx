@@ -43,6 +43,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
+import { PageHeader, MiniStatCard } from "@/components/layout/page-header"
 
 interface PayrollEntry {
   team_id: string
@@ -163,15 +164,12 @@ export default function PayrollPage() {
   return (
     <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER", "SUPERVISOR"]}>
       <div className="space-y-6">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <HardHat className="h-6 w-6" />
-            Weekly Payroll
-          </h2>
-          <p className="text-muted-foreground">
-            Review and approve labor attendance and payouts
-          </p>
-        </div>
+        <PageHeader
+          icon={HardHat}
+          title="Weekly Payroll"
+          subtitle="Review and approve labor attendance and payouts"
+          gradient="linear-gradient(135deg, #F97316, #EA580C)"
+        />
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-4">
@@ -217,50 +215,24 @@ export default function PayrollPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(totalCost)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                For selected week
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Approved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalApproved)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Deducted from project wallets
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {formatCurrency(totalPending)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Awaiting approval
-              </p>
-            </CardContent>
-          </Card>
+          <MiniStatCard
+            title="Total Cost"
+            value={formatCurrency(totalCost)}
+            icon={DollarSign}
+            gradient="linear-gradient(135deg, #F97316, #EA580C)"
+          />
+          <MiniStatCard
+            title="Approved"
+            value={formatCurrency(totalApproved)}
+            icon={CheckCircle}
+            gradient="linear-gradient(135deg, #10B981, #059669)"
+          />
+          <MiniStatCard
+            title="Pending"
+            value={formatCurrency(totalPending)}
+            icon={Clock}
+            gradient="linear-gradient(135deg, #F59E0B, #D97706)"
+          />
         </div>
 
         {/* Payroll Table */}
