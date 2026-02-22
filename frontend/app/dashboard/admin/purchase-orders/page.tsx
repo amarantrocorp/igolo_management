@@ -35,6 +35,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
+import { FileUpload } from "@/components/ui/file-upload"
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
 import { cn } from "@/lib/utils"
@@ -69,6 +70,11 @@ export default function PurchaseOrdersPage() {
   const pageSize = 10
   const { toast } = useToast()
   const queryClient = useQueryClient()
+
+  // --- Receive PO state ---
+  const [receiveOpen, setReceiveOpen] = useState(false)
+  const [receivingPoId, setReceivingPoId] = useState<string | null>(null)
+  const [billDocUrl, setBillDocUrl] = useState<string | null>(null)
 
   // --- Create PO state ---
   const [selectedVendorId, setSelectedVendorId] = useState("")
@@ -141,13 +147,18 @@ export default function PurchaseOrdersPage() {
   })
 
   const receiveMutation = useMutation({
-    mutationFn: async (poId: string) => {
-      const res = await api.post(`/inventory/purchase-orders/${poId}/receive`)
+    mutationFn: async ({ poId, bill_document_url }: { poId: string; bill_document_url?: string | null }) => {
+      const res = await api.post(`/inventory/purchase-orders/${poId}/receive`, {
+        bill_document_url: bill_document_url || undefined,
+      })
       return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] })
       queryClient.invalidateQueries({ queryKey: ["inventory"] })
+      setReceiveOpen(false)
+      setReceivingPoId(null)
+      setBillDocUrl(null)
       toast({ title: "PO Received", description: "Stock updated successfully." })
     },
     onError: (err: any) => {

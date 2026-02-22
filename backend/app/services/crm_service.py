@@ -20,10 +20,20 @@ async def create_lead(data: LeadCreate, db: AsyncSession) -> Lead:
         email=data.email,
         source=data.source,
         location=data.location,
-        budget_range=data.budget_range,
         notes=data.notes,
         assigned_to_id=data.assigned_to_id,
         status=LeadStatus.NEW,
+        # Project Details
+        property_type=data.property_type,
+        property_status=data.property_status,
+        carpet_area=data.carpet_area,
+        scope_of_work=data.scope_of_work,
+        floor_plan_url=data.floor_plan_url,
+        # Preferences
+        budget_range=data.budget_range,
+        design_style=data.design_style,
+        possession_date=data.possession_date,
+        site_visit_availability=data.site_visit_availability,
     )
     db.add(lead)
     await db.commit()

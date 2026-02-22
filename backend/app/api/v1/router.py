@@ -7,6 +7,7 @@ from app.api.v1.inventory.router import router as inventory_router
 from app.api.v1.labor.router import router as labor_router
 from app.api.v1.projects.router import router as projects_router
 from app.api.v1.quotes.router import router as quotes_router
+from app.api.v1.upload.router import router as upload_router
 from app.api.v1.users.router import router as users_router
 
 api_router = APIRouter()
@@ -21,3 +22,4 @@ api_router.include_router(
 api_router.include_router(finance_router, prefix="/finance", tags=["Finance"])
 api_router.include_router(labor_router, prefix="/labor", tags=["Labor"])
 api_router.include_router(users_router, prefix="/users", tags=["Users"])
+api_router.include_router(upload_router, prefix="/upload", tags=["Upload"])

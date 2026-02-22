@@ -109,6 +109,7 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin):
         Numeric(12, 2), default=Decimal("0.00"), nullable=False
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    bill_document_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )

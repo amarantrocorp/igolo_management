@@ -75,6 +75,7 @@ class Project(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     site_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    cover_image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Relationships
     client: Mapped["Client"] = relationship("Client", back_populates="projects")
@@ -143,6 +144,7 @@ class VariationOrder(Base, UUIDMixin, TimestampMixin):
     requested_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
+    supporting_doc_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Relationships
     project: Mapped["Project"] = relationship(

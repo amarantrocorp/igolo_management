@@ -17,6 +17,7 @@ export interface User {
   full_name: string
   role: UserRole
   is_active: boolean
+  avatar_url?: string
   created_at: string
   updated_at: string
 }
@@ -124,6 +125,7 @@ export interface Quotation {
   total_amount: number
   status: QuoteStatus
   valid_until: string
+  cover_image_url?: string
   project_id?: string
   rooms: QuoteRoom[]
   created_at: string
@@ -219,6 +221,7 @@ export interface PurchaseOrder {
   items: POItem[]
   total_amount: number
   notes?: string
+  bill_document_url?: string
   created_at: string
   updated_at?: string
 }
@@ -271,6 +274,7 @@ export interface Project {
   start_date: string
   expected_end_date: string
   total_project_value: number
+  cover_image_url?: string
   wallet?: {
     total_agreed_value: number
     total_received: number
@@ -309,6 +313,7 @@ export interface VariationOrder {
   status: VOStatus
   linked_sprint_id?: string
   requested_by_id?: string
+  supporting_doc_url?: string
   created_at: string
   updated_at: string
 }

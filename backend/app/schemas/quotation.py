@@ -49,12 +49,14 @@ class QuoteRoomResponse(BaseModel):
 class QuotationCreate(BaseModel):
     lead_id: UUID
     notes: Optional[str] = None
+    cover_image_url: Optional[str] = None
     valid_until: Optional[datetime] = None
     rooms: List[QuoteRoomCreate] = []
 
 
 class QuotationUpdate(BaseModel):
     notes: Optional[str] = None
+    cover_image_url: Optional[str] = None
     valid_until: Optional[datetime] = None
     status: Optional[QuoteStatus] = None
 
@@ -68,6 +70,7 @@ class QuotationResponse(BaseModel):
     status: QuoteStatus
     valid_until: Optional[datetime]
     notes: Optional[str]
+    cover_image_url: Optional[str] = None
     created_by_id: UUID
     project_id: Optional[UUID] = None
     rooms: List[QuoteRoomResponse] = []

@@ -57,6 +57,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
 } from "lucide-react"
+import { FileUpload } from "@/components/ui/file-upload"
 import { useToast } from "@/components/ui/use-toast"
 import { cn, formatCurrency } from "@/lib/utils"
 import { PageHeader } from "@/components/layout/page-header"
@@ -69,6 +70,7 @@ const itemSchema = z.object({
   selling_price: z.coerce.number().min(0, "Selling price must be positive"),
   current_stock: z.coerce.number().min(0, "Stock must be positive"),
   reorder_level: z.coerce.number().min(0, "Reorder level must be positive"),
+  image_url: z.string().optional(),
 })
 
 type ItemFormValues = z.infer<typeof itemSchema>
@@ -168,6 +170,7 @@ function DetailsTab({
       selling_price: item.selling_price,
       current_stock: item.current_stock,
       reorder_level: item.reorder_level,
+      image_url: item.image_url || "",
     },
   })
 
@@ -191,6 +194,14 @@ function DetailsTab({
   return (
     <form onSubmit={form.handleSubmit((data) => editMutation.mutate(data))}>
       <div className="grid gap-4 py-2">
+        <FileUpload
+          value={form.watch("image_url") || null}
+          onChange={(url) => form.setValue("image_url", url || "")}
+          category="items"
+          accept="image/jpeg,image/png,image/webp"
+          label="Item Image"
+        />
+
         <div className="space-y-2">
           <Label>Item Name</Label>
           <Input {...form.register("name")} />
@@ -530,6 +541,7 @@ export default function InventoryPage() {
       selling_price: 0,
       current_stock: 0,
       reorder_level: 10,
+      image_url: "",
     },
   })
 
@@ -622,6 +634,14 @@ export default function InventoryPage() {
               </DialogHeader>
               <form onSubmit={createForm.handleSubmit((data) => createMutation.mutate(data))}>
                 <div className="grid gap-4 py-4">
+                  <FileUpload
+                    value={createForm.watch("image_url") || null}
+                    onChange={(url) => createForm.setValue("image_url", url || "")}
+                    category="items"
+                    accept="image/jpeg,image/png,image/webp"
+                    label="Item Image"
+                  />
+
                   <div className="space-y-2">
                     <Label>Item Name</Label>
                     <Input placeholder="Plywood 18mm BWR" {...createForm.register("name")} />
@@ -808,13 +828,27 @@ export default function InventoryPage() {
         <Dialog open={!!selectedItem} onOpenChange={(open) => { if (!open) setSelectedItem(null) }}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                {selectedItem?.name}
-              </DialogTitle>
-              <DialogDescription>
-                {selectedItem?.category} &middot; {selectedItem?.unit} &middot; Stock: {selectedItem?.current_stock}
-              </DialogDescription>
+              <div className="flex items-start gap-4">
+                {selectedItem?.image_url ? (
+                  <img
+                    src={selectedItem.image_url}
+                    alt={selectedItem.name}
+                    className="h-16 w-16 rounded-md object-cover border shrink-0"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-md border bg-muted shrink-0">
+                    <Package className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <DialogTitle className="flex items-center gap-2">
+                    {selectedItem?.name}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {selectedItem?.category} &middot; {selectedItem?.unit} &middot; Stock: {selectedItem?.current_stock}
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
 
             {/* Tab navigation */}

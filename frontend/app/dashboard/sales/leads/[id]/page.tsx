@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/auth-store"
 import RoleGuard from "@/components/auth/role-guard"
 import type { Lead, Quotation } from "@/types"
 import { formatINR } from "@/types/quote"
+import { FileUpload } from "@/components/ui/file-upload"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -153,6 +154,7 @@ export default function LeadDetailPage() {
     property_status: "",
     carpet_area: "",
     scope_of_work: [] as string[],
+    floor_plan_url: "",
     budget_range: "",
     design_style: "",
     possession_date: "",
@@ -193,6 +195,7 @@ export default function LeadDetailPage() {
       payload.property_status = data.property_status || null
       payload.carpet_area = data.carpet_area ? Number(data.carpet_area) : null
       payload.scope_of_work = data.scope_of_work.length > 0 ? data.scope_of_work : null
+      payload.floor_plan_url = data.floor_plan_url || null
       payload.budget_range = data.budget_range || null
       payload.design_style = data.design_style || null
       payload.possession_date = data.possession_date || null
@@ -220,6 +223,7 @@ export default function LeadDetailPage() {
       property_status: lead.property_status || "",
       carpet_area: lead.carpet_area ? String(lead.carpet_area) : "",
       scope_of_work: lead.scope_of_work || [],
+      floor_plan_url: lead.floor_plan_url || "",
       budget_range: lead.budget_range || "",
       design_style: lead.design_style || "",
       possession_date: lead.possession_date || "",
@@ -556,6 +560,16 @@ export default function LeadDetailPage() {
                         })}
                       </div>
                     </div>
+                    <FileUpload
+                      value={editData.floor_plan_url || null}
+                      onChange={(url) =>
+                        setEditData((p) => ({ ...p, floor_plan_url: url || "" }))
+                      }
+                      category="leads"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      maxSizeMB={25}
+                      label="Floor Plan"
+                    />
                   </>
                 ) : (
                   <>
@@ -595,7 +609,31 @@ export default function LeadDetailPage() {
                         </div>
                       </div>
                     )}
-                    {!lead.property_type && !lead.carpet_area && (!lead.scope_of_work || lead.scope_of_work.length === 0) && (
+                    {lead.floor_plan_url && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Floor Plan</p>
+                        {/\.(jpg|jpeg|png|webp|gif)$/i.test(lead.floor_plan_url) ? (
+                          <a href={lead.floor_plan_url} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={lead.floor_plan_url}
+                              alt="Floor Plan"
+                              className="max-h-40 rounded-md border object-contain"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            href={lead.floor_plan_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <FileText className="h-4 w-4" />
+                            View Floor Plan
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {!lead.property_type && !lead.carpet_area && (!lead.scope_of_work || lead.scope_of_work.length === 0) && !lead.floor_plan_url && (
                       <p className="text-sm text-muted-foreground">
                         No project details captured yet. Click Edit to add.
                       </p>

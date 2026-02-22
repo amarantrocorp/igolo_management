@@ -24,6 +24,7 @@ class ProjectUpdate(BaseModel):
     manager_id: Optional[UUID] = None
     supervisor_id: Optional[UUID] = None
     site_address: Optional[str] = None
+    cover_image_url: Optional[str] = None
 
 
 class SprintResponse(BaseModel):
@@ -79,6 +80,7 @@ class ProjectResponse(BaseModel):
     manager_id: Optional[UUID]
     supervisor_id: Optional[UUID]
     site_address: Optional[str]
+    cover_image_url: Optional[str] = None
     sprints: List[SprintResponse] = []
     wallet: Optional[WalletSummary] = None
     created_at: datetime
@@ -90,12 +92,14 @@ class VariationOrderCreate(BaseModel):
     description: str
     additional_cost: Decimal
     linked_sprint_id: Optional[UUID] = None
+    supporting_doc_url: Optional[str] = None
 
 
 class VariationOrderUpdate(BaseModel):
     status: Optional[VOStatus] = None
     description: Optional[str] = None
     linked_sprint_id: Optional[UUID] = None
+    supporting_doc_url: Optional[str] = None
 
 
 class VariationOrderResponse(BaseModel):
@@ -106,6 +110,7 @@ class VariationOrderResponse(BaseModel):
     status: VOStatus
     linked_sprint_id: Optional[UUID]
     requested_by_id: UUID
+    supporting_doc_url: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -73,6 +73,7 @@ import {
   Users,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { FileUpload } from "@/components/ui/file-upload"
 import { useAuthStore } from "@/store/auth-store"
 import { cn, formatCurrency } from "@/lib/utils"
 
@@ -135,6 +136,21 @@ function OverviewTab({
   project: Project
   projectId: string
 }) {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  const updateProjectMutation = useMutation({
+    mutationFn: async (payload: { cover_image_url: string | null }) => {
+      await api.patch(`/projects/${projectId}`, payload)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+      toast({ title: "Project updated", description: "Cover image has been updated." })
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update project.", variant: "destructive" })
+    },
+  })
   const totalValue = Number(project.total_project_value ?? 0)
   const received = Number(project.wallet?.total_received ?? 0)
   const spent = Number(project.wallet?.total_spent ?? 0)
@@ -234,6 +250,25 @@ function OverviewTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* Project Cover Image */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Project Cover Image</CardTitle>
+          <CardDescription>
+            Upload a cover image for this project
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FileUpload
+            value={project?.cover_image_url || null}
+            onChange={(url) => updateProjectMutation.mutate({ cover_image_url: url || null })}
+            category="projects"
+            accept="image/jpeg,image/png,image/webp"
+            label="Project Cover Image"
+          />
+        </CardContent>
+      </Card>
 
       {/* Progress */}
       <Card>

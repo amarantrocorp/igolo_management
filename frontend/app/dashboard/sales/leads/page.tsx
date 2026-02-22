@@ -30,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus, Search, Loader2, Users, Phone, Building2 } from "lucide-react"
+import { FileUpload } from "@/components/ui/file-upload"
 
 const LEAD_SOURCES = [
   "Website",
@@ -145,6 +146,7 @@ const INITIAL_FORM = {
   property_status: "",
   carpet_area: "",
   scope_of_work: [] as string[],
+  floor_plan_url: "",
   // Section 3: Preferences
   budget_range: "",
   design_style: "",
@@ -188,6 +190,7 @@ export default function LeadsPage() {
       if (data.property_status) payload.property_status = data.property_status
       if (data.carpet_area) payload.carpet_area = Number(data.carpet_area)
       if (data.scope_of_work.length > 0) payload.scope_of_work = data.scope_of_work
+      if (data.floor_plan_url) payload.floor_plan_url = data.floor_plan_url
       if (data.budget_range) payload.budget_range = data.budget_range
       if (data.design_style) payload.design_style = data.design_style
       if (data.possession_date) payload.possession_date = data.possession_date
@@ -512,6 +515,17 @@ export default function LeadsPage() {
                         })}
                       </div>
                     </div>
+
+                    <FileUpload
+                      value={formData.floor_plan_url || null}
+                      onChange={(url) =>
+                        setFormData((p) => ({ ...p, floor_plan_url: url || "" }))
+                      }
+                      category="leads"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      maxSizeMB={25}
+                      label="Floor Plan"
+                    />
                   </div>
                 )}
 

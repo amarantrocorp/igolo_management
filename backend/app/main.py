@@ -1,14 +1,18 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — ensure local uploads directory exists
+    if settings.ENVIRONMENT != "production":
+        Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     yield
     # Shutdown
 
@@ -40,6 +44,13 @@ if settings.SENTRY_DSN:
 from app.api.v1.router import api_router  # noqa: E402
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+
+# Serve uploaded files locally in non-production environments
+if settings.ENVIRONMENT != "production":
+    _upload_path = Path(settings.UPLOAD_DIR)
+    _upload_path.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=str(_upload_path)), name="uploads")
 
 
 @app.get("/health", tags=["Health"])

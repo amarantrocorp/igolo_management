@@ -34,6 +34,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Relationships
     leads_assigned: Mapped[List["Lead"]] = relationship(

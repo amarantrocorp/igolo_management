@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_NAME: str = "IntDesignERP"
 
+    # Environment
+    ENVIRONMENT: str = "development"
+
+    # File Uploads
+    UPLOAD_MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10 MB
+    UPLOAD_MAX_DOC_SIZE: int = 25 * 1024 * 1024  # 25 MB
+    UPLOAD_DIR: str = "uploads"
+
     # S3
     S3_BUCKET_NAME: str = "int-design-erp"
     S3_REGION: str = "ap-south-1"

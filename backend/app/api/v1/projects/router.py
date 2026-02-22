@@ -88,6 +88,24 @@ async def get_project(
     return project
 
 
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def patch_project(
+    project_id: UUID,
+    payload: ProjectUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Partial update project details."""
+    project = await project_service.update_project(
+        project_id=project_id, data=payload, db=db
+    )
+    return project
+
+
 @router.put(
     "/{project_id}",
     response_model=ProjectResponse,

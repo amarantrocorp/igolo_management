@@ -20,6 +20,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    avatar_url: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -29,6 +30,7 @@ class UserResponse(BaseModel):
     phone: Optional[str]
     role: UserRole
     is_active: bool
+    avatar_url: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

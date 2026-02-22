@@ -179,6 +179,7 @@ class PurchaseOrderCreate(BaseModel):
 class PurchaseOrderUpdate(BaseModel):
     status: Optional[POStatus] = None
     notes: Optional[str] = None
+    bill_document_url: Optional[str] = None
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -190,6 +191,7 @@ class PurchaseOrderResponse(BaseModel):
     project_id: Optional[UUID]
     total_amount: Decimal
     notes: Optional[str]
+    bill_document_url: Optional[str] = None
     items: List[POItemResponse] = []
     created_at: datetime
 
