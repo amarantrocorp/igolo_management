@@ -5,11 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
+from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.core.security import get_password_hash
 from app.models.crm import Client, Lead, LeadStatus
+from app.models.notification import NotificationType
 from app.models.user import User, UserRole
 from app.schemas.crm import LeadCreate, LeadUpdate
+from app.services.notification_service import create_notification
 
 
 async def create_lead(data: LeadCreate, db: AsyncSession) -> Lead:
@@ -41,7 +45,29 @@ async def create_lead(data: LeadCreate, db: AsyncSession) -> Lead:
     result = await db.execute(
         select(Lead).options(selectinload(Lead.assigned_to)).where(Lead.id == lead.id)
     )
-    return result.scalar_one()
+    lead = result.scalar_one()
+
+    # Notify the assigned BDE/Sales person
+    if lead.assigned_to_id:
+        await create_notification(
+            db=db,
+            recipient_id=lead.assigned_to_id,
+            type=NotificationType.INFO,
+            title=f"New Lead: {lead.name}",
+            body=f"New lead from {lead.source} - {lead.contact_number}",
+            action_url=f"/dashboard/sales/leads/{lead.id}",
+            email_template="new_lead.html",
+            email_data={
+                "recipient_name": lead.assigned_to.full_name if lead.assigned_to else "Team",
+                "lead_name": lead.name,
+                "lead_phone": lead.contact_number,
+                "lead_source": lead.source,
+                "lead_location": lead.location or "N/A",
+                "action_url": f"/dashboard/sales/leads/{lead.id}",
+            },
+        )
+
+    return lead
 
 
 async def get_leads(
@@ -145,4 +171,20 @@ async def convert_lead_to_client(lead_id: UUID, db: AsyncSession) -> Client:
 
     await db.commit()
     await db.refresh(client)
+
+    # Email client their portal credentials
+    if client_email and not client_email.endswith("@placeholder.local"):
+        send_email_fire_and_forget(
+            subject="Welcome to IntDesign ERP - Your Portal Access",
+            email_to=client_email,
+            template_name="client_welcome.html",
+            template_data={
+                "subject": "Welcome to IntDesign ERP",
+                "client_name": lead.name,
+                "email": client_email,
+                "password": "changeme123",
+                "login_url": f"{settings.FRONTEND_URL}/login",
+            },
+        )
+
     return client

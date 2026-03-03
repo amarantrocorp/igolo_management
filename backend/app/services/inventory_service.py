@@ -340,6 +340,27 @@ async def receive_purchase_order(
 
     db.add(po)
     await db.commit()
+
+    # Notify managers that PO has been received
+    from app.models.notification import NotificationType
+    from app.models.user import UserRole
+    from app.services.notification_service import notify_role
+
+    await notify_role(
+        db=db,
+        role=UserRole.MANAGER,
+        type=NotificationType.INFO,
+        title=f"PO Received: {str(po.id)[:8]}",
+        body=f"Purchase Order worth Rs. {po.total_amount} has been received.",
+        action_url="/dashboard/admin/inventory",
+        email_template="generic_notification.html",
+        email_data={
+            "title": f"Purchase Order Received",
+            "body": f"PO #{str(po.id)[:8]} worth Rs. {po.total_amount} has been received and processed.",
+            "action_url": "/dashboard/admin/inventory",
+        },
+    )
+
     # Re-fetch with relationships eagerly loaded to avoid MissingGreenlet
     return await _get_purchase_order(po.id, db)
 
@@ -353,7 +374,8 @@ async def issue_stock_to_project(
 ) -> StockTransaction:
     """Issue general warehouse stock to a specific project.
 
-    Deducts from Item.current_stock and creates a StockTransaction(PROJECT_ISSUE).
+    Deducts from Item.current_stock, creates a StockTransaction(PROJECT_ISSUE),
+    and records a CLEARED OUTFLOW transaction on the project wallet.
     """
     # Fetch the inventory item
     result = await db.execute(select(Item).where(Item.id == item_id))
@@ -365,6 +387,14 @@ async def issue_stock_to_project(
         raise BadRequestException(
             detail=f"Insufficient stock. Available: {item.current_stock}, Requested: {quantity}"
         )
+
+    # Calculate cost
+    total_cost = Decimal(str(quantity)) * item.base_price
+
+    # Authorize the expense from project wallet (spending lock)
+    from app.services.finance_service import authorize_expense
+
+    await authorize_expense(project_id, total_cost, db)
 
     # Deduct stock
     item.current_stock -= quantity
@@ -380,6 +410,28 @@ async def issue_stock_to_project(
         unit_cost_at_time=item.base_price,
     )
     db.add(stock_txn)
+
+    # Create finance transaction (auto-CLEARED since stock is already deducted)
+    transaction = Transaction(
+        project_id=project_id,
+        category=TransactionCategory.OUTFLOW,
+        source=TransactionSource.VENDOR,
+        amount=total_cost,
+        description=f"Stock issued: {item.name} x {quantity} {item.unit}",
+        recorded_by_id=user_id,
+        status=TransactionStatus.CLEARED,
+    )
+    db.add(transaction)
+
+    # Update project wallet
+    wallet_result = await db.execute(
+        select(ProjectWallet).where(ProjectWallet.project_id == project_id)
+    )
+    wallet = wallet_result.scalar_one_or_none()
+    if wallet:
+        wallet.total_spent += total_cost
+        db.add(wallet)
+
     await db.commit()
     await db.refresh(stock_txn)
     return stock_txn
@@ -474,3 +526,50 @@ async def get_item_stock_transactions(
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Project Materials (aggregated view)
+# ---------------------------------------------------------------------------
+
+
+async def get_project_materials(project_id: UUID, db: AsyncSession) -> dict:
+    """Aggregate materials data for a project.
+
+    Returns purchase orders linked to the project and stock issues
+    from warehouse, along with summary totals.
+    """
+    # 1. Project-specific POs
+    purchase_orders = await get_purchase_orders(db=db, project_id=project_id)
+
+    # 2. Stock issues (warehouse → project)
+    stock_result = await db.execute(
+        select(StockTransaction)
+        .options(selectinload(StockTransaction.item))
+        .where(
+            StockTransaction.transaction_type == StockTransactionType.PROJECT_ISSUE,
+            StockTransaction.reference_id == project_id,
+        )
+        .order_by(StockTransaction.created_at.desc())
+    )
+    stock_issues = list(stock_result.scalars().all())
+
+    # 3. Summary
+    total_po_cost = sum(
+        (po.total_amount for po in purchase_orders if po.status != POStatus.CANCELLED),
+        Decimal("0.00"),
+    )
+    total_stock_issued_cost = sum(
+        (Decimal(str(abs(si.quantity))) * si.unit_cost_at_time for si in stock_issues),
+        Decimal("0.00"),
+    )
+
+    return {
+        "purchase_orders": purchase_orders,
+        "stock_issues": stock_issues,
+        "summary": {
+            "total_po_cost": total_po_cost,
+            "total_stock_issued_cost": total_stock_issued_cost,
+            "total_materials_cost": total_po_cost + total_stock_issued_cost,
+        },
+    }

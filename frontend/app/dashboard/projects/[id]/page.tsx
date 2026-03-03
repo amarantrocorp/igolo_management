@@ -21,6 +21,9 @@ import type {
   AttendanceLog,
   LaborTeam,
   AttendanceStatus,
+  ProjectMaterials,
+  Item,
+  POStatus,
 } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,6 +74,8 @@ import {
   AlertCircle,
   HardHat,
   Users,
+  Package,
+  Warehouse,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { FileUpload } from "@/components/ui/file-upload"
@@ -553,6 +558,8 @@ function FinanceTab({ projectId }: { projectId: string }) {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const userRole = useAuthStore((s) => s.user?.role)
+  const canVerify = userRole === "MANAGER" || userRole === "SUPER_ADMIN"
 
   const { data: wallet } = useQuery<ProjectWallet>({
     queryKey: ["project-wallet", projectId],
@@ -565,7 +572,7 @@ function FinanceTab({ projectId }: { projectId: string }) {
   const { data: transactions = [], isLoading } = useQuery<Transaction[]>({
     queryKey: ["project-transactions", projectId],
     queryFn: async () => {
-      const response = await api.get(`/projects/${projectId}/transactions`)
+      const response = await api.get(`/finance/projects/${projectId}/transactions`)
       return response.data.items ?? response.data
     },
   })
@@ -580,28 +587,52 @@ function FinanceTab({ projectId }: { projectId: string }) {
     },
   })
 
+  const invalidateFinanceQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["project-wallet", projectId] })
+    queryClient.invalidateQueries({
+      queryKey: ["project-transactions", projectId],
+    })
+    queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+  }
 
   const paymentMutation = useMutation({
     mutationFn: async (data: RecordPaymentFormValues) => {
       await api.post(`/projects/${projectId}/transactions`, data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project-wallet", projectId] })
-      queryClient.invalidateQueries({
-        queryKey: ["project-transactions", projectId],
-      })
-      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+      invalidateFinanceQueries()
       setPaymentOpen(false)
       paymentForm.reset()
       toast({
-        title: "Payment recorded",
-        description: "Transaction has been recorded successfully.",
+        title: "Transaction recorded",
+        description: "Transaction has been recorded and is pending verification.",
+      })
+    },
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail
+      toast({
+        title: "Error",
+        description: detail || "Failed to record transaction.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const verifyMutation = useMutation({
+    mutationFn: async (txnId: string) => {
+      await api.patch(`/finance/transactions/${txnId}/verify`)
+    },
+    onSuccess: () => {
+      invalidateFinanceQueries()
+      toast({
+        title: "Transaction verified",
+        description: "Transaction has been cleared and wallet updated.",
       })
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to record payment.",
+        description: "Failed to verify transaction.",
         variant: "destructive",
       })
     },
@@ -609,12 +640,13 @@ function FinanceTab({ projectId }: { projectId: string }) {
 
   const totalReceived = Number(wallet?.total_received ?? 0)
   const totalSpent = Number(wallet?.total_spent ?? 0)
+  const pendingApprovals = Number(wallet?.pending_approvals ?? 0)
   const balance = Number(wallet?.current_balance ?? totalReceived - totalSpent)
 
   return (
     <div className="space-y-6">
       {/* Wallet Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -637,6 +669,20 @@ function FinanceTab({ projectId }: { projectId: string }) {
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
               {formatCurrency(totalSpent)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Pending Approval
+            </CardTitle>
+            <Clock className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-500">
+              {formatCurrency(pendingApprovals)}
             </div>
           </CardContent>
         </Card>
@@ -801,12 +847,13 @@ function FinanceTab({ projectId }: { projectId: string }) {
                   <TableHead>Description</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  {canVerify && <TableHead>Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={canVerify ? 7 : 6} className="h-24 text-center">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                     </TableCell>
                   </TableRow>
@@ -853,11 +900,30 @@ function FinanceTab({ projectId }: { projectId: string }) {
                           {txn.status}
                         </Badge>
                       </TableCell>
+                      {canVerify && (
+                        <TableCell>
+                          {txn.status === "PENDING" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => verifyMutation.mutate(txn.id)}
+                              disabled={verifyMutation.isPending}
+                            >
+                              {verifyMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                              )}
+                              Verify
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={canVerify ? 7 : 6} className="h-24 text-center">
                       <p className="text-muted-foreground">
                         No transactions recorded yet
                       </p>
@@ -1612,6 +1678,390 @@ function LaborTab({
   )
 }
 
+// ---- PO Status Badge helper ----
+
+function getPOStatusBadge(status: POStatus) {
+  switch (status) {
+    case "DRAFT":
+      return <Badge variant="secondary">Draft</Badge>
+    case "ORDERED":
+      return <Badge variant="default">Ordered</Badge>
+    case "RECEIVED":
+      return <Badge variant="success">Received</Badge>
+    case "CANCELLED":
+      return <Badge variant="destructive">Cancelled</Badge>
+    default:
+      return <Badge variant="secondary">{status}</Badge>
+  }
+}
+
+// ---- Issue Stock Schema ----
+const issueStockSchema = z.object({
+  item_id: z.string().min(1, "Select an item"),
+  quantity: z.coerce.number().min(0.01, "Quantity must be positive"),
+})
+
+type IssueStockFormValues = z.infer<typeof issueStockSchema>
+
+// ---- Materials Tab ----
+
+function MaterialsTab({ projectId }: { projectId: string }) {
+  const [issueOpen, setIssueOpen] = useState(false)
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+
+  const { data: materials, isLoading } = useQuery<ProjectMaterials>({
+    queryKey: ["project-materials", projectId],
+    queryFn: async () => {
+      const response = await api.get(`/projects/${projectId}/materials`)
+      return response.data
+    },
+  })
+
+  const { data: inventoryItems = [] } = useQuery<Item[]>({
+    queryKey: ["inventory-items-for-issue"],
+    queryFn: async () => {
+      const response = await api.get("/inventory/items?limit=200")
+      return response.data.items ?? response.data
+    },
+    enabled: issueOpen,
+  })
+
+  const issueForm = useForm<IssueStockFormValues>({
+    resolver: zodResolver(issueStockSchema),
+    defaultValues: { item_id: "", quantity: 1 },
+  })
+
+  const issueMutation = useMutation({
+    mutationFn: async (data: IssueStockFormValues) => {
+      await api.post(`/inventory/items/${data.item_id}/issue`, {
+        project_id: projectId,
+        quantity: data.quantity,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["project-materials", projectId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["project-wallet", projectId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["project-transactions", projectId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["project", projectId],
+      })
+      setIssueOpen(false)
+      issueForm.reset({ item_id: "", quantity: 1 })
+      toast({
+        title: "Stock issued",
+        description: "Warehouse stock has been issued to this project.",
+      })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description:
+          err?.response?.data?.detail ??
+          "Failed to issue stock. Check inputs and try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const pos = materials?.purchase_orders ?? []
+  const stockIssues = materials?.stock_issues ?? []
+  const summary = materials?.summary
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Purchase Orders
+            </CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(Number(summary?.total_po_cost ?? 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {pos.length} order{pos.length !== 1 ? "s" : ""}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Stock Issued
+            </CardTitle>
+            <Warehouse className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(Number(summary?.total_stock_issued_cost ?? 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {stockIssues.length} issue{stockIssues.length !== 1 ? "s" : ""}{" "}
+              from warehouse
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Materials
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(Number(summary?.total_materials_cost ?? 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">POs + stock issued</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Issue Stock Button */}
+      <div className="flex justify-end">
+        <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Issue Stock
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Issue Stock to Project</DialogTitle>
+              <DialogDescription>
+                Issue items from warehouse stock to this project.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={issueForm.handleSubmit((data) =>
+                issueMutation.mutate(data)
+              )}
+            >
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Item</Label>
+                  <Select
+                    value={issueForm.watch("item_id")}
+                    onValueChange={(v) => issueForm.setValue("item_id", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {inventoryItems
+                        .filter((item) => item.current_stock > 0)
+                        .map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name} ({item.current_stock} {item.unit}{" "}
+                            available)
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {issueForm.formState.errors.item_id && (
+                    <p className="text-xs text-destructive">
+                      {issueForm.formState.errors.item_id.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="issue_qty">Quantity</Label>
+                  <Input
+                    id="issue_qty"
+                    type="number"
+                    step="0.01"
+                    min={0.01}
+                    {...issueForm.register("quantity")}
+                  />
+                  {issueForm.formState.errors.quantity && (
+                    <p className="text-xs text-destructive">
+                      {issueForm.formState.errors.quantity.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIssueOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={issueMutation.isPending}>
+                  {issueMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Issue Stock
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Purchase Orders Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Purchase Orders</CardTitle>
+          <CardDescription>
+            Project-specific purchase orders from vendors
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>PO ID</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : pos.length ? (
+                  pos.map((po) => (
+                    <TableRow key={po.id}>
+                      <TableCell className="font-mono text-sm">
+                        PO-{po.id.slice(0, 8).toUpperCase()}
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">
+                        {po.vendor_name ?? "—"}
+                      </TableCell>
+                      <TableCell>{po.items?.length ?? 0}</TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(po.total_amount)}
+                      </TableCell>
+                      <TableCell>
+                        {getPOStatusBadge(po.status)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {format(new Date(po.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Package className="h-8 w-8 text-muted-foreground" />
+                        <p className="text-muted-foreground">
+                          No purchase orders linked to this project
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stock Issues Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Stock Issues</CardTitle>
+          <CardDescription>
+            Items issued from warehouse to this project
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Unit Cost</TableHead>
+                  <TableHead>Total Cost</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : stockIssues.length ? (
+                  stockIssues.map((si) => (
+                    <TableRow key={si.id}>
+                      <TableCell className="font-medium text-sm">
+                        {si.item_name || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {si.item_category || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {Math.abs(si.quantity)} {si.item_unit}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(si.unit_cost_at_time)}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(si.total_cost)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {format(new Date(si.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                        {si.notes ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Warehouse className="h-8 w-8 text-muted-foreground" />
+                        <p className="text-muted-foreground">
+                          No stock issued from warehouse yet
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Click &quot;Issue Stock&quot; to allocate warehouse
+                          items
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ---- Main Page ----
 
 export default function ProjectDetailPage() {
@@ -1697,6 +2147,7 @@ export default function ProjectDetailPage() {
             <TabsTrigger value="finance">Finance</TabsTrigger>
             <TabsTrigger value="daily-logs">Daily Logs</TabsTrigger>
             <TabsTrigger value="labor">Labor</TabsTrigger>
+            <TabsTrigger value="materials">Materials</TabsTrigger>
             <TabsTrigger value="variation-orders">Variation Orders</TabsTrigger>
           </TabsList>
 
@@ -1724,6 +2175,10 @@ export default function ProjectDetailPage() {
               projectId={projectId}
               sprints={project.sprints ?? []}
             />
+          </TabsContent>
+
+          <TabsContent value="materials">
+            <MaterialsTab projectId={projectId} />
           </TabsContent>
 
           <TabsContent value="variation-orders">

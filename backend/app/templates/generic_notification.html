@@ -1,0 +1,12 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ recipient_name }},</p>
+
+<p><strong>{{ title }}</strong></p>
+
+<p>{{ body }}</p>
+
+{% if action_url %}
+<a href="{{ frontend_url }}{{ action_url }}" class="button">View Details</a>
+{% endif %}
+{% endblock %}

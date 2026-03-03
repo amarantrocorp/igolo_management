@@ -668,3 +668,34 @@
 .delay-6 { animation-delay: 0.3s; }
 .delay-7 { animation-delay: 0.35s; }
 .delay-8 { animation-delay: 0.4s; }
+
+/* ─── Landing Page Utilities ─── */
+
+.text-shimmer-gold {
+  background: linear-gradient(
+    110deg,
+    #CBB282 0%,
+    #E8D5B7 45%,
+    #CBB282 55%,
+    #A8956E 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.glow-gold {
+  box-shadow: 0 0 20px rgba(203, 178, 130, 0.25),
+              0 0 60px rgba(203, 178, 130, 0.1);
+}
+
+.glow-gold-sm {
+  box-shadow: 0 0 10px rgba(203, 178, 130, 0.2);
+}
+
+/* Smooth scroll for landing page anchor links */
+html {
+  scroll-behavior: smooth;
+}

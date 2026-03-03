@@ -1,0 +1,15 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ client_name }},</p>
+
+<p>Welcome to <strong>IntDesign ERP</strong>! Your portal account has been created. You can now track your project progress, view documents, and manage payments online.</p>
+
+<table style="width:100%; border-collapse:collapse; margin:15px 0;">
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Email</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ email }}</td></tr>
+    <tr><td style="padding:8px; color:#64748b;">Password</td><td style="padding:8px; font-weight:600;">{{ password }}</td></tr>
+</table>
+
+<p style="color:#ef4444; font-size:13px;">Please change your password after your first login.</p>
+
+<a href="{{ login_url }}" class="button">Login to Your Portal</a>
+{% endblock %}

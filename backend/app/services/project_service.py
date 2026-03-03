@@ -8,13 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.crm import Client
+from app.models.notification import NotificationType
+from app.models.user import UserRole
 from app.models.finance import (
     ProjectWallet,
     Transaction,
-    TransactionCategory,
-    TransactionStatus,
 )
 from app.models.project import (
     DailyLog,
@@ -115,8 +116,65 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
 
     await db.commit()
 
-    # Return with sprints loaded
-    return await get_project(project.id, db)
+    # Reload the full project with relationships for notifications
+    full_project = await get_project(project.id, db)
+
+    # Notify client about project start
+    if full_project.client and full_project.client.user:
+        client_user = full_project.client.user
+        if client_user.email:
+            send_email_fire_and_forget(
+                subject=f"Your Project Has Started: {full_project.name}",
+                email_to=client_user.email,
+                template_name="project_started.html",
+                template_data={
+                    "subject": f"Your Project Has Started: {full_project.name}",
+                    "recipient_name": client_user.full_name,
+                    "project_name": full_project.name,
+                    "start_date": str(full_project.start_date),
+                    "expected_end_date": str(full_project.expected_end_date) if full_project.expected_end_date else None,
+                    "action_url": None,
+                    "frontend_url": settings.FRONTEND_URL,
+                },
+            )
+
+    # Notify manager and supervisor
+    from app.services.notification_service import create_notification
+
+    if full_project.manager_id:
+        await create_notification(
+            db=db,
+            recipient_id=full_project.manager_id,
+            type=NotificationType.INFO,
+            title=f"New Project: {full_project.name}",
+            body=f"You have been assigned as manager for project '{full_project.name}'.",
+            action_url=f"/dashboard/projects/{full_project.id}",
+            email_template="project_started.html",
+            email_data={
+                "project_name": full_project.name,
+                "start_date": str(full_project.start_date),
+                "expected_end_date": str(full_project.expected_end_date) if full_project.expected_end_date else None,
+                "action_url": f"/dashboard/projects/{full_project.id}",
+            },
+        )
+    if full_project.supervisor_id:
+        await create_notification(
+            db=db,
+            recipient_id=full_project.supervisor_id,
+            type=NotificationType.INFO,
+            title=f"New Project: {full_project.name}",
+            body=f"You have been assigned as supervisor for project '{full_project.name}'.",
+            action_url=f"/dashboard/projects/{full_project.id}",
+            email_template="project_started.html",
+            email_data={
+                "project_name": full_project.name,
+                "start_date": str(full_project.start_date),
+                "expected_end_date": str(full_project.expected_end_date) if full_project.expected_end_date else None,
+                "action_url": f"/dashboard/projects/{full_project.id}",
+            },
+        )
+
+    return full_project
 
 
 async def _generate_standard_sprints(
@@ -359,6 +417,27 @@ async def create_variation_order(
     db.add(vo)
     await db.commit()
     await db.refresh(vo)
+
+    # Notify managers about new VO
+    from app.services.notification_service import notify_role
+
+    await notify_role(
+        db=db,
+        role=UserRole.MANAGER,
+        type=NotificationType.APPROVAL_REQ,
+        title=f"New Variation Order: {vo.description[:50]}",
+        body=f"A variation order of Rs. {vo.additional_cost} has been requested for project.",
+        action_url=f"/dashboard/projects/{project_id}",
+        email_template="variation_order.html",
+        email_data={
+            "project_name": f"Project {str(project_id)[:8]}",
+            "vo_description": vo.description,
+            "additional_cost": str(vo.additional_cost),
+            "vo_status": "REQUESTED",
+            "action_url": f"/dashboard/projects/{project_id}",
+        },
+    )
+
     return vo
 
 
@@ -399,6 +478,31 @@ async def update_variation_order(
     db.add(vo)
     await db.commit()
     await db.refresh(vo)
+
+    # Notify on VO status changes (APPROVED or PAID)
+    if (
+        "status" in update_data
+        and update_data["status"] in (VOStatus.APPROVED, VOStatus.PAID)
+    ):
+        from app.services.notification_service import notify_role
+
+        await notify_role(
+            db=db,
+            role=UserRole.MANAGER,
+            type=NotificationType.INFO,
+            title=f"VO {vo.status.value}: {vo.description[:50]}",
+            body=f"Variation order of Rs. {vo.additional_cost} is now {vo.status.value}.",
+            action_url=f"/dashboard/projects/{vo.project_id}",
+            email_template="variation_order.html",
+            email_data={
+                "project_name": f"Project {str(vo.project_id)[:8]}",
+                "vo_description": vo.description,
+                "additional_cost": str(vo.additional_cost),
+                "vo_status": vo.status.value,
+                "action_url": f"/dashboard/projects/{vo.project_id}",
+            },
+        )
+
     return vo
 
 
@@ -426,12 +530,16 @@ async def get_project_financial_health(
 async def create_transaction(
     project_id: UUID, data: TransactionCreate, user_id: UUID, db: AsyncSession
 ) -> Transaction:
-    """Record a financial transaction and update the project wallet."""
-    # 1. Get Project Wallet
-    wallet = await get_project_financial_health(project_id, db)
+    """Record a financial transaction via the finance service.
 
-    # 2. Create Transaction Record
-    transaction = Transaction(
+    Delegates to finance_service.create_transaction which:
+    - Enforces the spending lock (authorize_expense) for OUTFLOW transactions
+    - Creates transactions as PENDING (requires manager verification to CLEAR)
+    """
+    from app.schemas.finance import TransactionCreate as FinanceTransactionCreate
+    from app.services.finance_service import create_transaction as finance_create_txn
+
+    finance_data = FinanceTransactionCreate(
         project_id=project_id,
         category=data.category,
         source=data.source,
@@ -439,21 +547,8 @@ async def create_transaction(
         description=data.description,
         reference_id=data.reference_id,
         proof_doc_url=data.proof_doc_url,
-        recorded_by_id=user_id,
-        status=TransactionStatus.CLEARED,  # Auto-cleared for now
     )
-    db.add(transaction)
-
-    # 3. Update Wallet Balance
-    if data.category == TransactionCategory.INFLOW:
-        wallet.total_received += data.amount
-    elif data.category == TransactionCategory.OUTFLOW:
-        wallet.total_spent += data.amount
-
-    db.add(wallet)
-    await db.commit()
-    await db.refresh(transaction)
-    return transaction
+    return await finance_create_txn(data=finance_data, user_id=user_id, db=db)
 
 
 async def list_transactions(

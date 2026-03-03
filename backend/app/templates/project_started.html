@@ -1,0 +1,18 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ recipient_name }},</p>
+
+<p>A new project has been created and is ready for execution:</p>
+
+<table style="width:100%; border-collapse:collapse; margin:15px 0;">
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Project</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ project_name }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Start Date</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ start_date }}</td></tr>
+    {% if expected_end_date %}
+    <tr><td style="padding:8px; color:#64748b;">Expected End</td><td style="padding:8px;">{{ expected_end_date }}</td></tr>
+    {% endif %}
+</table>
+
+{% if action_url %}
+<a href="{{ frontend_url }}{{ action_url }}" class="button">View Project</a>
+{% endif %}
+{% endblock %}

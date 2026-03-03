@@ -67,3 +67,42 @@ class FinancialHealthResponse(BaseModel):
     effective_balance: Decimal
     can_spend_more: bool
     estimated_margin_percent: float
+
+
+# ── Analytics / Aggregation Schemas ──────────────────────────────────────────
+
+
+class TransactionSummaryResponse(BaseModel):
+    total_inflow: Decimal
+    total_outflow: Decimal
+    net_balance: Decimal
+    pending_inflow: Decimal
+    pending_outflow: Decimal
+    pending_count: int
+    total_count: int
+
+
+class AggregationBucket(BaseModel):
+    period: str
+    inflow: Decimal
+    outflow: Decimal
+    net: Decimal
+
+
+class TransactionAggregationResponse(BaseModel):
+    group_by: str
+    buckets: list[AggregationBucket]
+
+
+class SourceBreakdownItem(BaseModel):
+    source: str
+    total_inflow: Decimal
+    total_outflow: Decimal
+
+
+class ProjectBreakdownItem(BaseModel):
+    project_id: UUID
+    project_name: str
+    total_inflow: Decimal
+    total_outflow: Decimal
+    net: Decimal

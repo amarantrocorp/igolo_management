@@ -194,7 +194,19 @@ export default function QuoteViewPage() {
     },
   })
 
-  // Status update mutation
+  // Finalize mutation (DRAFT → SENT + emails client)
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/quotes/quotes/${id}/finalize`)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotation", id] })
+      queryClient.invalidateQueries({ queryKey: ["quotations"] })
+    },
+  })
+
+  // Status update mutation (for APPROVED, REJECTED, etc.)
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       const res = await api.patch(`/quotes/quotes/${id}/status`, {
@@ -426,15 +438,15 @@ export default function QuoteViewPage() {
             </Button>
           )}
 
-          {/* Status actions — hidden for BDE and once lead is converted */}
+          {/* Finalize & Send — hidden for BDE and once lead is converted */}
           {canEdit && isDraft && !editMode && !isLeadConverted && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => statusMutation.mutate("SENT")}
-              disabled={statusMutation.isPending}
+              onClick={() => finalizeMutation.mutate()}
+              disabled={finalizeMutation.isPending}
             >
-              {statusMutation.isPending ? (
+              {finalizeMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Send className="mr-2 h-4 w-4" />
@@ -477,9 +489,10 @@ export default function QuoteViewPage() {
         </div>
       </div>
 
-      {statusMutation.isError && (
+      {(statusMutation.isError || finalizeMutation.isError) && (
         <p className="text-sm text-destructive mb-4 print:hidden">
-          Failed to update status. Please try again.
+          {(finalizeMutation.error as any)?.response?.data?.detail ||
+            "Failed to update status. Please try again."}
         </p>
       )}
 

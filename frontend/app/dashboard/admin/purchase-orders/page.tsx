@@ -485,7 +485,7 @@ export default function PurchaseOrdersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => receiveMutation.mutate(po.id)}
+                          onClick={() => receiveMutation.mutate({ poId: po.id })}
                           disabled={receiveMutation.isPending}
                         >
                           <PackageCheck className="mr-1 h-3.5 w-3.5" />

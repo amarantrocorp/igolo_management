@@ -1,0 +1,20 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ client_name }},</p>
+
+<p>We have received and confirmed your payment. Thank you!</p>
+
+<table style="width:100%; border-collapse:collapse; margin:15px 0;">
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Project</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ project_name }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Amount</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600; color:#16a34a;">&#8377; {{ amount }}</td></tr>
+    {% if reference_id %}
+    <tr><td style="padding:8px; color:#64748b;">Reference</td><td style="padding:8px;">{{ reference_id }}</td></tr>
+    {% endif %}
+</table>
+
+{% if action_url %}
+<a href="{{ frontend_url }}{{ action_url }}" class="button">View Project</a>
+{% endif %}
+
+<p>This amount has been credited to your project wallet.</p>
+{% endblock %}

@@ -203,3 +203,48 @@ class PurchaseOrderResponse(BaseModel):
         if hasattr(data, "vendor") and data.vendor is not None:
             data.vendor_name = data.vendor.name  # type: ignore[attr-defined]
         return data
+
+
+# ---------------------------------------------------------------------------
+# Project Materials (aggregated view)
+# ---------------------------------------------------------------------------
+
+
+class StockIssueResponse(BaseModel):
+    id: UUID
+    item_id: UUID
+    item_name: str = ""
+    item_category: str = ""
+    item_unit: str = ""
+    quantity: float
+    unit_cost_at_time: Decimal
+    total_cost: Decimal = Decimal("0.00")
+    performed_by: UUID
+    notes: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_item_details(cls, data):  # type: ignore[override]
+        if hasattr(data, "item") and data.item is not None:
+            data.item_name = data.item.name
+            data.item_category = data.item.category
+            data.item_unit = data.item.unit
+        qty = abs(data.quantity) if hasattr(data, "quantity") else 0
+        cost = data.unit_cost_at_time if hasattr(data, "unit_cost_at_time") else Decimal("0")
+        data.total_cost = Decimal(str(qty)) * cost
+        return data
+
+
+class MaterialsSummary(BaseModel):
+    total_po_cost: Decimal
+    total_stock_issued_cost: Decimal
+    total_materials_cost: Decimal
+
+
+class ProjectMaterialsResponse(BaseModel):
+    purchase_orders: List[PurchaseOrderResponse] = []
+    stock_issues: List[StockIssueResponse] = []
+    summary: MaterialsSummary

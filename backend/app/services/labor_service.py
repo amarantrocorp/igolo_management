@@ -396,6 +396,26 @@ async def approve_payroll(
 
     await db.commit()
 
+    # Notify managers about payroll approval
+    from app.models.notification import NotificationType
+    from app.models.user import UserRole
+    from app.services.notification_service import notify_role
+
+    await notify_role(
+        db=db,
+        role=UserRole.MANAGER,
+        type=NotificationType.INFO,
+        title="Payroll Approved",
+        body=f"Labor payroll of Rs. {total_cost} approved for {len(logs)} attendance log(s).",
+        action_url="/dashboard/admin/labor",
+        email_template="generic_notification.html",
+        email_data={
+            "title": "Payroll Approved",
+            "body": f"Labor payroll of Rs. {total_cost} has been approved for {len(logs)} attendance log(s).",
+            "action_url": "/dashboard/admin/labor",
+        },
+    )
+
     # Refresh all logs
     for log in logs:
         await db.refresh(log)

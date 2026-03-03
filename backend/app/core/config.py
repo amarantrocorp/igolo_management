@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_NAME: str = "IntDesignERP"
 
+    # Frontend
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # Environment
     ENVIRONMENT: str = "development"
 

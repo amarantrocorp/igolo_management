@@ -191,7 +191,7 @@ function AlertItem({
   subtitle,
   accentColor,
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   title: string
   subtitle: string
   accentColor: string

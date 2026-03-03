@@ -1,0 +1,19 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ recipient_name }},</p>
+
+<p>A new lead has been assigned to you:</p>
+
+<table style="width:100%; border-collapse:collapse; margin:15px 0;">
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Name</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ lead_name }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Phone</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ lead_phone }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Source</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ lead_source }}</td></tr>
+    <tr><td style="padding:8px; color:#64748b;">Location</td><td style="padding:8px;">{{ lead_location }}</td></tr>
+</table>
+
+{% if action_url %}
+<a href="{{ frontend_url }}{{ action_url }}" class="button">View Lead</a>
+{% endif %}
+
+<p>Please reach out to this lead as soon as possible.</p>
+{% endblock %}

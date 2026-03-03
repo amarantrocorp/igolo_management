@@ -4,6 +4,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import ConflictException, NotFoundException
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
@@ -27,6 +29,21 @@ async def create_user(data: UserCreate, db: AsyncSession) -> User:
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # Email new staff their credentials
+    send_email_fire_and_forget(
+        subject="Welcome to IntDesign ERP - Your Account",
+        email_to=user.email,
+        template_name="client_welcome.html",
+        template_data={
+            "subject": "Welcome to IntDesign ERP",
+            "client_name": user.full_name,
+            "email": user.email,
+            "password": data.password,
+            "login_url": f"{settings.FRONTEND_URL}/login",
+        },
+    )
+
     return user
 
 

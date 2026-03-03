@@ -6,8 +6,11 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.crm import Lead, LeadStatus
+from app.models.notification import NotificationType
+from app.models.user import UserRole
 from app.models.project import Project
 from app.models.quotation import QuoteItem, QuoteRoom, QuoteStatus, Quotation
 from app.schemas.quotation import QuotationCreate
@@ -118,7 +121,7 @@ async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
         select(Quotation)
         .options(
             selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
-            selectinload(Quotation.lead),
+            selectinload(Quotation.lead).selectinload(Lead.assigned_to),
         )
         .where(Quotation.id == quote_id)
     )
@@ -138,7 +141,7 @@ async def get_quotations(
     """Retrieve a paginated list of quotations, optionally filtered by lead."""
     query = select(Quotation).options(
         selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
-        selectinload(Quotation.lead),
+        selectinload(Quotation.lead).selectinload(Lead.assigned_to),
     )
 
     if lead_id:
@@ -177,8 +180,108 @@ async def finalize_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
 
     db.add(quotation)
     await db.commit()
-    await db.refresh(quotation)
+
+    # Re-fetch with all relationships for email data
+    quotation = await get_quotation(quote_id, db)
+
+    # Notify client that quotation is ready — full quote in email
+    if quotation.lead and quotation.lead.email:
+        send_email_fire_and_forget(
+            subject=f"Your Quotation v{quotation.version} is Ready",
+            email_to=quotation.lead.email,
+            template_name="quotation_sent.html",
+            template_data=_build_quote_email_data(quotation),
+        )
+
     return quotation
+
+
+def _format_inr(value) -> str:
+    """Format a number as Indian Rupee string: ₹1,23,456.00"""
+    num = float(value or 0)
+    if num < 0:
+        return f"-₹{_format_inr_abs(-num)}"
+    return f"₹{_format_inr_abs(num)}"
+
+
+def _format_inr_abs(num: float) -> str:
+    """Format positive number in Indian numbering (lakh/crore grouping)."""
+    integer_part = int(num)
+    decimal_part = f"{num - integer_part:.2f}"[1:]  # ".XX"
+    s = str(integer_part)
+    if len(s) <= 3:
+        return s + decimal_part
+    # First group of 3 from right, then groups of 2
+    result = s[-3:]
+    s = s[:-3]
+    while s:
+        result = s[-2:] + "," + result
+        s = s[:-2]
+    return result + decimal_part
+
+
+def _build_quote_email_data(quotation: Quotation) -> dict:
+    """Build template data dict with full room/item breakdown for the email."""
+    from datetime import datetime
+
+    lead = quotation.lead
+    quote_number = f"QT-{str(quotation.id)[:8].upper()}"
+
+    # Format dates
+    created = quotation.created_at
+    if isinstance(created, datetime):
+        quote_date = created.strftime("%d %B %Y")
+    else:
+        quote_date = str(created)
+
+    valid_until = None
+    if quotation.valid_until:
+        if isinstance(quotation.valid_until, datetime):
+            valid_until = quotation.valid_until.strftime("%d %B %Y")
+        else:
+            valid_until = str(quotation.valid_until)
+
+    # Build rooms with formatted items
+    rooms_data = []
+    global_index = 0
+    grand_total = Decimal("0.00")
+
+    for room in quotation.rooms:
+        room_total = Decimal("0.00")
+        items_data = []
+        for item in room.items:
+            global_index += 1
+            final_price = Decimal(str(item.final_price or 0))
+            unit_price = Decimal(str(item.unit_price or 0))
+            room_total += final_price
+            items_data.append({
+                "index": global_index,
+                "description": item.description or "—",
+                "quantity": float(item.quantity),
+                "unit": item.unit or "nos",
+                "unit_price_fmt": _format_inr(unit_price),
+                "final_price_fmt": _format_inr(final_price),
+            })
+        grand_total += room_total
+        rooms_data.append({
+            "name": room.name,
+            "area_sqft": float(room.area_sqft) if room.area_sqft else None,
+            "line_items": items_data,
+            "subtotal_fmt": _format_inr(room_total),
+        })
+
+    return {
+        "client_name": lead.name if lead else "Client",
+        "client_phone": lead.contact_number if lead else None,
+        "client_email": lead.email if lead else None,
+        "quote_date": quote_date,
+        "valid_until": valid_until,
+        "quote_number": quote_number,
+        "quote_version": quotation.version,
+        "rooms": rooms_data,
+        "grand_total_fmt": _format_inr(grand_total),
+        "notes": quotation.notes,
+    }
 
 
 async def update_quotation_status(
@@ -190,4 +293,25 @@ async def update_quotation_status(
     db.add(quotation)
     await db.commit()
     await db.refresh(quotation)
+
+    # Notify managers when a quotation is approved
+    if status == QuoteStatus.APPROVED:
+        from app.services.notification_service import notify_role
+
+        lead_name = quotation.lead.name if quotation.lead else "Unknown"
+        await notify_role(
+            db=db,
+            role=UserRole.MANAGER,
+            type=NotificationType.APPROVAL_REQ,
+            title=f"Quote Approved: {lead_name}",
+            body=f"Quotation v{quotation.version} for {lead_name} has been approved. Ready for project conversion.",
+            action_url=f"/dashboard/sales/quotes/{quotation.id}",
+            email_template="generic_notification.html",
+            email_data={
+                "title": f"Quote Approved: {lead_name}",
+                "body": f"Quotation v{quotation.version} for {lead_name} has been approved and is ready for project conversion.",
+                "action_url": f"/dashboard/sales/quotes/{quotation.id}",
+            },
+        )
+
     return quotation

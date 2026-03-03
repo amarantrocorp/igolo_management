@@ -8,6 +8,7 @@ from app.core.security import get_current_user, role_required
 from app.db.session import get_db
 from app.models.project import ProjectStatus
 from app.models.user import User
+from app.schemas.inventory import ProjectMaterialsResponse
 from app.schemas.project import (
     DailyLogCreate,
     DailyLogResponse,
@@ -23,7 +24,7 @@ from app.schemas.project import (
     VariationOrderUpdate,
     WalletResponse,
 )
-from app.services import project_service
+from app.services import inventory_service, project_service
 
 router = APIRouter()
 
@@ -259,6 +260,29 @@ async def update_variation_order(
     VO work cannot start until VO payment is received."""
     vo = await project_service.update_variation_order(vo_id=vo_id, data=payload, db=db)
     return vo
+
+
+# ---------------------------------------------------------------------------
+# Materials (POs + Stock Issues)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{project_id}/materials",
+    response_model=ProjectMaterialsResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_project_materials(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])
+    ),
+):
+    """Retrieve all materials (purchase orders + stock issues) linked to a project."""
+    return await inventory_service.get_project_materials(
+        project_id=project_id, db=db
+    )
 
 
 # ---------------------------------------------------------------------------

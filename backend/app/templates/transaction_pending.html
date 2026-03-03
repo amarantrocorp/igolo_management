@@ -1,0 +1,20 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ recipient_name }},</p>
+
+<p>A new transaction requires your verification:</p>
+
+<table style="width:100%; border-collapse:collapse; margin:15px 0;">
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Project</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ project_name }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Amount</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600; color:#dc2626;">&#8377; {{ amount }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Category</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ category }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Source</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ source }}</td></tr>
+    {% if description %}
+    <tr><td style="padding:8px; color:#64748b;">Description</td><td style="padding:8px;">{{ description }}</td></tr>
+    {% endif %}
+</table>
+
+{% if action_url %}
+<a href="{{ frontend_url }}{{ action_url }}" class="button">Review Transaction</a>
+{% endif %}
+{% endblock %}

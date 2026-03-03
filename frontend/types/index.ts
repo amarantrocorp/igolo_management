@@ -255,6 +255,36 @@ export interface StockTransaction {
 }
 
 // ============================================================
+// Project Materials (aggregated view)
+// ============================================================
+
+export interface StockIssueDetail {
+  id: string
+  item_id: string
+  item_name: string
+  item_category: string
+  item_unit: string
+  quantity: number
+  unit_cost_at_time: number
+  total_cost: number
+  performed_by: string
+  notes?: string
+  created_at: string
+}
+
+export interface MaterialsSummary {
+  total_po_cost: number
+  total_stock_issued_cost: number
+  total_materials_cost: number
+}
+
+export interface ProjectMaterials {
+  purchase_orders: PurchaseOrder[]
+  stock_issues: StockIssueDetail[]
+  summary: MaterialsSummary
+}
+
+// ============================================================
 // Project Execution
 // ============================================================
 
@@ -379,6 +409,44 @@ export interface FinancialHealth {
   pending_approvals: number
   burn_rate: number
   estimated_margin: number
+}
+
+// ── Finance Analytics ──
+
+export interface TransactionSummary {
+  total_inflow: number
+  total_outflow: number
+  net_balance: number
+  pending_inflow: number
+  pending_outflow: number
+  pending_count: number
+  total_count: number
+}
+
+export interface AggregationBucket {
+  period: string
+  inflow: number
+  outflow: number
+  net: number
+}
+
+export interface TransactionAggregation {
+  group_by: "day" | "week" | "month"
+  buckets: AggregationBucket[]
+}
+
+export interface SourceBreakdownItem {
+  source: string
+  total_inflow: number
+  total_outflow: number
+}
+
+export interface ProjectBreakdownItem {
+  project_id: string
+  project_name: string
+  total_inflow: number
+  total_outflow: number
+  net: number
 }
 
 // ============================================================

@@ -1,0 +1,17 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ recipient_name }},</p>
+
+<p>A Variation Order update on your project:</p>
+
+<table style="width:100%; border-collapse:collapse; margin:15px 0;">
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Project</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ project_name }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Description</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ vo_description }}</td></tr>
+    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Additional Cost</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">&#8377; {{ additional_cost }}</td></tr>
+    <tr><td style="padding:8px; color:#64748b;">Status</td><td style="padding:8px; font-weight:600;">{{ vo_status }}</td></tr>
+</table>
+
+{% if action_url %}
+<a href="{{ frontend_url }}{{ action_url }}" class="button">View Project</a>
+{% endif %}
+{% endblock %}

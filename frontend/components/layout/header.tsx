@@ -2,9 +2,10 @@
 
 import { useAuthStore } from "@/store/auth-store"
 import { useRouter } from "next/navigation"
-import { Bell, LogOut, Settings, User } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import NotificationBell from "@/components/layout/notification-bell"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,12 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
 
 export default function Header() {
   const { user, logout } = useAuthStore()
   const router = useRouter()
-  const [unreadCount] = useState(0) // TODO: wire up to notifications API
 
   const handleLogout = () => {
     logout()
@@ -65,19 +64,7 @@ export default function Header() {
       {/* Right: Notifications + User */}
       <div className="flex items-center gap-4">
         {/* Notification Bell */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          onClick={() => router.push("/notifications")}
-        >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
-        </Button>
+        <NotificationBell />
 
         {/* User Avatar Dropdown */}
         {user && (
@@ -110,15 +97,6 @@ export default function Header() {
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/profile")}>
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
