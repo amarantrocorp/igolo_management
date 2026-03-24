@@ -12,7 +12,7 @@ export default function DashboardShell({
   children: React.ReactNode
 }) {
   const [mounted, setMounted] = useState(false)
-  const { user, token } = useAuthStore()
+  const { user, token, activeOrgId } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
@@ -20,12 +20,12 @@ export default function DashboardShell({
   }, [])
 
   useEffect(() => {
-    if (mounted && (!token || !user)) {
+    if (mounted && (!token || !user || !activeOrgId)) {
       router.push("/login")
     }
-  }, [mounted, token, user, router])
+  }, [mounted, token, user, activeOrgId, router])
 
-  if (!mounted || !token || !user) {
+  if (!mounted || !token || !user || !activeOrgId) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

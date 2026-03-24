@@ -30,6 +30,15 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  floorplan-ai:
+    build: ./floorplan-ai
+    env_file: .env
+    ports:
+      - "8001:8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
   frontend:
     image: node:20-alpine
     working_dir: /app

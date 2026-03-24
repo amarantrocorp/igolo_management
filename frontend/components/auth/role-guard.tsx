@@ -11,21 +11,22 @@ export default function RoleGuard({
   children: React.ReactNode
   allowedRoles: string[]
 }) {
-  const { user } = useAuthStore()
+  const { user, roleInOrg } = useAuthStore()
   const router = useRouter()
+  const effectiveRole = roleInOrg ?? user?.role
 
   useEffect(() => {
     if (!user) {
       router.push("/login")
       return
     }
-    if (!allowedRoles.includes(user.role)) {
+    if (!effectiveRole || !allowedRoles.includes(effectiveRole)) {
       router.push("/unauthorized")
       return
     }
-  }, [user, allowedRoles, router])
+  }, [user, effectiveRole, allowedRoles, router])
 
-  if (!user || !allowedRoles.includes(user.role)) return null
+  if (!user || !effectiveRole || !allowedRoles.includes(effectiveRole)) return null
 
   return <>{children}</>
 }

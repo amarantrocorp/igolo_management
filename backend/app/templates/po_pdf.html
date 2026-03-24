@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Order - {{ po.po_number }}</title>
+    <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; }
+        .company-name { font-size: 24px; font-weight: bold; color: #2563eb; }
+        .po-info { text-align: right; }
+        .po-info .label { color: #666; font-size: 10px; text-transform: uppercase; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: #475569; border-bottom: 2px solid #cbd5e1; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+        .total-row { font-weight: bold; background: #f8fafc; }
+        .footer { margin-top: 40px; text-align: center; color: #9ca3af; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-name">Igolo Interiors</div>
+        <div class="po-info">
+            <div class="label">Purchase Order</div>
+            <div style="font-size: 18px; font-weight: bold;">{{ po.po_number }}</div>
+            <div>Date: {{ po.created_at.strftime('%d %b %Y') if po.created_at else '' }}</div>
+            <div>Status: {{ po.status.value if po.status else '' }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Order Details</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in po.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.item_name if item.item_name else '' }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ "%.2f"|format(item.unit_price) }}</td>
+                    <td>{{ "%.2f"|format(item.total_price) }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="4" style="text-align: right;">Total Amount</td>
+                    <td>{{ "%.2f"|format(po.total_amount) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>This is a computer-generated document. No signature is required.</p>
+    </div>
+</body>
+</html>

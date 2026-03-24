@@ -38,7 +38,7 @@ from app.schemas.project import (
 )
 
 
-async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Project:
+async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: AsyncSession) -> Project:
     """Convert an approved quotation into a project.
 
     Steps:
@@ -49,7 +49,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
     """
     # Fetch and validate the quotation
     result = await db.execute(
-        select(Quotation).where(Quotation.id == data.quotation_id)
+        select(Quotation).where(Quotation.id == data.quotation_id, Quotation.org_id == org_id)
     )
     quotation = result.scalar_one_or_none()
     if not quotation:
@@ -65,7 +65,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
     from app.models.crm import Client
 
     client_result = await db.execute(
-        select(Client).where(Client.lead_id == quotation.lead_id)
+        select(Client).where(Client.lead_id == quotation.lead_id, Client.org_id == org_id)
     )
     client = client_result.scalar_one_or_none()
     if not client:
@@ -84,12 +84,13 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
         manager_id=data.manager_id,
         supervisor_id=data.supervisor_id,
         site_address=data.site_address,
+        org_id=org_id,
     )
     db.add(project)
     await db.flush()  # Get the project ID
 
     # Generate the standard 6 sprints
-    sprints = await _generate_standard_sprints(project.id, data.start_date, db)
+    sprints = await _generate_standard_sprints(project.id, data.start_date, org_id, db)
 
     # Calculate expected end date from the last sprint
     if sprints:
@@ -102,6 +103,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
         total_received=Decimal("0.00"),
         total_spent=Decimal("0.00"),
         pending_approvals=Decimal("0.00"),
+        org_id=org_id,
     )
     db.add(wallet)
 
@@ -117,7 +119,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
     await db.commit()
 
     # Reload the full project with relationships for notifications
-    full_project = await get_project(project.id, db)
+    full_project = await get_project(project.id, org_id, db)
 
     # Notify client about project start
     if full_project.client and full_project.client.user:
@@ -145,6 +147,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
         await create_notification(
             db=db,
             recipient_id=full_project.manager_id,
+            org_id=org_id,
             type=NotificationType.INFO,
             title=f"New Project: {full_project.name}",
             body=f"You have been assigned as manager for project '{full_project.name}'.",
@@ -161,6 +164,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
         await create_notification(
             db=db,
             recipient_id=full_project.supervisor_id,
+            org_id=org_id,
             type=NotificationType.INFO,
             title=f"New Project: {full_project.name}",
             body=f"You have been assigned as supervisor for project '{full_project.name}'.",
@@ -178,7 +182,7 @@ async def convert_quote_to_project(data: ProjectConvert, db: AsyncSession) -> Pr
 
 
 async def _generate_standard_sprints(
-    project_id: UUID, start_date: date, db: AsyncSession
+    project_id: UUID, start_date: date, org_id: UUID, db: AsyncSession
 ) -> List[Sprint]:
     """Auto-generate the 6 standard project sprints with sequential dates
     and dependency links between consecutive sprints.
@@ -198,6 +202,7 @@ async def _generate_standard_sprints(
             start_date=current_date,
             end_date=end_date,
             dependency_sprint_id=previous_sprint_id,
+            org_id=org_id,
         )
         db.add(sprint)
         await db.flush()  # Get sprint ID for dependency linking
@@ -210,7 +215,7 @@ async def _generate_standard_sprints(
     return sprints
 
 
-async def get_project(project_id: UUID, db: AsyncSession) -> Project:
+async def get_project(project_id: UUID, org_id: UUID, db: AsyncSession) -> Project:
     """Retrieve a project by ID with sprints eagerly loaded."""
     result = await db.execute(
         select(Project)
@@ -226,13 +231,14 @@ async def get_project(project_id: UUID, db: AsyncSession) -> Project:
         .where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()
-    if not project:
+    if not project or project.org_id != org_id:
         raise NotFoundException(detail=f"Project with id '{project_id}' not found")
     return project
 
 
 async def get_projects(
     db: AsyncSession,
+    org_id: UUID,
     skip: int = 0,
     limit: int = 50,
     status_filter: Optional[ProjectStatus] = None,
@@ -245,7 +251,7 @@ async def get_projects(
             selectinload(Client.user),
             selectinload(Client.lead),
         ),
-    )
+    ).where(Project.org_id == org_id)
 
     if status_filter:
         query = query.where(Project.status == status_filter)
@@ -256,10 +262,10 @@ async def get_projects(
 
 
 async def update_project(
-    project_id: UUID, data: ProjectUpdate, db: AsyncSession
+    project_id: UUID, data: ProjectUpdate, org_id: UUID, db: AsyncSession
 ) -> Project:
     """Update project fields. Only non-None fields are applied."""
-    project = await get_project(project_id, db)
+    project = await get_project(project_id, org_id, db)
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -272,7 +278,7 @@ async def update_project(
 
 
 async def update_sprint(
-    sprint_id: UUID, data: SprintUpdate, db: AsyncSession
+    sprint_id: UUID, data: SprintUpdate, org_id: UUID, db: AsyncSession
 ) -> Sprint:
     """Update a sprint and apply the Ripple Date Update algorithm.
 
@@ -281,7 +287,7 @@ async def update_sprint(
     """
     result = await db.execute(select(Sprint).where(Sprint.id == sprint_id))
     sprint = result.scalar_one_or_none()
-    if not sprint:
+    if not sprint or sprint.org_id != org_id:
         raise NotFoundException(detail=f"Sprint with id '{sprint_id}' not found")
 
     update_data = data.model_dump(exclude_unset=True)
@@ -334,11 +340,11 @@ async def _ripple_date_update(
 
 
 async def create_daily_log(
-    project_id: UUID, data: DailyLogCreate, user_id: UUID, db: AsyncSession
+    project_id: UUID, data: DailyLogCreate, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> DailyLog:
     """Create a daily progress log for a project (used by supervisors)."""
     # Validate project exists
-    await get_project(project_id, db)
+    await get_project(project_id, org_id, db)
 
     daily_log = DailyLog(
         project_id=project_id,
@@ -349,6 +355,7 @@ async def create_daily_log(
         blockers=data.blockers,
         image_urls=data.image_urls,
         visible_to_client=data.visible_to_client,
+        org_id=org_id,
     )
     db.add(daily_log)
     await db.commit()
@@ -358,6 +365,7 @@ async def create_daily_log(
 
 async def list_daily_logs(
     project_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
     sprint_id: Optional[UUID] = None,
     visible_to_client: Optional[bool] = None,
@@ -365,7 +373,10 @@ async def list_daily_logs(
     limit: int = 50,
 ) -> List[DailyLog]:
     """Retrieve a paginated list of daily logs for a project with optional filters."""
-    query = select(DailyLog).where(DailyLog.project_id == project_id)
+    query = select(DailyLog).where(
+        DailyLog.project_id == project_id,
+        DailyLog.org_id == org_id,
+    )
 
     if sprint_id is not None:
         query = query.where(DailyLog.sprint_id == sprint_id)
@@ -380,6 +391,7 @@ async def list_daily_logs(
 
 async def list_variation_orders(
     project_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
     skip: int = 0,
     limit: int = 50,
@@ -387,7 +399,10 @@ async def list_variation_orders(
     """Retrieve a paginated list of variation orders for a project."""
     query = (
         select(VariationOrder)
-        .where(VariationOrder.project_id == project_id)
+        .where(
+            VariationOrder.project_id == project_id,
+            VariationOrder.org_id == org_id,
+        )
         .order_by(VariationOrder.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -400,11 +415,12 @@ async def create_variation_order(
     project_id: UUID,
     data: VariationOrderCreate,
     user_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
 ) -> VariationOrder:
     """Create a Variation Order (VO) for additional work after contract signing."""
     # Validate project exists
-    await get_project(project_id, db)
+    await get_project(project_id, org_id, db)
 
     vo = VariationOrder(
         project_id=project_id,
@@ -413,6 +429,7 @@ async def create_variation_order(
         status=VOStatus.REQUESTED,
         linked_sprint_id=data.linked_sprint_id,
         requested_by_id=user_id,
+        org_id=org_id,
     )
     db.add(vo)
     await db.commit()
@@ -424,6 +441,7 @@ async def create_variation_order(
     await notify_role(
         db=db,
         role=UserRole.MANAGER,
+        org_id=org_id,
         type=NotificationType.APPROVAL_REQ,
         title=f"New Variation Order: {vo.description[:50]}",
         body=f"A variation order of Rs. {vo.additional_cost} has been requested for project.",
@@ -442,7 +460,7 @@ async def create_variation_order(
 
 
 async def update_variation_order(
-    vo_id: UUID, data: VariationOrderUpdate, db: AsyncSession
+    vo_id: UUID, data: VariationOrderUpdate, org_id: UUID, db: AsyncSession
 ) -> VariationOrder:
     """Update a Variation Order.
 
@@ -451,7 +469,7 @@ async def update_variation_order(
     """
     result = await db.execute(select(VariationOrder).where(VariationOrder.id == vo_id))
     vo = result.scalar_one_or_none()
-    if not vo:
+    if not vo or vo.org_id != org_id:
         raise NotFoundException(detail=f"Variation Order with id '{vo_id}' not found")
 
     update_data = data.model_dump(exclude_unset=True)
@@ -489,6 +507,7 @@ async def update_variation_order(
         await notify_role(
             db=db,
             role=UserRole.MANAGER,
+            org_id=org_id,
             type=NotificationType.INFO,
             title=f"VO {vo.status.value}: {vo.description[:50]}",
             body=f"Variation order of Rs. {vo.additional_cost} is now {vo.status.value}.",
@@ -512,23 +531,23 @@ async def update_variation_order(
 
 
 async def get_project_financial_health(
-    project_id: UUID, db: AsyncSession
+    project_id: UUID, org_id: UUID, db: AsyncSession
 ) -> ProjectWallet:
     """Retrieve the project wallet and financial summary."""
     result = await db.execute(
         select(ProjectWallet).where(ProjectWallet.project_id == project_id)
     )
     wallet = result.scalar_one_or_none()
-    if not wallet:
+    if not wallet or wallet.org_id != org_id:
         # Should exist if project exists, but safe fallback or 404
         # Check project existence first
-        await get_project(project_id, db)
+        await get_project(project_id, org_id, db)
         raise NotFoundException(detail="Project wallet not found")
     return wallet
 
 
 async def create_transaction(
-    project_id: UUID, data: TransactionCreate, user_id: UUID, db: AsyncSession
+    project_id: UUID, data: TransactionCreate, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> Transaction:
     """Record a financial transaction via the finance service.
 
@@ -548,11 +567,12 @@ async def create_transaction(
         reference_id=data.reference_id,
         proof_doc_url=data.proof_doc_url,
     )
-    return await finance_create_txn(data=finance_data, user_id=user_id, db=db)
+    return await finance_create_txn(data=finance_data, user_id=user_id, org_id=org_id, db=db)
 
 
 async def list_transactions(
     project_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
     skip: int = 0,
     limit: int = 50,
@@ -560,7 +580,10 @@ async def list_transactions(
     """List all financial transactions for a project."""
     query = (
         select(Transaction)
-        .where(Transaction.project_id == project_id)
+        .where(
+            Transaction.project_id == project_id,
+            Transaction.org_id == org_id,
+        )
         .order_by(Transaction.created_at.desc())
         .offset(skip)
         .limit(limit)

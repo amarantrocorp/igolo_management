@@ -7,10 +7,10 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useMutation } from "@tanstack/react-query"
-import { Loader2, Eye, EyeOff } from "lucide-react"
+import { Loader2, Eye, EyeOff, Building2 } from "lucide-react"
 import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth-store"
-import type { AuthTokens, User } from "@/types"
+import type { LoginResponse, UserWithOrg, OrgOption } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -51,6 +51,10 @@ export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
+  const [pendingOrgSelection, setPendingOrgSelection] = useState<{
+    token: string
+    organizations: OrgOption[]
+  } | null>(null)
 
   const {
     register,
@@ -66,32 +70,70 @@ export default function LoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormValues) => {
-      // OAuth2 password flow uses form data
       const formData = new URLSearchParams()
       formData.append("username", data.email)
       formData.append("password", data.password)
 
-      const tokenResponse = await api.post<AuthTokens>("/auth/token", formData, {
+      const tokenResponse = await api.post<LoginResponse>("/auth/token", formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       })
 
-      // Set token temporarily to fetch user profile
-      const token = tokenResponse.data.access_token
-      const refreshToken = tokenResponse.data.refresh_token
+      return tokenResponse.data
+    },
+    onSuccess: async (data) => {
+      if (data.requires_org_selection && data.organizations?.length) {
+        // User has multiple orgs, no default — show org picker
+        setPendingOrgSelection({
+          token: data.access_token,
+          organizations: data.organizations,
+        })
+        return
+      }
 
-      const userResponse = await api.get<User>("/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
+      // Single org or default org auto-selected — fetch user profile
+      const userResponse = await api.get<UserWithOrg>("/auth/me", {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      })
+      const user = userResponse.data
+
+      login(
+        data.access_token,
+        data.refresh_token ?? null,
+        user,
+        user.active_org_id,
+        user.role_in_org,
+        user.organizations,
+      )
+      const route = getRoleDefaultRoute(user.role_in_org)
+      router.push(route)
+    },
+  })
+
+  const selectOrgMutation = useMutation({
+    mutationFn: async (orgId: string) => {
+      const { data } = await api.post<{ access_token: string; refresh_token: string }>(
+        "/auth/select-org",
+        { org_id: orgId },
+        { headers: { Authorization: `Bearer ${pendingOrgSelection!.token}` } },
+      )
+
+      const userResponse = await api.get<UserWithOrg>("/auth/me", {
+        headers: { Authorization: `Bearer ${data.access_token}` },
       })
 
-      return {
-        token,
-        refreshToken,
-        user: userResponse.data,
-      }
+      return { tokenData: data, user: userResponse.data }
     },
-    onSuccess: (data) => {
-      login(data.token, data.refreshToken, data.user)
-      const route = getRoleDefaultRoute(data.user.role)
+    onSuccess: ({ tokenData, user }) => {
+      login(
+        tokenData.access_token,
+        tokenData.refresh_token,
+        user,
+        user.active_org_id,
+        user.role_in_org,
+        user.organizations,
+      )
+      setPendingOrgSelection(null)
+      const route = getRoleDefaultRoute(user.role_in_org)
       router.push(route)
     },
   })
@@ -100,6 +142,45 @@ export default function LoginPage() {
     loginMutation.mutate(data)
   }
 
+  // ── Org Selection Screen ──
+  if (pendingOrgSelection) {
+    return (
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-xl">Select Organization</CardTitle>
+          <CardDescription>
+            You belong to multiple organizations. Please select one to continue.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {pendingOrgSelection.organizations.map((org) => (
+            <Button
+              key={org.id}
+              variant="outline"
+              className="w-full justify-start gap-3 h-auto py-3"
+              disabled={selectOrgMutation.isPending}
+              onClick={() => selectOrgMutation.mutate(org.id)}
+            >
+              <Building2 className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div className="flex flex-col items-start">
+                <span className="font-medium">{org.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {org.role.replace("_", " ")} &middot; {org.slug}
+                </span>
+              </div>
+            </Button>
+          ))}
+          {selectOrgMutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to select organization. Please try again.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Login Form ──
   return (
     <Card>
       <CardHeader className="space-y-1">

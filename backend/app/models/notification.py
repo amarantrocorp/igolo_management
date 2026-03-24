@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -21,7 +21,7 @@ class NotificationType(str, enum.Enum):
     PAYMENT_RECEIVED = "PAYMENT_RECEIVED"
 
 
-class Notification(Base, UUIDMixin, TimestampMixin):
+class Notification(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "notifications"
 
     recipient_id: Mapped[uuid.UUID] = mapped_column(

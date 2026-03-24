@@ -63,8 +63,12 @@ from app.models.project import (
     VariationOrder,
     VOStatus,
 )
+from app.models.organization import OrgMembership, Organization, PlanTier
 from app.models.quotation import QuoteItem, QuoteRoom, QuoteStatus, Quotation
 from app.models.user import User, UserRole
+
+# Default org UUID — must match the migration script
+DEFAULT_ORG_ID = uuid.UUID("a0000000-0000-0000-0000-000000000001")
 
 
 # ── Reset ────────────────────────────────────────────────────────────────────
@@ -91,18 +95,35 @@ TABLES_IN_DELETE_ORDER = [
     "leads",
     "vendors",
     "items",
+    "org_memberships",
     "users",
+    "organizations",
 ]
 
 
 async def reset_all(db):
-    """Delete all data except the Super Admin user."""
-    print("  Clearing all tables (keeping Super Admin)...")
+    """Delete all data except the Super Admin user and default org."""
+    print("  Clearing all tables (keeping Super Admin & default org)...")
     for table in TABLES_IN_DELETE_ORDER:
         if table == "users":
             await db.execute(
                 text("DELETE FROM users WHERE email != 'admin@intdesignerp.com'")
             )
+        elif table == "organizations":
+            await db.execute(
+                text(f"DELETE FROM organizations WHERE id != '{DEFAULT_ORG_ID}'")
+            )
+        elif table == "org_memberships":
+            admin_result = await db.execute(
+                text("SELECT id FROM users WHERE email = 'admin@intdesignerp.com'")
+            )
+            admin_row = admin_result.first()
+            if admin_row:
+                await db.execute(
+                    text(f"DELETE FROM org_memberships WHERE user_id != '{admin_row[0]}'")
+                )
+            else:
+                await db.execute(text(f"DELETE FROM {table}"))
         else:
             await db.execute(text(f"DELETE FROM {table}"))
     await db.flush()
@@ -125,6 +146,61 @@ def today() -> date:
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# ── 0. Organization ──────────────────────────────────────────────────────────
+
+async def seed_organization(db):
+    """Ensure default org exists and admin user is a platform admin with membership."""
+    result = await db.execute(
+        select(Organization).where(Organization.id == DEFAULT_ORG_ID)
+    )
+    org = result.scalar_one_or_none()
+    if not org:
+        org = Organization(
+            id=DEFAULT_ORG_ID,
+            name="Default Organization",
+            slug="default",
+            is_active=True,
+            plan_tier=PlanTier.PRO,
+        )
+        db.add(org)
+        await db.flush()
+        print("  Created default organization")
+    else:
+        print("  Default organization already exists. Skipping.")
+
+    # Ensure admin is a platform admin with membership
+    admin_result = await db.execute(
+        select(User).where(User.email == "admin@intdesignerp.com")
+    )
+    admin = admin_result.scalar_one_or_none()
+    if admin:
+        if not admin.is_platform_admin:
+            admin.is_platform_admin = True
+            await db.flush()
+            print("  Marked admin as platform admin")
+
+        # Ensure membership exists
+        mem_result = await db.execute(
+            select(OrgMembership).where(
+                OrgMembership.user_id == admin.id,
+                OrgMembership.org_id == DEFAULT_ORG_ID,
+            )
+        )
+        if not mem_result.scalar_one_or_none():
+            mem = OrgMembership(
+                user_id=admin.id,
+                org_id=DEFAULT_ORG_ID,
+                role=UserRole.SUPER_ADMIN,
+                is_default=True,
+                is_active=True,
+            )
+            db.add(mem)
+            await db.flush()
+            print("  Created admin org membership")
+
+    return org
 
 
 # ── 1. Users ─────────────────────────────────────────────────────────────────
@@ -165,7 +241,20 @@ async def seed_users(db):
         created[email] = u
 
     await db.flush()
-    print(f"  Created {len(created)} staff/client users (password: Staff@123456)")
+
+    # Create OrgMembership for each new user
+    for email, u in created.items():
+        mem = OrgMembership(
+            user_id=u.id,
+            org_id=DEFAULT_ORG_ID,
+            role=u.role,
+            is_default=True,
+            is_active=True,
+        )
+        db.add(mem)
+
+    await db.flush()
+    print(f"  Created {len(created)} staff/client users with org memberships (password: Staff@123456)")
     return created
 
 
@@ -218,6 +307,7 @@ async def seed_items(db):
             name=name, sku=sku, category=cat, unit=unit,
             base_price=d(bp), selling_price=d(sp),
             current_stock=float(stock), reorder_level=float(reorder),
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(item)
         items.append(item)
@@ -251,6 +341,7 @@ async def seed_vendors(db, items):
         v = Vendor(
             name=name, contact_person=cp, phone=phone,
             email=email, address=addr, gst_number=gst,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(v)
         vendors.append(v)
@@ -280,6 +371,7 @@ async def seed_vendors(db, items):
             vendor_id=vendor.id, item_id=item.id,
             vendor_price=vendor_price.quantize(d("0.01")),
             lead_time_days=random.randint(2, 10),
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(vi)
         vi_count += 1
@@ -292,6 +384,7 @@ async def seed_vendors(db, items):
                 vendor_id=vendors[alt_idx].id, item_id=item.id,
                 vendor_price=alt_price.quantize(d("0.01")),
                 lead_time_days=random.randint(3, 14),
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(vi2)
             vi_count += 1
@@ -360,6 +453,7 @@ async def seed_leads(db, users):
             site_visit_availability=random.choice(list(SiteVisitAvailability)),
             assigned_to_id=assigned.id,
             notes=f"Interested in {style} design for their {pt.value.lower().replace('_', ' ')} in {loc}.",
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(lead)
         leads.append(lead)
@@ -445,6 +539,7 @@ async def seed_quotations(db, leads, items, users):
             lead_id=lead.id,
             version=1,
             total_amount=d("0.00"),
+            org_id=DEFAULT_ORG_ID,
             status=(
                 QuoteStatus.APPROVED if lead.status == LeadStatus.CONVERTED
                 else QuoteStatus.SENT
@@ -461,6 +556,7 @@ async def seed_quotations(db, leads, items, users):
                 quotation_id=quote.id,
                 name=room_name,
                 area_sqft=random.uniform(80, 200),
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(room)
             await db.flush()
@@ -481,6 +577,7 @@ async def seed_quotations(db, leads, items, users):
                     unit_price=unit_price,
                     markup_percentage=markup_pct,
                     final_price=final,
+                    org_id=DEFAULT_ORG_ID,
                 )
                 db.add(qi)
                 quote_total += final
@@ -526,6 +623,7 @@ async def seed_clients(db, leads, users):
             lead_id=lead.id,
             address=addresses[i] if i < len(addresses) else "Bangalore",
             gst_number=None,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(client)
         clients.append(client)
@@ -588,6 +686,7 @@ async def seed_projects(db, clients, quotations, users):
             manager_id=manager.id if manager else admin.id,
             supervisor_id=supervisor.id if supervisor else admin.id,
             site_address=site_addr,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(project)
         await db.flush()
@@ -618,6 +717,7 @@ async def seed_projects(db, clients, quotations, users):
                 start_date=current_date,
                 end_date=end,
                 dependency_sprint_id=prev_sprint.id if prev_sprint else None,
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(sprint)
             await db.flush()
@@ -661,6 +761,7 @@ async def seed_financials(db, projects, users):
                 total_received=received,
                 total_spent=spent,
                 pending_approvals=d("0.00"),
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(wallet)
             await db.flush()
@@ -682,6 +783,7 @@ async def seed_financials(db, projects, users):
                     reference_id=ref,
                     recorded_by_id=manager.id,
                     status=TransactionStatus.CLEARED,
+                    org_id=DEFAULT_ORG_ID,
                 )
                 db.add(txn)
 
@@ -706,6 +808,7 @@ async def seed_financials(db, projects, users):
                     description=desc,
                     recorded_by_id=manager.id,
                     status=TransactionStatus.CLEARED,
+                    org_id=DEFAULT_ORG_ID,
                 )
                 db.add(txn)
 
@@ -718,6 +821,7 @@ async def seed_financials(db, projects, users):
                 total_received=advance,
                 total_spent=d("0.00"),
                 pending_approvals=d("0.00"),
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(wallet)
             await db.flush()
@@ -731,6 +835,7 @@ async def seed_financials(db, projects, users):
                 reference_id="TXN-ADV-101",
                 recorded_by_id=manager.id,
                 status=TransactionStatus.CLEARED,
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(txn)
 
@@ -759,6 +864,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
         total_amount=d("0.00"),
         notes="Monthly general stock replenishment",
         created_by_id=admin.id,
+        org_id=DEFAULT_ORG_ID,
     )
     db.add(general_po)
     await db.flush()
@@ -775,6 +881,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             quantity=float(qty),
             unit_price=price,
             total_price=total,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(poi)
         po_total += total
@@ -796,6 +903,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             total_amount=d("0.00"),
             notes="Bathroom tiles & flooring for Flat 402",
             created_by_id=admin.id,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(po1)
         await db.flush()
@@ -809,6 +917,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             poi = POItem(
                 purchase_order_id=po1.id, item_id=item.id,
                 quantity=float(qty), unit_price=price, total_price=total,
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(poi)
             po1_total += total
@@ -824,6 +933,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             total_amount=d("0.00"),
             notes="Hettich hardware for kitchen cabinets",
             created_by_id=admin.id,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(po2)
         await db.flush()
@@ -837,6 +947,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             poi = POItem(
                 purchase_order_id=po2.id, item_id=item.id,
                 quantity=float(qty), unit_price=price, total_price=total,
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(poi)
             po2_total += total
@@ -852,6 +963,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             total_amount=d("0.00"),
             notes="Paint requirement for Sprint 5 - Painting & Finishing",
             created_by_id=admin.id,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(po3)
         await db.flush()
@@ -865,6 +977,7 @@ async def seed_purchase_orders(db, projects, items, vendors, users):
             poi = POItem(
                 purchase_order_id=po3.id, item_id=item.id,
                 quantity=float(qty), unit_price=price, total_price=total,
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(poi)
             po3_total += total
@@ -917,6 +1030,7 @@ async def seed_stock_transactions(db, projects, items, users):
             performed_by=supervisor.id,
             unit_cost_at_time=item.base_price,
             notes=notes,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(st)
 
@@ -929,6 +1043,7 @@ async def seed_stock_transactions(db, projects, items, users):
             performed_by=admin.id,
             unit_cost_at_time=item.base_price,
             notes="Stock received from monthly PO",
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(st)
 
@@ -941,6 +1056,7 @@ async def seed_stock_transactions(db, projects, items, users):
         performed_by=supervisor.id,
         unit_cost_at_time=damage_item.base_price,
         notes="Water damage during storage - 5 sheets written off",
+        org_id=DEFAULT_ORG_ID,
     )
     db.add(st)
 
@@ -1001,6 +1117,7 @@ async def seed_daily_logs(db, projects, users):
             notes=notes,
             blockers=blockers,
             visible_to_client=visible,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(log)
 
@@ -1042,6 +1159,7 @@ async def seed_variation_orders(db, projects, users):
             status=status,
             linked_sprint_id=sprints[sprint_idx].id if sprint_idx is not None and sprint_idx < len(sprints) else None,
             requested_by_id=manager.id,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(vo)
 
@@ -1100,6 +1218,7 @@ async def seed_labor(db, projects, users):
             specialization=spec, payment_model=pay_model,
             default_daily_rate=rate,
             supervisor_id=supervisor.id if supervisor else admin.id,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(team)
         await db.flush()
@@ -1108,6 +1227,7 @@ async def seed_labor(db, projects, users):
             w = Worker(
                 team_id=team.id, name=wname,
                 skill_level=skill, daily_rate=wrate, phone=wphone,
+                org_id=DEFAULT_ORG_ID,
             )
             db.add(w)
 
@@ -1145,6 +1265,7 @@ async def seed_labor(db, projects, users):
                     status=AttendanceStatus.PAID,
                     notes=f"Civil work - {workers} workers present",
                     logged_by_id=supervisor.id if supervisor else admin.id,
+                    org_id=DEFAULT_ORG_ID,
                 )
                 db.add(att)
 
@@ -1173,6 +1294,7 @@ async def seed_labor(db, projects, users):
                     status=status,
                     notes=f"Electrical wiring - {workers} workers",
                     logged_by_id=supervisor.id if supervisor else admin.id,
+                    org_id=DEFAULT_ORG_ID,
                 )
                 db.add(att)
 
@@ -1196,6 +1318,7 @@ async def seed_labor(db, projects, users):
                     calculated_cost=cost,
                     status=AttendanceStatus.APPROVED_BY_MANAGER,
                     notes=f"Plumbing rough-in - {workers} workers",
+                    org_id=DEFAULT_ORG_ID,
                     logged_by_id=supervisor.id if supervisor else admin.id,
                 )
                 db.add(att)
@@ -1257,6 +1380,7 @@ async def seed_notifications(db, users):
             body=body,
             action_url=url,
             is_read=is_read,
+            org_id=DEFAULT_ORG_ID,
         )
         db.add(n)
 
@@ -1278,49 +1402,52 @@ async def main():
     async with AsyncSessionLocal() as db:
         try:
             if do_reset:
-                print("\n[0/14] Resetting database...")
+                print("\n[0/15] Resetting database...")
                 await reset_all(db)
 
-            print("\n[1/14] Seeding users...")
+            print("\n[1/15] Seeding organization...")
+            await seed_organization(db)
+
+            print("[2/15] Seeding users...")
             users = await seed_users(db)
 
-            print("[2/14] Seeding inventory items...")
+            print("[3/15] Seeding inventory items...")
             items = await seed_items(db)
 
-            print("[3/14] Seeding vendors & vendor-item links...")
+            print("[4/15] Seeding vendors & vendor-item links...")
             vendors = await seed_vendors(db, items)
 
-            print("[4/14] Seeding leads...")
+            print("[5/15] Seeding leads...")
             leads = await seed_leads(db, users)
 
-            print("[5/14] Seeding quotations...")
+            print("[6/15] Seeding quotations...")
             quotations = await seed_quotations(db, leads, items, users)
 
-            print("[6/14] Seeding clients...")
+            print("[7/15] Seeding clients...")
             clients = await seed_clients(db, leads, users)
 
-            print("[7/14] Seeding projects & sprints...")
+            print("[8/15] Seeding projects & sprints...")
             projects = await seed_projects(db, clients, quotations, users)
 
-            print("[8/14] Seeding financials (wallets & transactions)...")
+            print("[9/15] Seeding financials (wallets & transactions)...")
             await seed_financials(db, projects, users)
 
-            print("[9/14] Seeding purchase orders...")
+            print("[10/15] Seeding purchase orders...")
             await seed_purchase_orders(db, projects, items, vendors, users)
 
-            print("[10/14] Seeding stock transactions...")
+            print("[11/15] Seeding stock transactions...")
             await seed_stock_transactions(db, projects, items, users)
 
-            print("[11/14] Seeding daily logs...")
+            print("[12/15] Seeding daily logs...")
             await seed_daily_logs(db, projects, users)
 
-            print("[12/14] Seeding variation orders...")
+            print("[13/15] Seeding variation orders...")
             await seed_variation_orders(db, projects, users)
 
-            print("[13/14] Seeding labor teams, workers & attendance...")
+            print("[14/15] Seeding labor teams, workers & attendance...")
             await seed_labor(db, projects, users)
 
-            print("[14/14] Seeding notifications...")
+            print("[15/15] Seeding notifications...")
             await seed_notifications(db, users)
 
             await db.commit()

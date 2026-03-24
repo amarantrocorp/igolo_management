@@ -5,9 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user, role_required
+from app.core.security import get_auth_context, role_required, AuthContext
 from app.db.session import get_db
-from app.models.user import User
 from app.models.labor import AttendanceStatus
 from app.schemas.labor import (
     AttendanceLogCreate,
@@ -35,10 +34,12 @@ router = APIRouter()
 async def create_labor_team(
     payload: LaborTeamCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new labor team."""
-    team = await labor_service.create_labor_team(data=payload, db=db)
+    team = await labor_service.create_labor_team(
+        data=payload, org_id=ctx.org_id, db=db
+    )
     return team
 
 
@@ -49,10 +50,12 @@ async def list_labor_teams(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """List labor teams with pagination."""
-    teams = await labor_service.get_labor_teams(db=db, skip=skip, limit=limit)
+    teams = await labor_service.get_labor_teams(
+        db=db, org_id=ctx.org_id, skip=skip, limit=limit
+    )
     return teams
 
 
@@ -62,10 +65,12 @@ async def list_labor_teams(
 async def get_labor_team(
     team_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single labor team with its workers."""
-    team = await labor_service.get_team(team_id=team_id, db=db)
+    team = await labor_service.get_team(
+        team_id=team_id, org_id=ctx.org_id, db=db
+    )
     return team
 
 
@@ -76,10 +81,12 @@ async def update_labor_team(
     team_id: UUID,
     payload: LaborTeamUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing labor team."""
-    team = await labor_service.update_team(team_id=team_id, data=payload, db=db)
+    team = await labor_service.update_team(
+        team_id=team_id, data=payload, org_id=ctx.org_id, db=db
+    )
     return team
 
 
@@ -97,10 +104,12 @@ async def add_worker(
     team_id: UUID,
     payload: WorkerCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Add a worker to a labor team."""
-    worker = await labor_service.add_worker(team_id=team_id, data=payload, db=db)
+    worker = await labor_service.add_worker(
+        team_id=team_id, data=payload, org_id=ctx.org_id, db=db
+    )
     return worker
 
 
@@ -117,7 +126,7 @@ async def add_worker(
 async def log_attendance(
     payload: AttendanceLogCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
+    ctx: AuthContext = Depends(
         role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
     ),
 ):
@@ -125,7 +134,7 @@ async def log_attendance(
     Automatically calculates cost as workers_present * daily_rate * (total_hours / 8).
     """
     log = await labor_service.log_attendance(
-        data=payload, user_id=current_user.id, db=db
+        data=payload, user_id=ctx.user.id, org_id=ctx.org_id, db=db
     )
     return log
 
@@ -145,7 +154,7 @@ async def list_attendance(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
+    ctx: AuthContext = Depends(
         role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
     ),
 ):
@@ -153,6 +162,7 @@ async def list_attendance(
     parsed_status = AttendanceStatus(attendance_status) if attendance_status else None
     logs = await labor_service.list_attendance_logs(
         db=db,
+        org_id=ctx.org_id,
         project_id=project_id,
         sprint_id=sprint_id,
         team_id=team_id,
@@ -180,7 +190,7 @@ async def get_payroll_summary(
     week_start: date = Query(...),
     week_end: date = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get weekly payroll summary grouped by team. Optionally filter by project
     and date range (week_start to week_end)."""
@@ -188,6 +198,7 @@ async def get_payroll_summary(
         project_id=project_id,
         week_start=week_start,
         week_end=week_end,
+        org_id=ctx.org_id,
         db=db,
     )
     return summary
@@ -204,7 +215,7 @@ async def approve_payroll(
     week_start: date = Query(...),
     week_end: date = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Approve and pay a weekly payroll batch for a specific team on a project.
     Finds all pending attendance logs matching the filters, then approves them
@@ -215,7 +226,27 @@ async def approve_payroll(
         team_id=team_id,
         week_start=week_start,
         week_end=week_end,
-        user_id=current_user.id,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
         db=db,
     )
     return logs
+
+
+# ---------------------------------------------------------------------------
+# Labor Productivity Analytics
+# ---------------------------------------------------------------------------
+
+
+@router.get("/teams/{team_id}/productivity", status_code=status.HTTP_200_OK)
+async def get_team_productivity(
+    team_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Get productivity metrics for a labor team."""
+    from app.services import labor_analytics_service
+
+    return await labor_analytics_service.get_team_productivity(
+        team_id, org_id=ctx.org_id, db=db
+    )

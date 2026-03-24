@@ -38,7 +38,7 @@ from app.schemas.inventory import (
 # ---------------------------------------------------------------------------
 
 
-async def create_item(data: ItemCreate, db: AsyncSession) -> Item:
+async def create_item(data: ItemCreate, org_id: UUID, db: AsyncSession) -> Item:
     """Create a new inventory item."""
     item = Item(
         name=data.name,
@@ -50,15 +50,17 @@ async def create_item(data: ItemCreate, db: AsyncSession) -> Item:
         current_stock=data.current_stock,
         reorder_level=data.reorder_level,
         image_url=data.image_url,
+        org_id=org_id,
     )
     db.add(item)
     await db.commit()
     # Re-fetch with suppliers eagerly loaded to avoid MissingGreenlet
-    return await get_item(item.id, db)
+    return await get_item(item.id, org_id, db)
 
 
 async def get_items(
     db: AsyncSession,
+    org_id: UUID,
     skip: int = 0,
     limit: int = 50,
     category: Optional[str] = None,
@@ -72,7 +74,7 @@ async def get_items(
     """
     query = select(Item).options(
         selectinload(Item.suppliers).selectinload(VendorItem.vendor)
-    )
+    ).where(Item.org_id == org_id)
 
     if category:
         query = query.where(Item.category == category)
@@ -86,7 +88,7 @@ async def get_items(
     return list(result.scalars().all())
 
 
-async def get_item(item_id: UUID, db: AsyncSession) -> Item:
+async def get_item(item_id: UUID, org_id: UUID, db: AsyncSession) -> Item:
     """Retrieve a single inventory item by ID with suppliers and stock history."""
     result = await db.execute(
         select(Item)
@@ -97,16 +99,16 @@ async def get_item(item_id: UUID, db: AsyncSession) -> Item:
         .where(Item.id == item_id)
     )
     item = result.scalar_one_or_none()
-    if not item:
+    if not item or item.org_id != org_id:
         raise NotFoundException(detail=f"Item with id '{item_id}' not found")
     return item
 
 
-async def update_item(item_id: UUID, data: ItemUpdate, db: AsyncSession) -> Item:
+async def update_item(item_id: UUID, data: ItemUpdate, org_id: UUID, db: AsyncSession) -> Item:
     """Update inventory item fields. Only non-None fields are applied."""
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
-    if not item:
+    if not item or item.org_id != org_id:
         raise NotFoundException(detail=f"Item with id '{item_id}' not found")
 
     update_data = data.model_dump(exclude_unset=True)
@@ -116,7 +118,7 @@ async def update_item(item_id: UUID, data: ItemUpdate, db: AsyncSession) -> Item
     db.add(item)
     await db.commit()
     # Re-fetch with suppliers eagerly loaded to avoid MissingGreenlet
-    return await get_item(item_id, db)
+    return await get_item(item_id, org_id, db)
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +126,7 @@ async def update_item(item_id: UUID, data: ItemUpdate, db: AsyncSession) -> Item
 # ---------------------------------------------------------------------------
 
 
-async def create_vendor(data: VendorCreate, db: AsyncSession) -> Vendor:
+async def create_vendor(data: VendorCreate, org_id: UUID, db: AsyncSession) -> Vendor:
     """Create a new vendor record."""
     vendor = Vendor(
         name=data.name,
@@ -133,6 +135,7 @@ async def create_vendor(data: VendorCreate, db: AsyncSession) -> Vendor:
         email=data.email,
         address=data.address,
         gst_number=data.gst_number,
+        org_id=org_id,
     )
     db.add(vendor)
     await db.commit()
@@ -140,28 +143,28 @@ async def create_vendor(data: VendorCreate, db: AsyncSession) -> Vendor:
     return vendor
 
 
-async def get_vendors(db: AsyncSession, skip: int = 0, limit: int = 50) -> List[Vendor]:
+async def get_vendors(db: AsyncSession, org_id: UUID, skip: int = 0, limit: int = 50) -> List[Vendor]:
     """Retrieve a paginated list of vendors."""
     result = await db.execute(
-        select(Vendor).order_by(Vendor.name).offset(skip).limit(limit)
+        select(Vendor).where(Vendor.org_id == org_id).order_by(Vendor.name).offset(skip).limit(limit)
     )
     return list(result.scalars().all())
 
 
-async def get_vendor(vendor_id: UUID, db: AsyncSession) -> Vendor:
+async def get_vendor(vendor_id: UUID, org_id: UUID, db: AsyncSession) -> Vendor:
     """Retrieve a single vendor by ID."""
     result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
     vendor = result.scalar_one_or_none()
-    if not vendor:
+    if not vendor or vendor.org_id != org_id:
         raise NotFoundException(detail=f"Vendor with id '{vendor_id}' not found")
     return vendor
 
 
 async def update_vendor(
-    vendor_id: UUID, data: VendorUpdate, db: AsyncSession
+    vendor_id: UUID, data: VendorUpdate, org_id: UUID, db: AsyncSession
 ) -> Vendor:
     """Update vendor fields. Only non-None fields are applied."""
-    vendor = await get_vendor(vendor_id, db)
+    vendor = await get_vendor(vendor_id, org_id, db)
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(vendor, field, value)
@@ -177,7 +180,7 @@ async def update_vendor(
 
 
 async def create_purchase_order(
-    data: PurchaseOrderCreate, user_id: UUID, db: AsyncSession
+    data: PurchaseOrderCreate, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> PurchaseOrder:
     """Create a new purchase order.
 
@@ -190,6 +193,11 @@ async def create_purchase_order(
             detail="project_id is required for project-specific purchase orders"
         )
 
+    # Validate: vendor must exist
+    vendor = await db.execute(select(Vendor).where(Vendor.id == data.vendor_id))
+    if not vendor.scalar_one_or_none():
+        raise NotFoundException(detail=f"Vendor '{data.vendor_id}' not found")
+
     po = PurchaseOrder(
         vendor_id=data.vendor_id,
         status=POStatus.DRAFT,
@@ -198,6 +206,7 @@ async def create_purchase_order(
         notes=data.notes,
         created_by_id=user_id,
         total_amount=Decimal("0.00"),
+        org_id=org_id,
     )
     db.add(po)
     await db.flush()  # Get PO ID
@@ -214,6 +223,7 @@ async def create_purchase_order(
             quantity=item_data.quantity,
             unit_price=item_data.unit_price,
             total_price=total_price,
+            org_id=org_id,
         )
         db.add(po_item)
         total_amount += total_price
@@ -223,10 +233,10 @@ async def create_purchase_order(
     await db.commit()
 
     # Reload with items
-    return await _get_purchase_order(po.id, db)
+    return await _get_purchase_order(po.id, org_id, db)
 
 
-async def _get_purchase_order(po_id: UUID, db: AsyncSession) -> PurchaseOrder:
+async def _get_purchase_order(po_id: UUID, org_id: UUID, db: AsyncSession) -> PurchaseOrder:
     """Internal helper to fetch a PO with its items and vendor loaded."""
     result = await db.execute(
         select(PurchaseOrder)
@@ -237,13 +247,14 @@ async def _get_purchase_order(po_id: UUID, db: AsyncSession) -> PurchaseOrder:
         .where(PurchaseOrder.id == po_id)
     )
     po = result.scalar_one_or_none()
-    if not po:
+    if not po or po.org_id != org_id:
         raise NotFoundException(detail=f"Purchase Order with id '{po_id}' not found")
     return po
 
 
 async def get_purchase_orders(
     db: AsyncSession,
+    org_id: UUID,
     vendor_id: Optional[UUID] = None,
     project_id: Optional[UUID] = None,
     status_filter: Optional[POStatus] = None,
@@ -254,7 +265,7 @@ async def get_purchase_orders(
     query = select(PurchaseOrder).options(
         selectinload(PurchaseOrder.vendor),
         selectinload(PurchaseOrder.items).selectinload(POItem.item),
-    )
+    ).where(PurchaseOrder.org_id == org_id)
     if vendor_id:
         query = query.where(PurchaseOrder.vendor_id == vendor_id)
     if project_id:
@@ -267,7 +278,7 @@ async def get_purchase_orders(
 
 
 async def receive_purchase_order(
-    po_id: UUID, user_id: UUID, db: AsyncSession
+    po_id: UUID, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> PurchaseOrder:
     """Process a purchase order as received (GRN - Goods Received Note).
 
@@ -278,7 +289,7 @@ async def receive_purchase_order(
         Do NOT touch Item.current_stock.
         Create an OUTFLOW Transaction on the project wallet.
     """
-    po = await _get_purchase_order(po_id, db)
+    po = await _get_purchase_order(po_id, org_id, db)
 
     if po.status == POStatus.RECEIVED:
         raise BadRequestException(detail="Purchase Order has already been received")
@@ -307,6 +318,7 @@ async def receive_purchase_order(
                     reference_id=po.id,
                     performed_by=user_id,
                     unit_cost_at_time=po_item.unit_price,
+                    org_id=org_id,
                 )
                 db.add(stock_txn)
     else:
@@ -326,6 +338,7 @@ async def receive_purchase_order(
                 related_po_id=po.id,
                 recorded_by_id=user_id,
                 status=TransactionStatus.CLEARED,
+                org_id=org_id,
             )
             db.add(transaction)
 
@@ -362,7 +375,7 @@ async def receive_purchase_order(
     )
 
     # Re-fetch with relationships eagerly loaded to avoid MissingGreenlet
-    return await _get_purchase_order(po.id, db)
+    return await _get_purchase_order(po.id, org_id, db)
 
 
 async def issue_stock_to_project(
@@ -370,6 +383,7 @@ async def issue_stock_to_project(
     quantity: float,
     project_id: UUID,
     user_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
 ) -> StockTransaction:
     """Issue general warehouse stock to a specific project.
@@ -380,7 +394,7 @@ async def issue_stock_to_project(
     # Fetch the inventory item
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
-    if not item:
+    if not item or item.org_id != org_id:
         raise NotFoundException(detail=f"Item with id '{item_id}' not found")
 
     if item.current_stock < quantity:
@@ -408,6 +422,7 @@ async def issue_stock_to_project(
         reference_id=project_id,
         performed_by=user_id,
         unit_cost_at_time=item.base_price,
+        org_id=org_id,
     )
     db.add(stock_txn)
 
@@ -420,6 +435,7 @@ async def issue_stock_to_project(
         description=f"Stock issued: {item.name} x {quantity} {item.unit}",
         recorded_by_id=user_id,
         status=TransactionStatus.CLEARED,
+        org_id=org_id,
     )
     db.add(transaction)
 
@@ -443,17 +459,19 @@ async def issue_stock_to_project(
 
 
 async def add_vendor_to_item(
-    item_id: UUID, data: VendorItemCreate, db: AsyncSession
+    item_id: UUID, data: VendorItemCreate, org_id: UUID, db: AsyncSession
 ) -> VendorItem:
     """Link a vendor as a supplier for an inventory item."""
     # Validate item exists
     item_result = await db.execute(select(Item).where(Item.id == item_id))
-    if not item_result.scalar_one_or_none():
+    item = item_result.scalar_one_or_none()
+    if not item or item.org_id != org_id:
         raise NotFoundException(detail=f"Item with id '{item_id}' not found")
 
     # Validate vendor exists
     vendor_result = await db.execute(select(Vendor).where(Vendor.id == data.vendor_id))
-    if not vendor_result.scalar_one_or_none():
+    vendor = vendor_result.scalar_one_or_none()
+    if not vendor or vendor.org_id != org_id:
         raise NotFoundException(detail=f"Vendor with id '{data.vendor_id}' not found")
 
     # Check for duplicate
@@ -471,6 +489,7 @@ async def add_vendor_to_item(
         vendor_id=data.vendor_id,
         vendor_price=data.vendor_price,
         lead_time_days=data.lead_time_days,
+        org_id=org_id,
     )
     db.add(vendor_item)
     await db.commit()
@@ -485,7 +504,7 @@ async def add_vendor_to_item(
 
 
 async def remove_vendor_from_item(
-    item_id: UUID, vendor_item_id: UUID, db: AsyncSession
+    item_id: UUID, vendor_item_id: UUID, org_id: UUID, db: AsyncSession
 ) -> None:
     """Unlink a vendor from an inventory item."""
     result = await db.execute(
@@ -495,7 +514,7 @@ async def remove_vendor_from_item(
         )
     )
     vendor_item = result.scalar_one_or_none()
-    if not vendor_item:
+    if not vendor_item or vendor_item.org_id != org_id:
         raise NotFoundException(detail="Vendor-item link not found")
 
     await db.delete(vendor_item)
@@ -503,25 +522,25 @@ async def remove_vendor_from_item(
 
 
 async def get_item_suppliers(
-    item_id: UUID, db: AsyncSession
+    item_id: UUID, org_id: UUID, db: AsyncSession
 ) -> List[VendorItem]:
     """List all vendors that supply a given item."""
     result = await db.execute(
         select(VendorItem)
         .options(selectinload(VendorItem.vendor))
-        .where(VendorItem.item_id == item_id)
+        .where(VendorItem.item_id == item_id, VendorItem.org_id == org_id)
         .order_by(VendorItem.vendor_price)
     )
     return list(result.scalars().all())
 
 
 async def get_item_stock_transactions(
-    item_id: UUID, db: AsyncSession, limit: int = 20
+    item_id: UUID, org_id: UUID, db: AsyncSession, limit: int = 20
 ) -> List[StockTransaction]:
     """Get recent stock transactions for a given item."""
     result = await db.execute(
         select(StockTransaction)
-        .where(StockTransaction.item_id == item_id)
+        .where(StockTransaction.item_id == item_id, StockTransaction.org_id == org_id)
         .order_by(StockTransaction.created_at.desc())
         .limit(limit)
     )
@@ -533,22 +552,23 @@ async def get_item_stock_transactions(
 # ---------------------------------------------------------------------------
 
 
-async def get_project_materials(project_id: UUID, db: AsyncSession) -> dict:
+async def get_project_materials(project_id: UUID, org_id: UUID, db: AsyncSession) -> dict:
     """Aggregate materials data for a project.
 
     Returns purchase orders linked to the project and stock issues
     from warehouse, along with summary totals.
     """
     # 1. Project-specific POs
-    purchase_orders = await get_purchase_orders(db=db, project_id=project_id)
+    purchase_orders = await get_purchase_orders(db=db, org_id=org_id, project_id=project_id)
 
-    # 2. Stock issues (warehouse → project)
+    # 2. Stock issues (warehouse -> project)
     stock_result = await db.execute(
         select(StockTransaction)
         .options(selectinload(StockTransaction.item))
         .where(
             StockTransaction.transaction_type == StockTransactionType.PROJECT_ISSUE,
             StockTransaction.reference_id == project_id,
+            StockTransaction.org_id == org_id,
         )
         .order_by(StockTransaction.created_at.desc())
     )

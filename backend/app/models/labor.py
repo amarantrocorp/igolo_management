@@ -10,7 +10,7 @@ from sqlalchemy import Date, Enum, Float, ForeignKey, Integer, Numeric, String, 
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.project import Project, Sprint
@@ -43,7 +43,7 @@ class AttendanceStatus(str, enum.Enum):
     PAID = "PAID"
 
 
-class LaborTeam(Base, UUIDMixin, TimestampMixin):
+class LaborTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "labor_teams"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -70,7 +70,7 @@ class LaborTeam(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class Worker(Base, UUIDMixin, TimestampMixin):
+class Worker(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "workers"
 
     team_id: Mapped[uuid.UUID] = mapped_column(
@@ -89,7 +89,7 @@ class Worker(Base, UUIDMixin, TimestampMixin):
     team: Mapped["LaborTeam"] = relationship("LaborTeam", back_populates="workers")
 
 
-class AttendanceLog(Base, UUIDMixin, TimestampMixin):
+class AttendanceLog(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "attendance_logs"
 
     project_id: Mapped[uuid.UUID] = mapped_column(

@@ -3,9 +3,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user
+from app.core.security import get_auth_context, AuthContext
 from app.db.session import get_db
-from app.models.user import User
 from app.schemas.notification import NotificationResponse
 from app.services import notification_service
 
@@ -22,12 +21,13 @@ async def list_notifications(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """List the current user's notifications."""
     return await notification_service.get_notifications(
         db=db,
-        user_id=current_user.id,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
         unread_only=unread_only,
         skip=skip,
         limit=limit,
@@ -40,11 +40,11 @@ async def list_notifications(
 )
 async def unread_count(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Return the count of unread notifications for the current user."""
     count = await notification_service.get_unread_count(
-        db=db, user_id=current_user.id
+        db=db, user_id=ctx.user.id, org_id=ctx.org_id
     )
     return {"count": count}
 
@@ -56,11 +56,12 @@ async def unread_count(
 async def mark_notification_read(
     notification_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Mark a single notification as read."""
     await notification_service.mark_as_read(
-        db=db, notification_id=notification_id, user_id=current_user.id
+        db=db, notification_id=notification_id,
+        user_id=ctx.user.id, org_id=ctx.org_id
     )
 
 
@@ -70,7 +71,9 @@ async def mark_notification_read(
 )
 async def mark_all_notifications_read(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Mark all notifications as read for the current user."""
-    await notification_service.mark_all_read(db=db, user_id=current_user.id)
+    await notification_service.mark_all_read(
+        db=db, user_id=ctx.user.id, org_id=ctx.org_id
+    )

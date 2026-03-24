@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Work Order - {{ wo.wo_number }}</title>
+    <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #d97706; padding-bottom: 15px; margin-bottom: 20px; }
+        .company-name { font-size: 24px; font-weight: bold; color: #d97706; }
+        .wo-info { text-align: right; }
+        .wo-info .label { color: #666; font-size: 10px; text-transform: uppercase; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 14px; font-weight: bold; color: #92400e; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .detail-item { padding: 8px; background: #fffbeb; border-radius: 4px; }
+        .detail-item .label { font-size: 10px; color: #92400e; text-transform: uppercase; }
+        .detail-item .value { font-size: 14px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #fef3c7; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: #92400e; border-bottom: 2px solid #fbbf24; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+        .footer { margin-top: 40px; text-align: center; color: #9ca3af; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-name">Igolo Interiors</div>
+        <div class="wo-info">
+            <div class="label">Work Order</div>
+            <div style="font-size: 18px; font-weight: bold;">{{ wo.wo_number }}</div>
+            <div>Date: {{ wo.created_at.strftime('%d %b %Y') if wo.created_at else '' }}</div>
+            <div>Status: {{ wo.status.value if wo.status else '' }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Contract Details</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <div class="label">Contract Amount</div>
+                <div class="value">{{ "%.2f"|format(wo.contract_amount) }}</div>
+            </div>
+            {% if wo.unit_rate %}
+            <div class="detail-item">
+                <div class="label">Unit Rate</div>
+                <div class="value">{{ "%.2f"|format(wo.unit_rate) }} / {{ wo.unit or 'unit' }}</div>
+            </div>
+            {% endif %}
+            {% if wo.estimated_quantity %}
+            <div class="detail-item">
+                <div class="label">Estimated Quantity</div>
+                <div class="value">{{ wo.estimated_quantity }} {{ wo.unit or '' }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Description</div>
+        <p>{{ wo.description }}</p>
+    </div>
+
+    {% if wo.scope_of_work %}
+    <div class="section">
+        <div class="section-title">Scope of Work</div>
+        <p>{{ wo.scope_of_work }}</p>
+    </div>
+    {% endif %}
+
+    {% if wo.ra_bills %}
+    <div class="section">
+        <div class="section-title">Running Account Bills</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Bill #</th>
+                    <th>Period</th>
+                    <th>Qty Executed</th>
+                    <th>Amount</th>
+                    <th>Cumulative</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bill in wo.ra_bills %}
+                <tr>
+                    <td>{{ bill.bill_number }}</td>
+                    <td>{{ bill.period_from }} to {{ bill.period_to }}</td>
+                    <td>{{ bill.quantity_executed }}</td>
+                    <td>{{ "%.2f"|format(bill.amount) }}</td>
+                    <td>{{ "%.2f"|format(bill.cumulative_amount) }}</td>
+                    <td>{{ bill.status.value if bill.status else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>This is a computer-generated document. No signature is required.</p>
+    </div>
+</body>
+</html>

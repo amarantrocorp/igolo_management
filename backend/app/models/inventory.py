@@ -14,22 +14,26 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.project import Project
     from app.models.user import User
 
 
-class Item(Base, UUIDMixin, TimestampMixin):
+class Item(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "items"
+    __table_args__ = (
+        UniqueConstraint("org_id", "sku", name="uq_items_org_sku"),
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    sku: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True)
+    sku: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     unit: Mapped[str] = mapped_column(String(20), nullable=False)
     base_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
@@ -47,7 +51,7 @@ class Item(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class Vendor(Base, UUIDMixin, TimestampMixin):
+class Vendor(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "vendors"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -66,7 +70,7 @@ class Vendor(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class VendorItem(Base, UUIDMixin, TimestampMixin):
+class VendorItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "vendor_items"
 
     vendor_id: Mapped[uuid.UUID] = mapped_column(
@@ -90,7 +94,7 @@ class POStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 
-class PurchaseOrder(Base, UUIDMixin, TimestampMixin):
+class PurchaseOrder(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "purchase_orders"
 
     vendor_id: Mapped[uuid.UUID] = mapped_column(
@@ -123,7 +127,7 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin):
     created_by: Mapped["User"] = relationship("User")
 
 
-class POItem(Base, UUIDMixin, TimestampMixin):
+class POItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "po_items"
 
     purchase_order_id: Mapped[uuid.UUID] = mapped_column(
@@ -152,7 +156,7 @@ class StockTransactionType(str, enum.Enum):
     RETURNED = "RETURNED"
 
 
-class StockTransaction(Base, UUIDMixin, TimestampMixin):
+class StockTransaction(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "stock_transactions"
 
     item_id: Mapped[uuid.UUID] = mapped_column(

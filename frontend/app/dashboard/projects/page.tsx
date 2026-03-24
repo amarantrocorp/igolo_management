@@ -83,9 +83,16 @@ const columns: ColumnDef<Project>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <Badge variant={getStatusBadgeVariant(row.original.status)}>
-        {row.original.status.replace("_", " ")}
-      </Badge>
+      <div className="flex items-center gap-1">
+        <Badge variant={getStatusBadgeVariant(row.original.status)}>
+          {row.original.status.replace("_", " ")}
+        </Badge>
+        {row.original.expected_end_date &&
+         new Date(row.original.expected_end_date) < new Date() &&
+         row.original.status !== "COMPLETED" && (
+          <Badge variant="destructive" className="ml-1">Overdue</Badge>
+        )}
+      </div>
     ),
   },
   {
@@ -94,7 +101,7 @@ const columns: ColumnDef<Project>[] = [
     cell: ({ row }) => (
       <span className="text-sm">
         {row.original.start_date
-          ? new Date(row.original.start_date).toLocaleDateString()
+          ? new Date(row.original.start_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
           : "--"}
       </span>
     ),

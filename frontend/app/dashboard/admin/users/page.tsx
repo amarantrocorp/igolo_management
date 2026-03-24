@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
@@ -45,12 +45,24 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Plus,
   Search,
   Loader2,
   UserCog,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  UserX,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { PageHeader } from "@/components/layout/page-header"
@@ -70,7 +82,23 @@ const createUserSchema = z.object({
   ]),
 })
 
+const editUserSchema = z.object({
+  full_name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().optional(),
+  role: z.enum([
+    "SUPER_ADMIN",
+    "MANAGER",
+    "BDE",
+    "SALES",
+    "SUPERVISOR",
+    "CLIENT",
+    "LABOR_LEAD",
+  ]),
+  is_active: z.enum(["true", "false"]),
+})
+
 type CreateUserFormValues = z.infer<typeof createUserSchema>
+type EditUserFormValues = z.infer<typeof editUserSchema>
 
 const ROLES: UserRole[] = [
   "SUPER_ADMIN",
@@ -100,59 +128,11 @@ function getRoleBadgeVariant(role: string) {
   }
 }
 
-const columns: ColumnDef<User>[] = [
-  {
-    accessorKey: "full_name",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-          {row.original.full_name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2)}
-        </div>
-        <span className="font-medium">{row.original.full_name}</span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-      <Badge variant={getRoleBadgeVariant(row.original.role)}>
-        {row.original.role.replace("_", " ")}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "is_active",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.is_active ? "success" : "secondary"}>
-        {row.original.is_active ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: () => (
-      <Button variant="ghost" size="sm">
-        Edit
-      </Button>
-    ),
-  },
-]
-
 export default function UsersPage() {
   const [open, setOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [deactivateUser, setDeactivateUser] = useState<User | null>(null)
   const [globalFilter, setGlobalFilter] = useState("")
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -165,6 +145,7 @@ export default function UsersPage() {
     },
   })
 
+  // ---- Create mutation ----
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserFormValues) => {
       const response = await api.post("/users/create", data)
@@ -185,6 +166,46 @@ export default function UsersPage() {
     },
   })
 
+  // ---- Edit mutation ----
+  const editMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<{ full_name: string; phone: string; role: UserRole; is_active: boolean }> }) => {
+      const response = await api.patch(`/users/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      setEditOpen(false)
+      setEditingUser(null)
+      toast({ title: "User updated", description: "User has been updated successfully." })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update user. Please try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  // ---- Deactivate mutation ----
+  const deactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/users/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      setDeactivateUser(null)
+      toast({ title: "User deactivated", description: "User has been deactivated." })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to deactivate user. Please try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
   const form = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -194,6 +215,107 @@ export default function UsersPage() {
       role: "SALES",
     },
   })
+
+  const editForm = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+  })
+
+  function openEditDialog(user: User) {
+    setEditingUser(user)
+    editForm.reset({
+      full_name: user.full_name,
+      phone: user.phone ?? "",
+      role: user.role ?? "SALES",
+      is_active: user.is_active ? "true" : "false",
+    })
+    setEditOpen(true)
+  }
+
+  function handleEditSubmit(values: EditUserFormValues) {
+    if (!editingUser) return
+    editMutation.mutate({
+      id: editingUser.id,
+      data: {
+        full_name: values.full_name,
+        phone: values.phone || undefined,
+        role: values.role as UserRole,
+        is_active: values.is_active === "true",
+      },
+    })
+  }
+
+  const columns: ColumnDef<User>[] = useMemo(
+    () => [
+      {
+        accessorKey: "full_name",
+        header: "Name",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              {row.original.full_name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 2)}
+            </div>
+            <span className="font-medium">{row.original.full_name}</span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "email",
+        header: "Email",
+      },
+      {
+        accessorKey: "role",
+        header: "Role",
+        cell: ({ row }) => (
+          <Badge variant={getRoleBadgeVariant(row.original.role ?? "")}>
+            {(row.original.role ?? "\u2014").replace("_", " ")}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "is_active",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.is_active ? "success" : "secondary"}>
+            {row.original.is_active ? "Active" : "Inactive"}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openEditDialog(row.original)}
+            >
+              <Pencil className="mr-1 h-3.5 w-3.5" />
+              Edit
+            </Button>
+            {row.original.is_active && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeactivateUser(row.original)}
+              >
+                <UserX className="mr-1 h-3.5 w-3.5" />
+                Deactivate
+              </Button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
 
   const table = useReactTable({
     data: users,
@@ -413,6 +535,134 @@ export default function UsersPage() {
             </Button>
           </div>
         </div>
+
+        {/* ---- Edit User Dialog ---- */}
+        <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) setEditingUser(null) }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update user details for {editingUser?.full_name}.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={editForm.handleSubmit(handleEditSubmit)}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_full_name">Full Name</Label>
+                  <Input
+                    id="edit_full_name"
+                    placeholder="John Doe"
+                    {...editForm.register("full_name")}
+                  />
+                  {editForm.formState.errors.full_name && (
+                    <p className="text-xs text-destructive">
+                      {editForm.formState.errors.full_name.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_phone">Phone</Label>
+                  <Input
+                    id="edit_phone"
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    {...editForm.register("phone")}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Controller
+                    control={editForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role.replace("_", " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Controller
+                    control={editForm.control}
+                    name="is_active"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Active</SelectItem>
+                          <SelectItem value="false">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setEditOpen(false); setEditingUser(null) }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editMutation.isPending}>
+                  {editMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* ---- Deactivate Confirmation ---- */}
+        <AlertDialog
+          open={!!deactivateUser}
+          onOpenChange={(v) => { if (!v) setDeactivateUser(null) }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Deactivate User</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to deactivate{" "}
+                <span className="font-semibold">{deactivateUser?.full_name}</span>?
+                They will no longer be able to log in.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deactivateMutation.isPending}
+                onClick={() => {
+                  if (deactivateUser) deactivateMutation.mutate(deactivateUser.id)
+                }}
+              >
+                {deactivateMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Deactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </RoleGuard>
   )

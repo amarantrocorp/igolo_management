@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.crm import (
     LeadStatus,
@@ -15,12 +15,12 @@ from app.schemas.user import UserBrief
 
 class LeadCreate(BaseModel):
     # Contact
-    name: str
-    contact_number: str
-    email: Optional[str] = None
-    source: str
-    location: Optional[str] = None
-    notes: Optional[str] = None
+    name: str = Field(..., max_length=255)
+    contact_number: str = Field(..., max_length=50)
+    email: Optional[str] = Field(None, max_length=255)
+    source: str = Field(..., max_length=255)
+    location: Optional[str] = Field(None, max_length=500)
+    notes: Optional[str] = Field(None, max_length=5000)
     assigned_to_id: Optional[UUID] = None
 
     # Project Details
@@ -119,3 +119,24 @@ class ClientResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Lead Activities ──
+
+
+class LeadActivityCreate(BaseModel):
+    type: str  # ActivityType enum value
+    description: str = Field(..., min_length=1, max_length=2000)
+    date: date
+
+
+class LeadActivityResponse(BaseModel):
+    id: UUID
+    lead_id: UUID
+    type: str
+    description: str
+    date: date
+    created_by_id: UUID
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

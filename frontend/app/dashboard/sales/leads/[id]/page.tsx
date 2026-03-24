@@ -6,19 +6,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth-store"
 import RoleGuard from "@/components/auth/role-guard"
-import type { Lead, Quotation } from "@/types"
+import type { Lead, LeadActivity, Quotation } from "@/types"
 import { formatINR } from "@/types/quote"
 import { FileUpload } from "@/components/ui/file-upload"
+import { PlacesAutocomplete } from "@/components/ui/places-autocomplete"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { useToast } from "@/components/ui/use-toast"
 import {
   ArrowLeft,
   Loader2,
@@ -28,6 +38,7 @@ import {
   Wallet,
   Calendar,
   User as UserIcon,
+  Users,
   FileText,
   Plus,
   Eye,
@@ -39,11 +50,15 @@ import {
   Ruler,
   Paintbrush,
   Clock,
+  AlertCircle,
+  MessageSquare,
 } from "lucide-react"
 
+// ── Constants (aligned with create page) ──
+
 const LEAD_SOURCES = [
-  "Website", "Referral", "Social Media", "Walk-in",
-  "Advertisement", "Real Estate Partner", "Other",
+  "Website", "Referral", "Instagram", "Facebook", "Google Ads",
+  "Walk-in", "Real Estate Partner", "Just Dial", "Housing.com", "Other",
 ]
 
 const PROPERTY_TYPES = [
@@ -62,17 +77,19 @@ const PROPERTY_STATUSES = [
   { value: "READY_TO_MOVE", label: "Ready to Move" },
   { value: "OCCUPIED", label: "Occupied" },
   { value: "RENOVATION", label: "Renovation" },
+  { value: "OTHER", label: "Other" },
 ]
 
 const SCOPE_OPTIONS = [
   "Full Home Interior", "Kitchen", "Living Room", "Bedroom(s)",
   "Bathroom(s)", "False Ceiling", "Painting", "Electrical",
-  "Flooring", "Furniture Only",
+  "Flooring", "Furniture Only", "Modular Kitchen", "Wardrobe",
+  "TV Unit", "Study Room", "Pooja Room",
 ]
 
 const DESIGN_STYLES = [
   "Modern", "Contemporary", "Minimalist", "Traditional",
-  "Industrial", "Scandinavian", "Bohemian", "Other",
+  "Industrial", "Scandinavian", "Bohemian", "Luxury", "Transitional", "Other",
 ]
 
 const BUDGET_RANGES = [
@@ -85,10 +102,150 @@ const SITE_VISIT_OPTIONS = [
   { value: "WEEKENDS", label: "Weekends" },
   { value: "ANYTIME", label: "Anytime" },
   { value: "NOT_AVAILABLE", label: "Not Available" },
+  { value: "OTHER", label: "Other" },
 ]
 
+// ── Input Filters ──
+
+function filterPhone(value: string): string {
+  return value.replace(/[^\d+\s\-()]/g, "")
+}
+
+function filterName(value: string): string {
+  return value.replace(/[^a-zA-Z\s.'\-]/g, "")
+}
+
+function filterDecimal(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "")
+  const parts = cleaned.split(".")
+  if (parts.length > 2) return parts[0] + "." + parts.slice(1).join("")
+  return cleaned
+}
+
+// ── Validation ──
+
+const MAX_NAME_LENGTH = 100
+const MAX_NOTES_LENGTH = 1000
+const MAX_OTHER_LENGTH = 100
+const MAX_CARPET_AREA = 50000
+
+function validatePhone(phone: string): boolean {
+  const cleaned = phone.replace(/[\s\-\(\)]/g, "")
+  return /^(\+91|91)?[6-9]\d{9}$/.test(cleaned) || /^\+?[\d]{7,15}$/.test(cleaned)
+}
+
+function validateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+type EditFormData = {
+  name: string
+  contact_number: string
+  email: string
+  location: string
+  source: string
+  source_other: string
+  notes: string
+  property_type: string
+  property_type_other: string
+  property_status: string
+  property_status_other: string
+  carpet_area: string
+  scope_of_work: string[]
+  scope_other: string
+  floor_plan_url: string
+  budget_range: string
+  design_style: string
+  design_style_other: string
+  possession_date: string
+  site_visit_availability: string
+  site_visit_other: string
+}
+
+type FormErrors = Partial<Record<keyof EditFormData, string>>
+
+function validateEditForm(data: EditFormData): { valid: boolean; errors: FormErrors } {
+  const errors: FormErrors = {}
+
+  if (!data.name.trim() || data.name.trim().length < 2) {
+    errors.name = "Name is required (min 2 characters)"
+  } else if (data.name.trim().length > MAX_NAME_LENGTH) {
+    errors.name = `Name must be under ${MAX_NAME_LENGTH} characters`
+  }
+
+  if (!data.contact_number.trim()) {
+    errors.contact_number = "Phone number is required"
+  } else if (!validatePhone(data.contact_number)) {
+    errors.contact_number = "Enter a valid phone number"
+  }
+
+  if (data.email.trim() && !validateEmail(data.email)) {
+    errors.email = "Enter a valid email address"
+  }
+
+  if (!data.location.trim()) {
+    errors.location = "Location is required"
+  } else if (data.location.trim().length < 5) {
+    errors.location = "Enter a more specific location (min 5 chars)"
+  }
+
+  if (!data.source) {
+    errors.source = "Source is required"
+  } else if (data.source === "Other" && !data.source_other.trim()) {
+    errors.source_other = "Please specify the source"
+  }
+
+  if (data.property_type === "OTHER" && !data.property_type_other.trim()) {
+    errors.property_type_other = "Please specify the property type"
+  }
+
+  if (data.property_status === "OTHER" && !data.property_status_other.trim()) {
+    errors.property_status_other = "Please specify the property status"
+  }
+
+  if (data.carpet_area.trim()) {
+    const area = Number(data.carpet_area)
+    if (isNaN(area) || area <= 0) {
+      errors.carpet_area = "Enter a valid area in sqft"
+    } else if (area < 50) {
+      errors.carpet_area = "Area seems too small (min 50 sqft)"
+    } else if (area > MAX_CARPET_AREA) {
+      errors.carpet_area = `Area too large (max ${MAX_CARPET_AREA.toLocaleString()} sqft)`
+    }
+  }
+
+  if (data.scope_of_work.includes("Other") && !data.scope_other.trim()) {
+    errors.scope_other = "Please specify the scope of work"
+  }
+
+  if (data.design_style === "Other" && !data.design_style_other.trim()) {
+    errors.design_style_other = "Please specify the design style"
+  }
+
+  if (data.possession_date) {
+    const possDate = new Date(data.possession_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (possDate < today) {
+      errors.possession_date = "Possession date cannot be in the past"
+    }
+  }
+
+  if (data.site_visit_availability === "OTHER" && !data.site_visit_other.trim()) {
+    errors.site_visit_other = "Please specify your availability"
+  }
+
+  if (data.notes.length > MAX_NOTES_LENGTH) {
+    errors.notes = `Notes must be under ${MAX_NOTES_LENGTH} characters`
+  }
+
+  return { valid: Object.keys(errors).length === 0, errors }
+}
+
+// ── Helpers ──
+
 const selectClass =
-  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none"
 
 function getStatusBadgeVariant(status: string) {
   switch (status) {
@@ -130,6 +287,18 @@ function formatLabel(val: string) {
   return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+function ErrorText({ error }: { error?: string }) {
+  if (!error) return null
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
+      <AlertCircle className="h-3 w-3 flex-shrink-0" />
+      {error}
+    </p>
+  )
+}
+
+// ── Page Component ──
+
 const ALLOWED_ROLES = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]
 
 export default function LeadDetailPage() {
@@ -139,26 +308,31 @@ export default function LeadDetailPage() {
   const userRole = useAuthStore((s) => s.user?.role)
   const canManageQuotes = userRole !== "BDE"
 
-  const [activeTab, setActiveTab] = useState<"overview" | "quotations">(
-    "overview"
-  )
+  const [activeTab, setActiveTab] = useState<"overview" | "quotations" | "activity">("overview")
   const [editMode, setEditMode] = useState(false)
-  const [editData, setEditData] = useState({
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [editData, setEditData] = useState<EditFormData>({
     name: "",
     contact_number: "",
     email: "",
     location: "",
     source: "",
+    source_other: "",
     notes: "",
     property_type: "",
+    property_type_other: "",
     property_status: "",
+    property_status_other: "",
     carpet_area: "",
-    scope_of_work: [] as string[],
+    scope_of_work: [],
+    scope_other: "",
     floor_plan_url: "",
     budget_range: "",
     design_style: "",
+    design_style_other: "",
     possession_date: "",
     site_visit_availability: "",
+    site_visit_other: "",
   })
 
   const {
@@ -183,23 +357,51 @@ export default function LeadDetailPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (data: typeof editData) => {
-      const payload: Record<string, unknown> = {}
-      if (data.name) payload.name = data.name
-      if (data.contact_number) payload.contact_number = data.contact_number
-      if (data.email) payload.email = data.email
-      payload.location = data.location || null
-      payload.source = data.source
-      payload.notes = data.notes || null
-      payload.property_type = data.property_type || null
-      payload.property_status = data.property_status || null
-      payload.carpet_area = data.carpet_area ? Number(data.carpet_area) : null
-      payload.scope_of_work = data.scope_of_work.length > 0 ? data.scope_of_work : null
-      payload.floor_plan_url = data.floor_plan_url || null
-      payload.budget_range = data.budget_range || null
-      payload.design_style = data.design_style || null
-      payload.possession_date = data.possession_date || null
-      payload.site_visit_availability = data.site_visit_availability || null
+    mutationFn: async (data: EditFormData) => {
+      // Resolve "Other" values
+      const resolvedSource = data.source === "Other" && data.source_other.trim()
+        ? data.source_other.trim()
+        : data.source
+      const resolvedDesignStyle = data.design_style === "Other" && data.design_style_other.trim()
+        ? data.design_style_other.trim()
+        : data.design_style
+      const resolvedScope = [...data.scope_of_work]
+      if (data.scope_of_work.includes("Other") && data.scope_other.trim()) {
+        const idx = resolvedScope.indexOf("Other")
+        if (idx !== -1) resolvedScope[idx] = data.scope_other.trim()
+      }
+      const resolvedSiteVisit = data.site_visit_availability === "OTHER" && data.site_visit_other.trim()
+        ? data.site_visit_other.trim()
+        : data.site_visit_availability
+
+      const payload: Record<string, unknown> = {
+        name: data.name.trim(),
+        contact_number: data.contact_number.trim(),
+        source: resolvedSource,
+        location: data.location.trim() || null,
+        email: data.email.trim() || null,
+        notes: data.notes.trim() || null,
+        property_type: data.property_type || null,
+        property_status: data.property_status === "OTHER" ? "OTHER" : (data.property_status || null),
+        carpet_area: data.carpet_area ? Number(data.carpet_area) : null,
+        scope_of_work: resolvedScope.length > 0 ? resolvedScope : null,
+        floor_plan_url: data.floor_plan_url || null,
+        budget_range: data.budget_range || null,
+        design_style: resolvedDesignStyle || null,
+        possession_date: data.possession_date || null,
+        site_visit_availability: resolvedSiteVisit || null,
+      }
+
+      // Append "Other" detail to notes
+      if (data.property_type === "OTHER" && data.property_type_other.trim()) {
+        const extra = `Property Type: ${data.property_type_other.trim()}`
+        payload.notes = payload.notes ? `${payload.notes}\n${extra}` : extra
+      }
+      if (data.property_status === "OTHER" && data.property_status_other.trim()) {
+        const extra = `Property Status: ${data.property_status_other.trim()}`
+        payload.notes = payload.notes ? `${payload.notes}\n${extra}` : extra
+      }
+
       const res = await api.put(`/crm/leads/${id}`, payload)
       return res.data
     },
@@ -207,30 +409,49 @@ export default function LeadDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["lead", id] })
       queryClient.invalidateQueries({ queryKey: ["leads"] })
       setEditMode(false)
+      setFormErrors({})
     },
   })
 
   const enterEditMode = useCallback(() => {
     if (!lead) return
+    setFormErrors({})
     setEditData({
       name: lead.name,
       contact_number: lead.contact_number,
       email: lead.email || "",
       location: lead.location || "",
-      source: lead.source,
+      source: LEAD_SOURCES.includes(lead.source) ? lead.source : "Other",
+      source_other: LEAD_SOURCES.includes(lead.source) ? "" : lead.source,
       notes: lead.notes || "",
       property_type: lead.property_type || "",
+      property_type_other: "",
       property_status: lead.property_status || "",
+      property_status_other: "",
       carpet_area: lead.carpet_area ? String(lead.carpet_area) : "",
       scope_of_work: lead.scope_of_work || [],
+      scope_other: "",
       floor_plan_url: lead.floor_plan_url || "",
       budget_range: lead.budget_range || "",
-      design_style: lead.design_style || "",
+      design_style: DESIGN_STYLES.includes(lead.design_style || "") ? (lead.design_style || "") : (lead.design_style ? "Other" : ""),
+      design_style_other: DESIGN_STYLES.includes(lead.design_style || "") ? "" : (lead.design_style || ""),
       possession_date: lead.possession_date || "",
       site_visit_availability: lead.site_visit_availability || "",
+      site_visit_other: "",
     })
     setEditMode(true)
   }, [lead])
+
+  const setField = useCallback(<K extends keyof EditFormData>(key: K, value: EditFormData[K]) => {
+    setEditData((prev) => ({ ...prev, [key]: value }))
+    if (formErrors[key]) {
+      setFormErrors((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
+  }, [formErrors])
 
   const toggleScope = useCallback((scope: string) => {
     setEditData((prev) => ({
@@ -241,7 +462,34 @@ export default function LeadDetailPage() {
     }))
   }, [])
 
+  const handleSave = useCallback(() => {
+    const { valid, errors } = validateEditForm(editData)
+    setFormErrors(errors)
+    if (!valid) {
+      setTimeout(() => {
+        const firstErr = document.querySelector("[data-error='true']")
+        firstErr?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 50)
+      return
+    }
+    updateMutation.mutate(editData)
+  }, [editData, updateMutation])
+
   const isConverted = lead?.status === "CONVERTED"
+  const hasErrors = Object.keys(formErrors).length > 0
+  const { toast } = useToast()
+
+  const statusMutation = useMutation({
+    mutationFn: (status: string) => api.put(`/crm/leads/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lead", id] })
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      toast({ title: "Updated", description: "Lead status changed" })
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" })
+    },
+  })
 
   if (isLoading) {
     return (
@@ -291,6 +539,27 @@ export default function LeadDetailPage() {
                 <Badge variant={getStatusBadgeVariant(lead.status)}>
                   {lead.status.replace("_", " ")}
                 </Badge>
+                {!editMode && !isConverted && (
+                  <select
+                    value={lead.status}
+                    onChange={(e) => {
+                      const newStatus = e.target.value
+                      if (newStatus === "CONVERTED") {
+                        toast({ title: "Use Convert", description: "To convert a lead, use the dedicated Convert button", variant: "destructive" })
+                        return
+                      }
+                      statusMutation.mutate(newStatus)
+                    }}
+                    className="ml-2 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium"
+                  >
+                    <option value="NEW">New</option>
+                    <option value="CONTACTED">Contacted</option>
+                    <option value="QUALIFIED">Qualified</option>
+                    <option value="QUOTATION_SENT">Quotation Sent</option>
+                    <option value="NEGOTIATION">Negotiation</option>
+                    <option value="LOST">Lost</option>
+                  </select>
+                )}
               </div>
               <p className="text-muted-foreground text-sm">
                 {lead.source} &middot; Added{" "}
@@ -315,7 +584,7 @@ export default function LeadDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setEditMode(false)}
+                  onClick={() => { setEditMode(false); setFormErrors({}) }}
                 >
                   <X className="mr-2 h-4 w-4" />
                   Cancel
@@ -323,7 +592,7 @@ export default function LeadDetailPage() {
                 <Button
                   size="sm"
                   disabled={updateMutation.isPending}
-                  onClick={() => updateMutation.mutate(editData)}
+                  onClick={handleSave}
                 >
                   {updateMutation.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -354,6 +623,14 @@ export default function LeadDetailPage() {
           </div>
         </div>
 
+        {/* Error Banner */}
+        {editMode && hasErrors && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            Please fix the highlighted errors before saving.
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-1 border-b">
           <button
@@ -376,6 +653,16 @@ export default function LeadDetailPage() {
           >
             Quotations ({quotations.length})
           </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "activity"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("activity")}
+          >
+            Activity
+          </button>
         </div>
 
         {/* Overview Tab */}
@@ -390,67 +677,81 @@ export default function LeadDetailPage() {
                 {editMode ? (
                   <>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Full Name</Label>
+                      <div className="space-y-2" data-error={!!formErrors.name}>
+                        <Label>Full Name <span className="text-red-500">*</span></Label>
                         <Input
                           value={editData.name}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, name: e.target.value }))
-                          }
+                          onChange={(e) => setField("name", filterName(e.target.value))}
+                          maxLength={MAX_NAME_LENGTH}
+                          className={formErrors.name ? "border-red-300 focus:ring-red-500" : ""}
                         />
+                        <ErrorText error={formErrors.name} />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Phone</Label>
+                      <div className="space-y-2" data-error={!!formErrors.contact_number}>
+                        <Label>Phone <span className="text-red-500">*</span></Label>
                         <Input
                           value={editData.contact_number}
-                          onChange={(e) =>
-                            setEditData((p) => ({
-                              ...p,
-                              contact_number: e.target.value,
-                            }))
-                          }
+                          onChange={(e) => setField("contact_number", filterPhone(e.target.value))}
+                          onKeyDown={(e) => {
+                            if (e.key.length === 1 && !/[\d+\s\-()]/.test(e.key)) e.preventDefault()
+                          }}
+                          maxLength={20}
+                          inputMode="tel"
+                          className={formErrors.contact_number ? "border-red-300 focus:ring-red-500" : ""}
                         />
+                        <ErrorText error={formErrors.contact_number} />
                       </div>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
+                      <div className="space-y-2" data-error={!!formErrors.email}>
                         <Label>Email</Label>
                         <Input
                           type="email"
                           placeholder="Optional"
                           value={editData.email}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, email: e.target.value }))
-                          }
+                          onChange={(e) => setField("email", e.target.value)}
+                          className={formErrors.email ? "border-red-300 focus:ring-red-500" : ""}
                         />
+                        <ErrorText error={formErrors.email} />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Location</Label>
-                        <Input
-                          placeholder="Optional"
+                      <div className="space-y-2" data-error={!!formErrors.location}>
+                        <Label>Location <span className="text-red-500">*</span></Label>
+                        <PlacesAutocomplete
                           value={editData.location}
-                          onChange={(e) =>
-                            setEditData((p) => ({
-                              ...p,
-                              location: e.target.value,
-                            }))
-                          }
+                          onChange={(val) => setField("location", val)}
+                          onPlaceSelect={(place) => setField("location", place.address)}
+                          placeholder="Search for address or area..."
+                          error={!!formErrors.location}
+                          countryRestrictions={["in"]}
                         />
+                        <ErrorText error={formErrors.location} />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Source</Label>
+                    <div className="space-y-2" data-error={!!formErrors.source}>
+                      <Label>Source <span className="text-red-500">*</span></Label>
                       <select
-                        className={selectClass}
+                        className={`${selectClass} ${formErrors.source ? "border-red-300" : ""}`}
                         value={editData.source}
-                        onChange={(e) =>
-                          setEditData((p) => ({ ...p, source: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          setField("source", e.target.value)
+                          if (e.target.value !== "Other") setField("source_other", "")
+                        }}
                       >
+                        <option value="" disabled>Select source</option>
                         {LEAD_SOURCES.map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
+                      {editData.source === "Other" && (
+                        <Input
+                          placeholder="Specify source..."
+                          value={editData.source_other}
+                          onChange={(e) => setField("source_other", e.target.value)}
+                          className={`mt-2 ${formErrors.source_other ? "border-red-300" : ""}`}
+                          maxLength={MAX_OTHER_LENGTH}
+                        />
+                      )}
+                      <ErrorText error={formErrors.source || formErrors.source_other} />
                     </div>
                   </>
                 ) : (
@@ -501,42 +802,67 @@ export default function LeadDetailPage() {
                         <select
                           className={selectClass}
                           value={editData.property_type}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, property_type: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            setField("property_type", e.target.value)
+                            if (e.target.value !== "OTHER") setField("property_type_other", "")
+                          }}
                         >
                           <option value="">Not specified</option>
                           {PROPERTY_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
                           ))}
                         </select>
+                        {editData.property_type === "OTHER" && (
+                          <Input
+                            placeholder="Specify property type..."
+                            value={editData.property_type_other}
+                            onChange={(e) => setField("property_type_other", e.target.value)}
+                            className={`mt-1 ${formErrors.property_type_other ? "border-red-300" : ""}`}
+                            maxLength={MAX_OTHER_LENGTH}
+                          />
+                        )}
+                        <ErrorText error={formErrors.property_type_other} />
                       </div>
                       <div className="space-y-2">
                         <Label>Property Status</Label>
                         <select
                           className={selectClass}
                           value={editData.property_status}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, property_status: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            setField("property_status", e.target.value)
+                            if (e.target.value !== "OTHER") setField("property_status_other", "")
+                          }}
                         >
                           <option value="">Not specified</option>
                           {PROPERTY_STATUSES.map((s) => (
                             <option key={s.value} value={s.value}>{s.label}</option>
                           ))}
                         </select>
+                        {editData.property_status === "OTHER" && (
+                          <Input
+                            placeholder="e.g. Partially furnished, Shell condition..."
+                            value={editData.property_status_other}
+                            onChange={(e) => setField("property_status_other", e.target.value)}
+                            className={`mt-1 ${formErrors.property_status_other ? "border-red-300" : ""}`}
+                            maxLength={MAX_OTHER_LENGTH}
+                          />
+                        )}
+                        <ErrorText error={formErrors.property_status_other} />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2" data-error={!!formErrors.carpet_area}>
                       <Label>Carpet Area (sqft)</Label>
                       <Input
-                        type="number"
                         placeholder="e.g. 1200"
                         value={editData.carpet_area}
-                        onChange={(e) =>
-                          setEditData((p) => ({ ...p, carpet_area: e.target.value }))
-                        }
+                        onChange={(e) => setField("carpet_area", filterDecimal(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key.length === 1 && !/[\d.]/.test(e.key)) e.preventDefault()
+                        }}
+                        inputMode="decimal"
+                        className={formErrors.carpet_area ? "border-red-300" : ""}
                       />
+                      <ErrorText error={formErrors.carpet_area} />
                     </div>
                     <div className="space-y-2">
                       <Label>Scope of Work</Label>
@@ -550,21 +876,48 @@ export default function LeadDetailPage() {
                               onClick={() => toggleScope(scope)}
                               className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                                 selected
-                                  ? "border-primary bg-primary/10 text-primary"
-                                  : "border-input bg-background text-muted-foreground hover:bg-muted"
+                                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                  : "border-input bg-background text-muted-foreground hover:border-primary/40 hover:bg-muted"
                               }`}
                             >
+                              {selected && <span className="mr-1">&#10003;</span>}
                               {scope}
                             </button>
                           )
                         })}
+                        {/* Other chip */}
+                        <button
+                          type="button"
+                          onClick={() => toggleScope("Other")}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            editData.scope_of_work.includes("Other")
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "border-dashed border-input bg-background text-muted-foreground hover:border-primary/40 hover:bg-muted"
+                          }`}
+                        >
+                          {editData.scope_of_work.includes("Other") ? "\u2713 " : "+ "}
+                          Other
+                        </button>
                       </div>
+                      {editData.scope_of_work.includes("Other") && (
+                        <Input
+                          placeholder="Specify other scope..."
+                          value={editData.scope_other}
+                          onChange={(e) => setField("scope_other", e.target.value)}
+                          className={`mt-1 ${formErrors.scope_other ? "border-red-300" : ""}`}
+                          maxLength={MAX_OTHER_LENGTH}
+                        />
+                      )}
+                      <ErrorText error={formErrors.scope_other} />
+                      {editData.scope_of_work.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {editData.scope_of_work.length} selected
+                        </p>
+                      )}
                     </div>
                     <FileUpload
                       value={editData.floor_plan_url || null}
-                      onChange={(url) =>
-                        setEditData((p) => ({ ...p, floor_plan_url: url || "" }))
-                      }
+                      onChange={(url) => setField("floor_plan_url", url || "")}
                       category="leads"
                       accept="image/jpeg,image/png,image/webp,application/pdf"
                       maxSizeMB={25}
@@ -657,9 +1010,7 @@ export default function LeadDetailPage() {
                         <select
                           className={selectClass}
                           value={editData.budget_range}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, budget_range: e.target.value }))
-                          }
+                          onChange={(e) => setField("budget_range", e.target.value)}
                         >
                           <option value="">Not specified</option>
                           {BUDGET_RANGES.map((b) => (
@@ -672,54 +1023,82 @@ export default function LeadDetailPage() {
                         <select
                           className={selectClass}
                           value={editData.design_style}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, design_style: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            setField("design_style", e.target.value)
+                            if (e.target.value !== "Other") setField("design_style_other", "")
+                          }}
                         >
                           <option value="">Not specified</option>
                           {DESIGN_STYLES.map((s) => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
+                        {editData.design_style === "Other" && (
+                          <Input
+                            placeholder="Specify design style..."
+                            value={editData.design_style_other}
+                            onChange={(e) => setField("design_style_other", e.target.value)}
+                            className={`mt-1 ${formErrors.design_style_other ? "border-red-300" : ""}`}
+                            maxLength={MAX_OTHER_LENGTH}
+                          />
+                        )}
+                        <ErrorText error={formErrors.design_style_other} />
                       </div>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
+                      <div className="space-y-2" data-error={!!formErrors.possession_date}>
                         <Label>Possession Date</Label>
                         <Input
                           type="date"
                           value={editData.possession_date}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, possession_date: e.target.value }))
-                          }
+                          onChange={(e) => setField("possession_date", e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
+                          className={formErrors.possession_date ? "border-red-300" : ""}
                         />
+                        <ErrorText error={formErrors.possession_date} />
                       </div>
                       <div className="space-y-2">
                         <Label>Site Visit Availability</Label>
                         <select
                           className={selectClass}
                           value={editData.site_visit_availability}
-                          onChange={(e) =>
-                            setEditData((p) => ({ ...p, site_visit_availability: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            setField("site_visit_availability", e.target.value)
+                            if (e.target.value !== "OTHER") setField("site_visit_other", "")
+                          }}
                         >
                           <option value="">Not specified</option>
                           {SITE_VISIT_OPTIONS.map((o) => (
                             <option key={o.value} value={o.value}>{o.label}</option>
                           ))}
                         </select>
+                        {editData.site_visit_availability === "OTHER" && (
+                          <Input
+                            placeholder="e.g. Evenings after 6 PM..."
+                            value={editData.site_visit_other}
+                            onChange={(e) => setField("site_visit_other", e.target.value)}
+                            className={`mt-1 ${formErrors.site_visit_other ? "border-red-300" : ""}`}
+                            maxLength={MAX_OTHER_LENGTH}
+                          />
+                        )}
+                        <ErrorText error={formErrors.site_visit_other} />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2" data-error={!!formErrors.notes}>
                       <Label>Notes</Label>
                       <textarea
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        className={`flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${formErrors.notes ? "border-red-300" : ""}`}
                         placeholder="Notes about this lead..."
                         value={editData.notes}
-                        onChange={(e) =>
-                          setEditData((p) => ({ ...p, notes: e.target.value }))
-                        }
+                        onChange={(e) => setField("notes", e.target.value)}
+                        maxLength={MAX_NOTES_LENGTH}
                       />
+                      <div className="flex justify-between">
+                        <ErrorText error={formErrors.notes} />
+                        <span className={`text-xs ${editData.notes.length > MAX_NOTES_LENGTH * 0.9 ? "text-orange-500" : "text-muted-foreground"}`}>
+                          {editData.notes.length}/{MAX_NOTES_LENGTH}
+                        </span>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -774,7 +1153,7 @@ export default function LeadDetailPage() {
                     {lead.notes && (
                       <div className="pt-2 border-t">
                         <p className="text-xs font-medium text-muted-foreground mb-1">NOTES</p>
-                        <p className="text-sm">{lead.notes}</p>
+                        <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
                       </div>
                     )}
                   </>
@@ -809,7 +1188,7 @@ export default function LeadDetailPage() {
                     <p className="text-2xl font-bold">
                       {quotations.length > 0
                         ? formatINR(Math.max(...quotations.map((q) => Number(q.total_amount))))
-                        : "—"}
+                        : "\u2014"}
                     </p>
                     <p className="text-xs text-muted-foreground">Highest Quote</p>
                   </div>
@@ -905,7 +1284,201 @@ export default function LeadDetailPage() {
             )}
           </div>
         )}
+
+        {/* Activity Tab */}
+        {activeTab === "activity" && (
+          <ActivityTab leadId={id} />
+        )}
       </div>
     </RoleGuard>
+  )
+}
+
+// ── Activity Tab Component ──
+
+const ACTIVITY_TYPES = [
+  { value: "CALL", label: "Call", icon: Phone, color: "bg-blue-100 text-blue-700" },
+  { value: "EMAIL", label: "Email", icon: Mail, color: "bg-green-100 text-green-700" },
+  { value: "MEETING", label: "Meeting", icon: Users, color: "bg-purple-100 text-purple-700" },
+  { value: "NOTE", label: "Note", icon: FileText, color: "bg-yellow-100 text-yellow-700" },
+  { value: "SITE_VISIT", label: "Site Visit", icon: MapPin, color: "bg-orange-100 text-orange-700" },
+] as const
+
+function getActivityMeta(type: string) {
+  return ACTIVITY_TYPES.find((a) => a.value === type) ?? ACTIVITY_TYPES[3]
+}
+
+function ActivityTab({ leadId }: { leadId: string }) {
+  const queryClient = useQueryClient()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [activityType, setActivityType] = useState("CALL")
+  const [activityDate, setActivityDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [activityDesc, setActivityDesc] = useState("")
+
+  const { data: activities = [], isLoading } = useQuery<LeadActivity[]>({
+    queryKey: ["lead-activities", leadId],
+    queryFn: async () => {
+      const res = await api.get(`/crm/leads/${leadId}/activities`)
+      return res.data
+    },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: { type: string; description: string; date: string }) => {
+      const res = await api.post(`/crm/leads/${leadId}/activities`, payload)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lead-activities", leadId] })
+      setDialogOpen(false)
+      setActivityType("CALL")
+      setActivityDate(new Date().toISOString().slice(0, 10))
+      setActivityDesc("")
+    },
+  })
+
+  const handleSubmit = () => {
+    if (!activityDesc.trim()) return
+    createMutation.mutate({
+      type: activityType,
+      description: activityDesc.trim(),
+      date: activityDate,
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          Interaction History
+        </h3>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Activity
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : activities.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 gap-3">
+            <MessageSquare className="h-10 w-10 text-muted-foreground" />
+            <p className="text-muted-foreground">No activities logged yet.</p>
+            <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Log First Activity
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="relative ml-4 border-l-2 border-muted pl-6 space-y-6">
+          {activities.map((activity) => {
+            const meta = getActivityMeta(activity.type)
+            const Icon = meta.icon
+            return (
+              <div key={activity.id} className="relative">
+                {/* Timeline dot */}
+                <div className="absolute -left-[calc(1.5rem+1px)] top-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <Card>
+                  <CardContent className="py-3 px-4 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={meta.color}>
+                          {meta.label}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(activity.date).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(activity.created_at).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">{activity.description}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Add Activity Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log Activity</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <select
+                className={selectClass}
+                value={activityType}
+                onChange={(e) => setActivityType(e.target.value)}
+              >
+                {ACTIVITY_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={activityDate}
+                onChange={(e) => setActivityDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                placeholder="What happened? Key takeaways, next steps..."
+                value={activityDesc}
+                onChange={(e) => setActivityDesc(e.target.value)}
+                rows={4}
+                maxLength={2000}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {activityDesc.length}/2000
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!activityDesc.trim() || createMutation.isPending}
+            >
+              {createMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

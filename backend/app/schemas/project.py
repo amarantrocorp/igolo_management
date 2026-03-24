@@ -37,6 +37,10 @@ class SprintResponse(BaseModel):
     end_date: date
     dependency_sprint_id: Optional[UUID]
     notes: Optional[str]
+    planned_quantity: Optional[float] = None
+    executed_quantity: Optional[float] = None
+    quantity_unit: Optional[str] = None
+    completion_percentage: float = 0.0
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +49,10 @@ class SprintUpdate(BaseModel):
     status: Optional[SprintStatus] = None
     end_date: Optional[date] = None
     notes: Optional[str] = None
+    planned_quantity: Optional[float] = None
+    executed_quantity: Optional[float] = None
+    quantity_unit: Optional[str] = None
+    completion_percentage: Optional[float] = None
 
 
 class WalletSummary(BaseModel):

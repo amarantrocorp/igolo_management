@@ -9,7 +9,7 @@ from sqlalchemy import Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.project import Project
@@ -34,7 +34,7 @@ class TransactionStatus(str, enum.Enum):
     REJECTED = "REJECTED"
 
 
-class ProjectWallet(Base, TimestampMixin):
+class ProjectWallet(Base, TimestampMixin, TenantMixin):
     __tablename__ = "project_wallets"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -65,7 +65,7 @@ class ProjectWallet(Base, TimestampMixin):
     project: Mapped["Project"] = relationship("Project", back_populates="wallet")
 
 
-class Transaction(Base, UUIDMixin, TimestampMixin):
+class Transaction(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "transactions"
 
     project_id: Mapped[uuid.UUID] = mapped_column(

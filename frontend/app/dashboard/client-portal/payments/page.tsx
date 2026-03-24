@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { CreditCard, DollarSign, Loader2 } from "lucide-react"
+import { CreditCard, DollarSign, Loader2, Phone } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
 import { PageHeader, MiniStatCard } from "@/components/layout/page-header"
@@ -65,16 +65,17 @@ export default function ClientPaymentsPage() {
           gradient="linear-gradient(135deg, #CBB282, #A8956E)"
           action={
             <Button
+              variant="outline"
               onClick={() => {
                 toast({
-                  title: "Payment gateway",
+                  title: "Contact your project manager",
                   description:
-                    "Online payment integration is not yet available. Please contact your project manager.",
+                    "To arrange a payment, please reach out to your project manager who will share bank transfer details or generate a payment link.",
                 })
               }}
             >
-              <CreditCard className="mr-2 h-4 w-4" />
-              Make Payment
+              <Phone className="mr-2 h-4 w-4" />
+              Contact Manager
             </Button>
           }
         />
@@ -85,6 +86,40 @@ export default function ClientPaymentsPage() {
           icon={DollarSign}
           gradient="linear-gradient(135deg, #10B981, #059669)"
         />
+
+        {/* Payment Milestones */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Milestones</CardTitle>
+            <CardDescription>
+              Standard payment schedule for your project
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[
+                { milestone: "Advance Payment", percent: "20%", description: "Due at project confirmation" },
+                { milestone: "Before Carpentry", percent: "30%", description: "Due before woodwork begins" },
+                { milestone: "Before Finishing", percent: "40%", description: "Due before painting and finishing" },
+                { milestone: "On Handover", percent: "10%", description: "Due at final handover and inspection" },
+              ].map((m) => (
+                <div
+                  key={m.milestone}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{m.milestone}</p>
+                    <p className="text-xs text-muted-foreground">{m.description}</p>
+                  </div>
+                  <span className="text-sm font-semibold">{m.percent}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              To arrange a payment, please contact your project manager who will provide bank transfer details or a payment link.
+            </p>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -1,746 +1,604 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth-store"
 import { useQuery } from "@tanstack/react-query"
-import { format, startOfWeek, endOfWeek } from "date-fns"
 import api from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
   Users,
   FolderKanban,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   ClipboardCheck,
-  Clock,
+  ShoppingCart,
   AlertCircle,
-  HardHat,
-  Package,
-  ArrowRight,
+  CreditCard,
   Plus,
-  Eye,
+  ArrowRight,
+  UserPlus,
+  Building2,
+  FileText,
+  Receipt,
+  CircleDollarSign,
+  AlertOctagon,
+  ChevronRight,
   Sparkles,
-  CalendarDays,
-  Wallet,
-  BarChart3,
+  Check,
+  Eye,
 } from "lucide-react"
-import type { UserRole, Item } from "@/types"
-import { formatCurrency } from "@/lib/utils"
 import { cn } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
+import { toast } from "@/components/ui/use-toast"
 
-// ─── Types ───
+// ── Types ──
+
 interface DashboardStats {
   total_leads?: number
   active_projects?: number
   pending_approvals?: number
+  purchase_requests?: number
+  overdue_projects?: number
+  pending_payments?: number
   total_revenue?: number
   total_spent?: number
-  my_leads?: number
-  quotes_sent?: number
-  todays_tasks?: number
-  project_status?: string
-  project_progress?: number
 }
 
-interface PayrollSummary {
-  entries: { team_id: string; project_id: string; calculated_cost: number; status: string }[]
-  total_cost: number
-  total_approved: number
-  total_pending: number
+interface ProjectProgress {
+  id: string
+  name: string
+  progress: number
+  phase: string
+  status: string
 }
 
-// ─── Helpers ───
-function getGreeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return "Good morning"
-  if (hour < 17) return "Good afternoon"
-  return "Good evening"
+interface PendingApproval {
+  id: string
+  title: string
+  amount: string
+  user: string
+  time: string
 }
 
-// ─── Gradient Icon Component ───
-function GradientIcon({
-  icon: Icon,
-  gradient,
-  className,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  gradient: string
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        "flex h-11 w-11 items-center justify-center rounded-xl shadow-lg",
-        className
-      )}
-      style={{ background: gradient }}
-    >
-      <Icon className="h-5 w-5 text-white" />
-    </div>
-  )
+interface ActivityItem {
+  id: string
+  message: string
+  time: string
+  type: "info" | "success" | "warning" | "error"
 }
 
-// ─── Stat Card Component ───
+// ── Stat Card ──
+
+const STAT_CONFIGS = [
+  {
+    key: "total_leads",
+    title: "Total Leads",
+    icon: Users,
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
+    borderColor: "border-blue-100",
+    href: "/dashboard/sales/leads",
+  },
+  {
+    key: "active_projects",
+    title: "Active Projects",
+    icon: FolderKanban,
+    iconBg: "bg-emerald-50",
+    iconColor: "text-emerald-600",
+    borderColor: "border-emerald-100",
+    href: "/dashboard/projects",
+  },
+  {
+    key: "pending_approvals",
+    title: "Pending Approvals",
+    icon: ClipboardCheck,
+    iconBg: "bg-amber-50",
+    iconColor: "text-amber-600",
+    borderColor: "border-amber-100",
+    href: "/dashboard/admin/approvals",
+  },
+  {
+    key: "purchase_requests",
+    title: "Purchase Requests",
+    icon: ShoppingCart,
+    iconBg: "bg-violet-50",
+    iconColor: "text-violet-600",
+    borderColor: "border-violet-100",
+    href: "/dashboard/purchasing",
+  },
+  {
+    key: "overdue_projects",
+    title: "Overdue Projects",
+    icon: AlertOctagon,
+    iconBg: "bg-red-50",
+    iconColor: "text-red-500",
+    borderColor: "border-red-100",
+    href: "/dashboard/projects",
+  },
+  {
+    key: "pending_payments",
+    title: "Pending Payments",
+    icon: CreditCard,
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-600",
+    borderColor: "border-orange-100",
+    href: "/dashboard/client-billing",
+  },
+] as const
+
 function StatCard({
   title,
   value,
-  description,
+  subtitle,
   icon: Icon,
-  trend,
-  trendDown,
-  gradient,
+  iconBg,
+  iconColor,
+  borderColor,
   delay,
+  href,
 }: {
   title: string
   value: string | number
-  description?: string
+  subtitle?: string
   icon: React.ComponentType<{ className?: string }>
-  trend?: string
-  trendDown?: boolean
-  gradient: string
+  iconBg: string
+  iconColor: string
+  borderColor: string
   delay: number
+  href?: string
 }) {
-  return (
+  const content = (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border/40 bg-card p-5 transition-all duration-300 hover:border-border/80 hover:shadow-xl hover:shadow-black/5",
-        "animate-fade-in-up"
+        "rounded-xl border bg-white p-5 transition-all duration-200 hover:shadow-md",
+        borderColor,
+        href && "cursor-pointer"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      {/* Subtle gradient accent bar at top */}
-      <div
-        className="absolute inset-x-0 top-0 h-[2px] opacity-60 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ background: gradient }}
-      />
+      <div className={cn("mb-3 flex h-10 w-10 items-center justify-center rounded-lg", iconBg)}>
+        <Icon className={cn("h-5 w-5", iconColor)} />
+      </div>
+      <p className="text-sm text-muted-foreground">{title}</p>
+      <p className="text-2xl font-bold tracking-tight mt-1">{value}</p>
+      {subtitle && (
+        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+      )}
+    </div>
+  )
 
-      {/* Shimmer overlay on hover */}
-      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100 animate-shimmer" />
+  if (href) {
+    return <Link href={href}>{content}</Link>
+  }
+  return content
+}
 
-      <div className="relative flex items-start justify-between">
-        <div className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80">
-            {title}
-          </p>
-          <p className="text-3xl font-bold tracking-tight">
-            {typeof value === "number" ? value.toLocaleString() : value}
-          </p>
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-          {trend && (
-            <div
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                trendDown
-                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              )}
-            >
-              {trendDown ? (
-                <TrendingDown className="h-3 w-3" />
-              ) : (
-                <TrendingUp className="h-3 w-3" />
-              )}
-              {trend}
-            </div>
-          )}
-        </div>
-        <GradientIcon icon={Icon} gradient={gradient} />
+// ── Progress Bar ──
+
+function ProjectProgressBar({
+  name,
+  progress,
+  phase,
+  status,
+}: ProjectProgress) {
+  return (
+    <div className="space-y-2 py-3 border-b last:border-0">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">{name}</span>
+        <span className="text-sm text-muted-foreground">{progress}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-blue-600 transition-all duration-700 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">Phase: {phase}</span>
+        <Badge
+          variant={status === "Active" ? "default" : "secondary"}
+          className="text-[10px] px-2 py-0"
+        >
+          {status}
+        </Badge>
       </div>
     </div>
   )
 }
 
-// ─── Quick Action Button ───
-function QuickActionButton({
+// ── Quick Action Card ──
+
+function QuickActionCard({
   href,
   icon: Icon,
   label,
-  gradient,
+  onClick,
 }: {
-  href: string
+  href?: string
   icon: React.ComponentType<{ className?: string }>
   label: string
-  gradient: string
+  onClick?: () => void
 }) {
-  return (
-    <Link href={href}>
-      <button
-        className="group flex w-full items-center gap-3 rounded-xl border border-border/40 bg-card p-3.5 text-left transition-all duration-200 hover:border-border/80 hover:shadow-md"
-      >
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-110"
-          style={{ background: gradient }}
-        >
-          <Icon className="h-4 w-4 text-white" />
-        </div>
-        <span className="text-sm font-medium">{label}</span>
-        <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground/50 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground" />
-      </button>
-    </Link>
+  const content = (
+    <div className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border/50 bg-white p-6 text-center transition-all duration-200 hover:border-blue-200 hover:shadow-md cursor-pointer">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 transition-colors group-hover:bg-blue-50">
+        <Icon className="h-5 w-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
+      </div>
+      <span className="text-sm font-medium">{label}</span>
+    </div>
   )
+
+  if (onClick) {
+    return <div onClick={onClick}>{content}</div>
+  }
+
+  return href ? <Link href={href}>{content}</Link> : content
 }
 
-// ─── Alert Item ───
-function AlertItem({
-  icon: Icon,
-  title,
-  subtitle,
-  accentColor,
-}: {
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  title: string
-  subtitle: string
-  accentColor: string
-}) {
+// ── Activity Feed Item ──
+
+function ActivityFeedItem({ message, time, type }: ActivityItem) {
+  const dotColor = {
+    info: "bg-blue-500",
+    success: "bg-emerald-500",
+    warning: "bg-amber-500",
+    error: "bg-red-500",
+  }[type]
+
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/50 p-3 transition-colors hover:bg-muted/30">
-      <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-        style={{ background: `${accentColor}15` }}
-      >
-        <Icon className="h-4 w-4" style={{ color: accentColor }} />
-      </div>
+    <div className="flex items-start gap-3 py-3 border-b last:border-0">
+      <div className={cn("mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0", dotColor)} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{title}</p>
-        <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+        <p className="text-sm leading-snug">{message}</p>
+        <p className="text-xs text-muted-foreground mt-1">{time}</p>
       </div>
     </div>
   )
 }
 
-// ─── Financial Metric Bar ───
-function FinancialBar({
-  label,
+// ── Pending Approval Card ──
+
+function ApprovalCard({
+  title,
   amount,
-  maxAmount,
-  gradient,
-  color,
-}: {
-  label: string
-  amount: number
-  maxAmount: number
-  gradient: string
-  color: string
-}) {
-  const percentage = maxAmount > 0 ? Math.min((amount / maxAmount) * 100, 100) : 0
-
+  user,
+  time,
+}: PendingApproval) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <span className="text-sm font-semibold" style={{ color }}>
-          {formatCurrency(amount)}
-        </span>
+    <div className="rounded-lg border p-4 space-y-3">
+      <div className="flex items-start justify-between">
+        <p className="text-sm font-medium leading-snug">{title}</p>
+        <span className="text-sm font-bold whitespace-nowrap ml-2">{amount}</span>
       </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
-        <div
-          className="h-full rounded-full transition-all duration-1000 ease-out"
-          style={{
-            width: `${percentage}%`,
-            background: gradient,
-          }}
-        />
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Users className="h-3 w-3" /> {user}
+        </span>
+        <span>&#9201; {time}</span>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => toast({ title: "Approved", description: "Approval submitted successfully" })}>
+          Approve
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => toast({ title: "Marked for Review", description: "Marked for review" })}>
+          Review
+        </Button>
       </div>
     </div>
-  )
-}
-
-// ═══════════════════════════════════════
-//   ADMIN / MANAGER DASHBOARD
-// ═══════════════════════════════════════
-function AdminManagerDashboard({ stats }: { stats: DashboardStats }) {
-  const now = new Date()
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 })
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
-
-  const { data: payroll } = useQuery<PayrollSummary>({
-    queryKey: ["dashboard-payroll", format(weekStart, "yyyy-MM-dd")],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        week_start: format(weekStart, "yyyy-MM-dd"),
-        week_end: format(weekEnd, "yyyy-MM-dd"),
-      })
-      const response = await api.get(`/labor/payroll?${params.toString()}`)
-      return response.data
-    },
-  })
-
-  const pendingPayroll = Number(payroll?.total_pending ?? 0)
-  const pendingEntries = payroll?.entries?.filter((e) => e.status === "PENDING").length ?? 0
-
-  const { data: lowStockItems = [] } = useQuery<Item[]>({
-    queryKey: ["dashboard-low-stock"],
-    queryFn: async () => {
-      const response = await api.get("/inventory/items?low_stock=true&limit=5")
-      return response.data.items ?? response.data
-    },
-  })
-
-  const revenue = Number(stats.total_revenue ?? 0)
-  const spent = Number(stats.total_spent ?? 0)
-  const maxFinancial = Math.max(revenue, spent, 1)
-  const netBalance = revenue - spent
-
-  return (
-    <>
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          title="Total Leads"
-          value={stats.total_leads ?? 0}
-          description="Active leads in pipeline"
-          icon={Users}
-          trend="+12% from last month"
-          gradient="linear-gradient(135deg, #8B5CF6, #6366F1)"
-          delay={50}
-        />
-        <StatCard
-          title="Active Projects"
-          value={stats.active_projects ?? 0}
-          description="Projects in progress"
-          icon={FolderKanban}
-          gradient="linear-gradient(135deg, #10B981, #059669)"
-          delay={100}
-        />
-        <StatCard
-          title="Pending Approvals"
-          value={stats.pending_approvals ?? 0}
-          description="Awaiting your action"
-          icon={ClipboardCheck}
-          gradient="linear-gradient(135deg, #F59E0B, #D97706)"
-          delay={150}
-        />
-        <StatCard
-          title="Revenue"
-          value={formatCurrency(stats.total_revenue)}
-          description="Total received this month"
-          icon={DollarSign}
-          trend="+8% from last month"
-          gradient="linear-gradient(135deg, #CBB282, #A8956E)"
-          delay={200}
-        />
-      </div>
-
-      {/* ── Main Content Grid ── */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        {/* Financial Overview — 7 columns */}
-        <div
-          className="lg:col-span-7 animate-fade-in-up delay-5 rounded-2xl border border-border/40 bg-card p-6"
-        >
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <GradientIcon
-                icon={Wallet}
-                gradient="linear-gradient(135deg, #CBB282, #A8956E)"
-              />
-              <div>
-                <h3 className="font-semibold">Financial Overview</h3>
-                <p className="text-xs text-muted-foreground">
-                  Month-to-date summary
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/dashboard/admin/finance"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              View details →
-            </Link>
-          </div>
-
-          <div className="space-y-5">
-            <FinancialBar
-              label="Total Received"
-              amount={revenue}
-              maxAmount={maxFinancial}
-              gradient="linear-gradient(90deg, #10B981, #34D399)"
-              color="#10B981"
-            />
-            <FinancialBar
-              label="Total Spent"
-              amount={spent}
-              maxAmount={maxFinancial}
-              gradient="linear-gradient(90deg, #F43F5E, #FB7185)"
-              color="#F43F5E"
-            />
-
-            {/* Net Balance callout */}
-            <div className="mt-4 rounded-xl bg-gradient-to-r from-gold/10 via-gold/5 to-transparent p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-gold" />
-                  <span className="text-sm font-medium">Net Balance</span>
-                </div>
-                <span
-                  className={cn(
-                    "text-xl font-bold",
-                    netBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                  )}
-                >
-                  {formatCurrency(netBalance)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions + Alerts — 5 columns */}
-        <div
-          className="lg:col-span-5 animate-fade-in-up delay-6 space-y-4"
-        >
-          {/* Quick Actions */}
-          <div className="rounded-2xl border border-border/40 bg-card p-5">
-            <div className="mb-4 flex items-center gap-3">
-              <GradientIcon
-                icon={Sparkles}
-                gradient="linear-gradient(135deg, #8B5CF6, #6366F1)"
-              />
-              <div>
-                <h3 className="font-semibold">Quick Actions</h3>
-                <p className="text-xs text-muted-foreground">Jump to common tasks</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <QuickActionButton
-                href="/dashboard/sales/leads"
-                icon={Plus}
-                label="New Lead"
-                gradient="linear-gradient(135deg, #8B5CF6, #6366F1)"
-              />
-              <QuickActionButton
-                href="/dashboard/sales/quotes/new"
-                icon={FileText}
-                label="Create Quote"
-                gradient="linear-gradient(135deg, #F59E0B, #D97706)"
-              />
-              <QuickActionButton
-                href="/dashboard/projects"
-                icon={Eye}
-                label="View Projects"
-                gradient="linear-gradient(135deg, #10B981, #059669)"
-              />
-            </div>
-          </div>
-
-          {/* Alerts */}
-          <div className="rounded-2xl border border-border/40 bg-card p-5">
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Attention Required
-            </h3>
-            <div className="space-y-2">
-              {(stats.pending_approvals ?? 0) > 0 && (
-                <AlertItem
-                  icon={AlertCircle}
-                  title={`${stats.pending_approvals} items need approval`}
-                  subtitle="Purchase orders and payment requests"
-                  accentColor="#F59E0B"
-                />
-              )}
-              {pendingPayroll > 0 && (
-                <AlertItem
-                  icon={HardHat}
-                  title={`${formatCurrency(pendingPayroll)} pending payroll`}
-                  subtitle={`${pendingEntries} team${pendingEntries !== 1 ? "s" : ""} awaiting approval`}
-                  accentColor="#F97316"
-                />
-              )}
-              {lowStockItems.length > 0 && (
-                <AlertItem
-                  icon={Package}
-                  title={`${lowStockItems.length} item${lowStockItems.length !== 1 ? "s" : ""} low on stock`}
-                  subtitle={lowStockItems.slice(0, 3).map((i) => i.name).join(", ")}
-                  accentColor="#EF4444"
-                />
-              )}
-              {(stats.pending_approvals ?? 0) === 0 &&
-                pendingPayroll === 0 &&
-                lowStockItems.length === 0 && (
-                  <div className="flex flex-col items-center gap-2 py-4 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                      <ClipboardCheck className="h-5 w-5 text-emerald-500" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      All clear — nothing needs your attention
-                    </p>
-                  </div>
-                )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ═══════════════════════════════════════
-//   SALES / BDE DASHBOARD
-// ═══════════════════════════════════════
-function SalesBdeDashboard({ stats }: { stats: DashboardStats }) {
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatCard
-          title="My Leads"
-          value={stats.my_leads ?? 0}
-          description="Leads assigned to you"
-          icon={Users}
-          gradient="linear-gradient(135deg, #8B5CF6, #6366F1)"
-          delay={50}
-        />
-        <StatCard
-          title="Quotes Sent"
-          value={stats.quotes_sent ?? 0}
-          description="Quotations pending response"
-          icon={FileText}
-          gradient="linear-gradient(135deg, #F59E0B, #D97706)"
-          delay={100}
-        />
-        <StatCard
-          title="Conversion Rate"
-          value={
-            stats.my_leads && stats.my_leads > 0
-              ? `${Math.round(((stats.quotes_sent ?? 0) / stats.my_leads) * 100)}%`
-              : "0%"
-          }
-          description="Leads to quote ratio"
-          icon={TrendingUp}
-          gradient="linear-gradient(135deg, #10B981, #059669)"
-          delay={150}
-        />
-      </div>
-
-      <div
-        className="animate-fade-in-up delay-4 rounded-2xl border border-border/40 bg-card p-6"
-      >
-        <div className="mb-4 flex items-center gap-3">
-          <GradientIcon
-            icon={Clock}
-            gradient="linear-gradient(135deg, #6366F1, #8B5CF6)"
-          />
-          <div>
-            <h3 className="font-semibold">Recent Activity</h3>
-            <p className="text-xs text-muted-foreground">
-              Your latest lead interactions
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
-            <Clock className="h-6 w-6 text-muted-foreground/50" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            No recent activity. Start by creating a new lead or following up on existing ones.
-          </p>
-          <Link href="/dashboard/sales/leads">
-            <button className="mt-2 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-medium text-white transition-shadow hover:shadow-lg hover:shadow-violet-500/25">
-              <Plus className="h-3.5 w-3.5" />
-              Create Lead
-            </button>
-          </Link>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ═══════════════════════════════════════
-//   SUPERVISOR DASHBOARD
-// ═══════════════════════════════════════
-function SupervisorDashboard({ stats }: { stats: DashboardStats }) {
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatCard
-          title="Active Projects"
-          value={stats.active_projects ?? 0}
-          description="Assigned to you"
-          icon={FolderKanban}
-          gradient="linear-gradient(135deg, #10B981, #059669)"
-          delay={50}
-        />
-        <StatCard
-          title="Today's Tasks"
-          value={stats.todays_tasks ?? 0}
-          description="Tasks to complete today"
-          icon={ClipboardCheck}
-          gradient="linear-gradient(135deg, #F59E0B, #D97706)"
-          delay={100}
-        />
-        <StatCard
-          title="Pending Logs"
-          value={0}
-          description="Daily logs awaiting submission"
-          icon={Clock}
-          gradient="linear-gradient(135deg, #8B5CF6, #6366F1)"
-          delay={150}
-        />
-      </div>
-
-      <div
-        className="animate-fade-in-up delay-4 rounded-2xl border border-border/40 bg-card p-6"
-      >
-        <div className="mb-4 flex items-center gap-3">
-          <GradientIcon
-            icon={CalendarDays}
-            gradient="linear-gradient(135deg, #F59E0B, #D97706)"
-          />
-          <div>
-            <h3 className="font-semibold">Today&apos;s Schedule</h3>
-            <p className="text-xs text-muted-foreground">
-              Tasks and site visits for today
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
-            <CalendarDays className="h-6 w-6 text-muted-foreground/50" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            No tasks scheduled for today. Check your project sprints for upcoming deliverables.
-          </p>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ═══════════════════════════════════════
-//   CLIENT DASHBOARD
-// ═══════════════════════════════════════
-function ClientDashboard({ stats }: { stats: DashboardStats }) {
-  const progress = stats.project_progress ?? 0
-
-  return (
-    <>
-      <div
-        className="animate-fade-in-up delay-1 rounded-2xl border border-border/40 bg-card p-6"
-      >
-        <div className="mb-6 flex items-center gap-3">
-          <GradientIcon
-            icon={FolderKanban}
-            gradient="linear-gradient(135deg, #CBB282, #A8956E)"
-          />
-          <div>
-            <h3 className="font-semibold">Project Status</h3>
-          </div>
-          <Badge
-            variant={stats.project_status === "IN_PROGRESS" ? "default" : "secondary"}
-            className="ml-auto"
-          >
-            {stats.project_status?.replace("_", " ") ?? "NOT STARTED"}
-          </Badge>
-        </div>
-
-        {progress > 0 && (
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Overall Progress</span>
-              <span className="font-bold text-gold">{progress}%</span>
-            </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-muted/50">
-              <div
-                className="h-full rounded-full transition-all duration-1000 ease-out"
-                style={{
-                  width: `${progress}%`,
-                  background: "linear-gradient(90deg, #CBB282, #A8956E)",
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        <p className="mt-4 text-sm text-muted-foreground">
-          Visit the Client Portal to see detailed sprint progress, daily logs,
-          and payment history.
-        </p>
-
-        <Link href="/dashboard/client-portal">
-          <button className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#CBB282] to-[#A8956E] px-5 py-2.5 text-sm font-medium text-white transition-shadow hover:shadow-lg hover:shadow-[#CBB282]/25">
-            Open Client Portal
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </Link>
-      </div>
-    </>
   )
 }
 
 // ═══════════════════════════════════════
 //   MAIN DASHBOARD PAGE
 // ═══════════════════════════════════════
-export default function DashboardPage() {
-  const { user } = useAuthStore()
 
-  const dashboardStats: DashboardStats = {
-    total_leads: 0,
-    active_projects: 0,
+export default function DashboardPage() {
+  const router = useRouter()
+  const user = useAuthStore((s) => s.user)
+
+  // Fetch leads count
+  const { data: leadsData } = useQuery({
+    queryKey: ["dashboard-leads"],
+    queryFn: async () => {
+      try {
+        const res = await api.get("/crm/leads?limit=1")
+        return res.data
+      } catch {
+        return { total: 0, items: [] }
+      }
+    },
+    staleTime: 30000,
+  })
+
+  // Fetch all projects for stats + progress section
+  const { data: allProjectsData } = useQuery({
+    queryKey: ["dashboard-projects-all"],
+    queryFn: async () => {
+      try {
+        const res = await api.get("/projects?limit=50")
+        return res.data
+      } catch {
+        return { total: 0, items: [] }
+      }
+    },
+    staleTime: 30000,
+  })
+
+  // Derive stats from fetched data
+  const allProjects: any[] = allProjectsData?.items ?? allProjectsData ?? []
+  const totalLeads = leadsData?.total ?? leadsData?.items?.length ?? 0
+  const activeProjects = allProjects.filter((p: any) => p.status === "IN_PROGRESS").length
+  const overdueCount = allProjects.filter((p: any) =>
+    p.expected_end_date &&
+    new Date(p.expected_end_date) < new Date() &&
+    p.status !== "COMPLETED"
+  ).length
+  const pendingPayments = allProjects.reduce((sum: number, p: any) => {
+    const agreed = Number(p.total_project_value ?? 0)
+    const received = Number(p.total_received ?? 0)
+    return sum + Math.max(agreed - received, 0)
+  }, 0)
+  const totalRevenue = allProjects.reduce((sum: number, p: any) => sum + Number(p.total_received ?? 0), 0)
+
+  const stats: DashboardStats = {
+    total_leads: totalLeads,
+    active_projects: activeProjects,
     pending_approvals: 0,
-    total_revenue: 0,
-    total_spent: 0,
-    my_leads: 0,
-    quotes_sent: 0,
-    todays_tasks: 0,
+    purchase_requests: 0,
+    overdue_projects: overdueCount,
+    pending_payments: pendingPayments,
+    total_revenue: totalRevenue,
+    total_spent: allProjects.reduce((sum: number, p: any) => sum + Number(p.total_spent ?? 0), 0),
   }
-  const role = user?.role as UserRole
-  const greeting = getGreeting()
-  const todayDate = format(new Date(), "EEEE, MMMM d, yyyy")
+
+  // Derive recent in-progress projects for progress section
+  const projects = allProjects
+    .filter((p: any) => p.status === "IN_PROGRESS")
+    .slice(0, 3)
+
+  // Fetch recent notifications for activity feed
+  const { data: notifications = [] } = useQuery<any[]>({
+    queryKey: ["dashboard-notifications"],
+    queryFn: async () => {
+      try {
+        const res = await api.get("/notifications?limit=5")
+        return res.data.items ?? res.data ?? []
+      } catch {
+        return []
+      }
+    },
+    staleTime: 30000,
+  })
+
+  // Map projects to progress items
+  const projectProgress: ProjectProgress[] = projects.map((p: any) => {
+    const totalSprints = p.sprints?.length || 6
+    const completedSprints = p.sprints?.filter((s: any) => s.status === "COMPLETED").length || 0
+    const progress = Math.round((completedSprints / totalSprints) * 100)
+    const activeSprint = p.sprints?.find((s: any) => s.status === "ACTIVE")
+
+    return {
+      id: p.id,
+      name: p.client?.user?.full_name || p.site_address || "Project",
+      progress,
+      phase: activeSprint?.name?.replace(/^Sprint \d+:\s*/, "") || "Planning",
+      status: p.status === "IN_PROGRESS" ? "Active" : p.status === "ON_HOLD" ? "On Hold" : "Pending",
+    }
+  })
+
+  // Fallback progress data if no projects exist
+  const displayProjects = projectProgress.length > 0
+    ? projectProgress
+    : [
+        { id: "1", name: "No active projects", progress: 0, phase: "—", status: "Pending" },
+      ]
+
+  // Map notifications to activity feed
+  const activityFeed: ActivityItem[] = notifications.slice(0, 5).map((n: any) => {
+    const typeMap: Record<string, ActivityItem["type"]> = {
+      ALERT: "warning",
+      APPROVAL_REQ: "info",
+      INFO: "success",
+      PAYMENT_RECEIVED: "success",
+    }
+    const createdAt = new Date(n.created_at)
+    const now = new Date()
+    const diffMs = now.getTime() - createdAt.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const timeStr =
+      diffHours < 1
+        ? "Just now"
+        : diffHours < 24
+          ? `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`
+          : `${Math.floor(diffHours / 24)} day${Math.floor(diffHours / 24) > 1 ? "s" : ""} ago`
+
+    return {
+      id: n.id,
+      message: n.title || n.body || "Activity",
+      time: timeStr,
+      type: typeMap[n.type] || "info",
+    }
+  })
+
+  // Stat values
+  const statValues: Record<string, { value: string | number; subtitle?: string }> = {
+    total_leads: { value: stats.total_leads ?? 0 },
+    active_projects: { value: stats.active_projects ?? 0 },
+    pending_approvals: { value: stats.pending_approvals ?? 0 },
+    purchase_requests: { value: stats.purchase_requests ?? 0 },
+    overdue_projects: { value: stats.overdue_projects ?? 0 },
+    pending_payments: {
+      value: formatCurrency(stats.pending_payments ?? 0),
+    },
+  }
 
   return (
     <div className="space-y-6">
-      {/* ── Hero Welcome ── */}
-      <div
-        className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-border/40 bg-card p-6 md:p-8"
-      >
-        {/* Ambient gradient glow */}
-        <div
-          className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-20 blur-3xl animate-pulse-glow"
-          style={{ background: "radial-gradient(circle, hsl(38 70% 65%), transparent 70%)" }}
-        />
-        <div
-          className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full opacity-10 blur-3xl animate-pulse-glow"
-          style={{
-            background: "radial-gradient(circle, hsl(262 83% 58%), transparent 70%)",
-            animationDelay: "1.5s",
-          }}
-        />
+      {/* ── Page Header ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+          <p className="text-muted-foreground mt-1">
+            Monitor your studio&apos;s pulse, track active projects, and manage ongoing operations.
+          </p>
+        </div>
+        <Link href="/dashboard/sales/leads">
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Lead
+          </Button>
+        </Link>
+      </div>
 
-        <div className="relative flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              {greeting},{" "}
-              <span className="bg-gradient-to-r from-gold to-[#A8956E] bg-clip-text text-transparent">
-                {user?.full_name ?? "User"}
-              </span>
-            </h1>
-            <div className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {todayDate}
-            </div>
+      {/* ── Stat Cards (6 in a row) ── */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        {STAT_CONFIGS.map((config, i) => (
+          <StatCard
+            key={config.key}
+            title={config.title}
+            value={statValues[config.key]?.value ?? 0}
+            subtitle={statValues[config.key]?.subtitle}
+            icon={config.icon}
+            iconBg={config.iconBg}
+            iconColor={config.iconColor}
+            borderColor={config.borderColor}
+            delay={i * 50}
+            href={config.href}
+          />
+        ))}
+      </div>
+
+      {/* ── Project Progress + Pending Approvals ── */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Project Progress */}
+        <div className="lg:col-span-7 rounded-xl border bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Project Progress</h2>
+            <Link
+              href="/dashboard/projects"
+              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              View All <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
-          <Badge
-            variant="outline"
-            className="mt-2 w-fit border-gold/30 bg-gold/5 text-gold md:mt-0"
-          >
-            {role?.replace("_", " ")}
-          </Badge>
+          <div>
+            {displayProjects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/dashboard/projects/${project.id}`}
+                className="block hover:bg-slate-50/50 rounded-md transition-colors -mx-2 px-2"
+              >
+                <ProjectProgressBar {...project} />
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Pending Approvals */}
+        <div className="lg:col-span-5 rounded-xl border bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Pending Approvals</h2>
+            <Badge variant="destructive" className="rounded-full h-6 w-6 p-0 flex items-center justify-center text-xs">
+              {stats.pending_approvals ?? 2}
+            </Badge>
+          </div>
+          <div className="space-y-3">
+            {(stats.pending_approvals ?? 0) > 0 ? (
+              <div className="rounded-lg border p-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  You have {stats.pending_approvals} pending approval{(stats.pending_approvals ?? 0) !== 1 ? "s" : ""}.
+                </p>
+                <Link href="/dashboard/admin/approvals">
+                  <Button variant="outline" size="sm" className="mt-3 gap-1.5">
+                    View pending approvals <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="rounded-lg border p-4 text-center text-sm text-muted-foreground">
+                No pending approvals
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── Role-based Dashboard Content ── */}
-      {(role === "SUPER_ADMIN" || role === "MANAGER") && (
-        <AdminManagerDashboard stats={dashboardStats} />
-      )}
-      {(role === "SALES" || role === "BDE") && (
-        <SalesBdeDashboard stats={dashboardStats} />
-      )}
-      {role === "SUPERVISOR" && (
-        <SupervisorDashboard stats={dashboardStats} />
-      )}
-      {role === "CLIENT" && <ClientDashboard stats={dashboardStats} />}
+      {/* ── Quick Actions + Activity Feed ── */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Quick Actions */}
+        <div className="lg:col-span-7 rounded-xl border bg-white p-6">
+          <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <QuickActionCard
+              href="/dashboard/sales/leads/new"
+              icon={UserPlus}
+              label="Create Lead"
+            />
+            <QuickActionCard
+              icon={Building2}
+              label="Create Project"
+              onClick={() => {
+                toast({
+                  title: "Project Workflow",
+                  description: "Projects are created by converting approved quotations. Start by creating a lead.",
+                })
+                router.push("/dashboard/sales/leads/new")
+              }}
+            />
+            <QuickActionCard
+              href="/dashboard/sales/quotes/new"
+              icon={FileText}
+              label="Create Quotation"
+            />
+            <QuickActionCard
+              href="/dashboard/purchasing"
+              icon={ShoppingCart}
+              label="Raise Purchase Request"
+            />
+            <QuickActionCard
+              href="/dashboard/expenses"
+              icon={Receipt}
+              label="Add Expense"
+            />
+            <QuickActionCard
+              icon={AlertOctagon}
+              label="Report Issue"
+              onClick={() => {
+                toast({
+                  title: "Report Issue",
+                  description: "Use Execution Tracking to log site issues.",
+                })
+                router.push("/dashboard/execution-tracking")
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Activity Feed */}
+        <div className="lg:col-span-5 rounded-xl border bg-white p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-semibold">Activity Feed</h2>
+          </div>
+          <div>
+            {activityFeed.length > 0 ? (
+              activityFeed.map((item) => (
+                <ActivityFeedItem key={item.id} {...item} />
+              ))
+            ) : (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                No recent activity
+              </div>
+            )}
+          </div>
+          <Link
+            href="/dashboard/notifications"
+            className="mt-4 flex items-center justify-center gap-1 text-sm text-blue-600 hover:text-blue-700 pt-3 border-t"
+          >
+            View Complete Log <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

@@ -169,7 +169,7 @@ export default function QuotesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(q.created_at).toLocaleDateString()}
+                      {new Date(q.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                     </TableCell>
                     <TableCell>
                       <Link href={`/dashboard/sales/quotes/${q.id}`}>

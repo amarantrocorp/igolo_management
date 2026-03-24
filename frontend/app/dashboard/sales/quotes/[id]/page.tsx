@@ -50,7 +50,9 @@ import {
   Home,
   X,
   Rocket,
+  Mail,
 } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 
 // ---------- API response types ----------
 
@@ -172,6 +174,9 @@ export default function QuoteViewPage() {
   const [convertStartDate, setConvertStartDate] = useState("")
   const [convertSiteAddress, setConvertSiteAddress] = useState("")
 
+  // Send to Client dialog state
+  const [sendEmailOpen, setSendEmailOpen] = useState(false)
+
   // Fetch quote
   const {
     data: quote,
@@ -217,6 +222,18 @@ export default function QuoteViewPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotation", id] })
       queryClient.invalidateQueries({ queryKey: ["quotations"] })
+    },
+  })
+
+  // Send email mutation
+  const sendEmailMutation = useMutation({
+    mutationFn: () => api.post(`/quotes/${id}/send`),
+    onSuccess: () => {
+      toast({ title: "Sent", description: "Quotation emailed to client successfully" })
+      setSendEmailOpen(false)
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.response?.data?.detail || "Failed to send email", variant: "destructive" })
     },
   })
 
@@ -467,6 +484,14 @@ export default function QuoteViewPage() {
                 <CheckCircle className="mr-2 h-4 w-4" />
               )}
               Approve
+            </Button>
+          )}
+
+          {/* Send to Client — available for SENT or APPROVED quotes */}
+          {canEdit && (quote.status === "SENT" || quote.status === "APPROVED") && (
+            <Button variant="outline" size="sm" onClick={() => setSendEmailOpen(true)}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send to Client
             </Button>
           )}
 
@@ -807,6 +832,70 @@ export default function QuoteViewPage() {
           </div>
         </div>
       )}
+
+      {/* ── Send to Client Dialog ── */}
+      <Dialog open={sendEmailOpen} onOpenChange={setSendEmailOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-blue-600" />
+              Send Quotation to Client
+            </DialogTitle>
+            <DialogDescription>
+              This will generate a PDF and email it to the client.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Recipient</span>
+              <span className="font-medium">{lead?.email || "No email on file"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Quote</span>
+              <span className="font-medium">{quoteNumber} (v{quote.version})</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Amount</span>
+              <span className="font-medium">{formatINR(Number(quote.total_amount))}</span>
+            </div>
+            {!lead?.email && (
+              <p className="text-destructive text-xs mt-2">
+                This lead has no email address. Please add one first.
+              </p>
+            )}
+          </div>
+
+          {sendEmailMutation.isError && (
+            <p className="text-sm text-destructive">
+              {(sendEmailMutation.error as any)?.response?.data?.detail ||
+                "Failed to send email. Please try again."}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSendEmailOpen(false)}
+              disabled={sendEmailMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!lead?.email || sendEmailMutation.isPending}
+              onClick={() => sendEmailMutation.mutate()}
+            >
+              {sendEmailMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              Send Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Convert to Project Dialog ── */}
       <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>

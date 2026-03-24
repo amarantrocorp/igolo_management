@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -19,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.crm import Client
@@ -49,7 +50,7 @@ class VOStatus(str, enum.Enum):
     PAID = "PAID"
 
 
-class Project(Base, UUIDMixin, TimestampMixin):
+class Project(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "projects"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -98,7 +99,7 @@ class Project(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class Sprint(Base, UUIDMixin, TimestampMixin):
+class Sprint(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "sprints"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -117,6 +118,10 @@ class Sprint(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("sprints.id"), nullable=True
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    planned_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    executed_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    quantity_unit: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    completion_percentage: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="sprints")
@@ -125,7 +130,7 @@ class Sprint(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class VariationOrder(Base, UUIDMixin, TimestampMixin):
+class VariationOrder(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "variation_orders"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -154,7 +159,7 @@ class VariationOrder(Base, UUIDMixin, TimestampMixin):
     requested_by: Mapped["User"] = relationship("User")
 
 
-class DailyLog(Base, UUIDMixin, TimestampMixin):
+class DailyLog(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "daily_logs"
 
     project_id: Mapped[uuid.UUID] = mapped_column(

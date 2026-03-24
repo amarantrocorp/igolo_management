@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
@@ -28,9 +28,10 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     phone: Optional[str]
-    role: UserRole
+    role: Optional[UserRole] = None
     is_active: bool
     avatar_url: Optional[str] = None
+    is_platform_admin: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -39,6 +40,33 @@ class UserResponse(BaseModel):
 class UserBrief(BaseModel):
     id: UUID
     full_name: str
+    role: Optional[UserRole] = None
+
+    model_config = {"from_attributes": True}
+
+
+class OrgMembershipBrief(BaseModel):
+    id: UUID
+    org_id: UUID
+    org_name: str
+    org_slug: str
     role: UserRole
+    is_default: bool
+
+    model_config = {"from_attributes": True}
+
+
+class UserWithOrgResponse(BaseModel):
+    id: UUID
+    email: str
+    full_name: str
+    phone: Optional[str] = None
+    is_active: bool
+    avatar_url: Optional[str] = None
+    is_platform_admin: bool = False
+    created_at: datetime
+    active_org_id: UUID
+    role_in_org: UserRole
+    organizations: List[OrgMembershipBrief]
 
     model_config = {"from_attributes": True}

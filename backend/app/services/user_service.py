@@ -8,12 +8,16 @@ from app.core.config import settings
 from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import ConflictException, NotFoundException
 from app.core.security import get_password_hash, verify_password
+from app.models.organization import OrgMembership
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
 
-async def create_user(data: UserCreate, db: AsyncSession) -> User:
-    """Create a new user after checking email uniqueness and hashing the password."""
+async def create_user(data: UserCreate, org_id: UUID, db: AsyncSession) -> User:
+    """Create a new user after checking email uniqueness and hashing the password.
+
+    Also creates an OrgMembership linking the user to the given org.
+    """
     # Check if email already exists
     existing = await get_user_by_email(data.email, db)
     if existing:
@@ -27,6 +31,18 @@ async def create_user(data: UserCreate, db: AsyncSession) -> User:
         role=data.role,
     )
     db.add(user)
+    await db.flush()  # get user.id before creating membership
+
+    # Create OrgMembership
+    membership = OrgMembership(
+        user_id=user.id,
+        org_id=org_id,
+        role=data.role,
+        is_default=True,
+        is_active=True,
+    )
+    db.add(membership)
+
     await db.commit()
     await db.refresh(user)
 
@@ -62,26 +78,84 @@ async def get_user_by_id(user_id: UUID, db: AsyncSession) -> User:
     return user
 
 
-async def get_users(db: AsyncSession, skip: int = 0, limit: int = 50) -> List[User]:
-    """Retrieve a paginated list of users."""
+async def get_users(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 50) -> List[User]:
+    """Retrieve a paginated list of users belonging to the given org."""
     result = await db.execute(
-        select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)
+        select(User)
+        .join(OrgMembership)
+        .where(OrgMembership.org_id == org_id, OrgMembership.is_active == True)
+        .order_by(User.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     return list(result.scalars().all())
 
 
-async def update_user(user_id: UUID, data: UserUpdate, db: AsyncSession) -> User:
-    """Update user fields. Only non-None fields from the update schema are applied."""
+async def update_user(user_id: UUID, data: UserUpdate, db: AsyncSession, org_id: UUID | None = None) -> User:
+    """Update user fields. Only non-None fields from the update schema are applied.
+
+    When *org_id* is supplied the function also validates that the target user
+    belongs to the organisation (via OrgMembership).
+    """
     user = await get_user_by_id(user_id, db)
 
+    if org_id is not None:
+        membership = (
+            await db.execute(
+                select(OrgMembership).where(
+                    OrgMembership.user_id == user_id,
+                    OrgMembership.org_id == org_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not membership:
+            raise NotFoundException(detail="User does not belong to this organisation")
+
     update_data = data.model_dump(exclude_unset=True)
+
+    # If the role is being changed, keep the OrgMembership in sync
+    new_role = update_data.get("role")
+
     for field, value in update_data.items():
         setattr(user, field, value)
+
+    if new_role is not None and org_id is not None:
+        membership_result = await db.execute(
+            select(OrgMembership).where(
+                OrgMembership.user_id == user_id,
+                OrgMembership.org_id == org_id,
+            )
+        )
+        mem = membership_result.scalar_one_or_none()
+        if mem:
+            mem.role = new_role
 
     db.add(user)
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def deactivate_user(user_id: UUID, org_id: UUID, db: AsyncSession) -> None:
+    """Soft-delete a user by setting is_active=False."""
+    user = await get_user_by_id(user_id, db)
+
+    # Verify the user belongs to this org
+    membership = (
+        await db.execute(
+            select(OrgMembership).where(
+                OrgMembership.user_id == user_id,
+                OrgMembership.org_id == org_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not membership:
+        raise NotFoundException(detail="User does not belong to this organisation")
+
+    user.is_active = False
+    membership.is_active = False
+    db.add(user)
+    await db.commit()
 
 
 async def authenticate_user(

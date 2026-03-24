@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
@@ -76,11 +76,24 @@ import {
   Users,
   Package,
   Warehouse,
+  XCircle,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { FileUpload } from "@/components/ui/file-upload"
+import { MultiFileUpload } from "@/components/ui/multi-file-upload"
 import { useAuthStore } from "@/store/auth-store"
 import { cn, formatCurrency } from "@/lib/utils"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
+  CartesianGrid,
+} from "recharts"
+import { BarChart3, List } from "lucide-react"
 
 // ---- Sprint Status helpers ----
 
@@ -189,8 +202,18 @@ function OverviewTab({
     )
     .reduce((sum, t) => sum + Number(t.amount ?? 0), 0)
 
+  const isOverdue = project.expected_end_date &&
+    new Date(project.expected_end_date) < new Date() &&
+    project.status !== "COMPLETED"
+
   return (
     <div className="space-y-6">
+      {isOverdue && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          This project is overdue. Expected completion was {format(new Date(project.expected_end_date), "MMM d, yyyy")}.
+        </div>
+      )}
       {/* Project Details */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -380,17 +403,142 @@ function OverviewTab({
   )
 }
 
+// ---- Sprint Gantt Chart ----
+
+const SPRINT_STATUS_COLORS: Record<string, string> = {
+  PENDING: "#94a3b8",
+  ACTIVE: "#3b82f6",
+  COMPLETED: "#22c55e",
+  DELAYED: "#ef4444",
+}
+
+interface GanttDatum {
+  name: string
+  startDay: number
+  duration: number
+  status: string
+  completion: number
+  fullName: string
+  startDate: string
+  endDate: string
+}
+
+function SprintGanttChart({
+  sprints,
+  projectStartDate,
+}: {
+  sprints: Sprint[]
+  projectStartDate: string
+}) {
+  const projStart = new Date(projectStartDate)
+
+  const ganttData: GanttDatum[] = sprints.map((sprint) => {
+    const start = new Date(sprint.start_date)
+    const end = new Date(sprint.end_date)
+    const startDay = Math.max(
+      0,
+      Math.round((start.getTime() - projStart.getTime()) / (1000 * 60 * 60 * 24))
+    )
+    const duration = Math.max(
+      1,
+      Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    )
+    return {
+      name: sprint.name.replace(/^Sprint \d+:\s*/, ""),
+      startDay,
+      duration,
+      status: sprint.status,
+      completion: sprint.completion_percentage || 0,
+      fullName: sprint.name,
+      startDate: format(start, "MMM d, yyyy"),
+      endDate: format(end, "MMM d, yyyy"),
+    }
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const CustomTooltipContent = ({ active, payload }: any) => {
+    if (!active || !payload || !payload.length) return null
+    const data = payload[0]?.payload as GanttDatum | undefined
+    if (!data) return null
+    return (
+      <div className="rounded-md border bg-popover p-3 text-sm shadow-md">
+        <p className="font-medium">{data.fullName}</p>
+        <p className="text-muted-foreground">
+          {data.startDate} &mdash; {data.endDate}
+        </p>
+        <p className="text-muted-foreground">
+          Completion: {data.completion}%
+        </p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <div
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: SPRINT_STATUS_COLORS[data.status] ?? "#94a3b8" }}
+          />
+          <span className="capitalize text-xs">{data.status.toLowerCase()}</span>
+        </div>
+      </div>
+    )
+  }
+
+  const chartHeight = Math.max(200, ganttData.length * 48 + 40)
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Sprint Timeline</CardTitle>
+        <CardDescription>Gantt view of project sprints (days from project start)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart
+            data={ganttData}
+            layout="vertical"
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+            barSize={22}
+          >
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" label={{ value: "Days", position: "insideBottom", offset: -2 }} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={140}
+              tick={{ fontSize: 12 }}
+            />
+            <RechartsTooltip content={<CustomTooltipContent />} />
+            {/* Invisible spacer bar */}
+            <Bar dataKey="startDay" stackId="a" fill="transparent" isAnimationActive={false} />
+            {/* Visible duration bar */}
+            <Bar dataKey="duration" stackId="a" radius={[4, 4, 4, 4]}>
+              {ganttData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={SPRINT_STATUS_COLORS[entry.status] ?? "#94a3b8"}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ---- Sprints Tab ----
 
 function SprintsTab({
   sprints,
   projectId,
+  projectStartDate,
 }: {
   sprints: Sprint[]
   projectId: string
+  projectStartDate: string
 }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const [showGantt, setShowGantt] = useState(true)
+  const [localProgress, setLocalProgress] = useState<Record<string, number>>({})
+  const progressTimers = useRef<Record<string, NodeJS.Timeout>>({})
 
   const updateSprintMutation = useMutation({
     mutationFn: async ({
@@ -415,13 +563,62 @@ function SprintsTab({
     },
   })
 
+  const progressMutation = useMutation({
+    mutationFn: ({ sprintId, value }: { sprintId: string; value: number }) =>
+      api.patch(`/projects/${projectId}/sprints/${sprintId}`, { completion_percentage: value }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update sprint progress.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  function handleProgressUpdate(sprintId: string, value: number) {
+    setLocalProgress((prev) => ({ ...prev, [sprintId]: value }))
+    if (progressTimers.current[sprintId]) clearTimeout(progressTimers.current[sprintId])
+    progressTimers.current[sprintId] = setTimeout(() => {
+      progressMutation.mutate({ sprintId, value })
+    }, 500)
+  }
+
   const sortedSprints = [...sprints].sort(
     (a, b) => a.sequence_order - b.sequence_order
   )
 
   return (
     <div className="space-y-4">
-      {sortedSprints.map((sprint) => {
+      {/* View toggle */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={showGantt ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowGantt(true)}
+        >
+          <BarChart3 className="h-4 w-4 mr-1.5" />
+          Gantt View
+        </Button>
+        <Button
+          variant={!showGantt ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowGantt(false)}
+        >
+          <List className="h-4 w-4 mr-1.5" />
+          List View
+        </Button>
+      </div>
+
+      {/* Gantt Chart */}
+      {showGantt && sortedSprints.length > 0 && projectStartDate && (
+        <SprintGanttChart sprints={sortedSprints} projectStartDate={projectStartDate} />
+      )}
+
+      {/* Sprint Cards (List View) */}
+      {!showGantt && sortedSprints.map((sprint) => {
         const startDate = sprint.start_date
           ? format(new Date(sprint.start_date), "MMM d, yyyy")
           : "TBD"
@@ -429,23 +626,16 @@ function SprintsTab({
           ? format(new Date(sprint.end_date), "MMM d, yyyy")
           : "TBD"
 
-        const now = new Date()
-        const sprintEnd = sprint.end_date ? new Date(sprint.end_date) : null
-        const sprintStart = sprint.start_date
-          ? new Date(sprint.start_date)
-          : null
-        let progress = 0
-        if (sprint.status === "COMPLETED") {
-          progress = 100
-        } else if (
-          sprint.status === "ACTIVE" &&
-          sprintStart &&
-          sprintEnd
-        ) {
-          const total = sprintEnd.getTime() - sprintStart.getTime()
-          const elapsed = now.getTime() - sprintStart.getTime()
-          progress = total > 0 ? Math.min(Math.max(Math.round((elapsed / total) * 100), 0), 100) : 0
-        }
+        const completionPct =
+          localProgress[sprint.id] !== undefined
+            ? localProgress[sprint.id]
+            : sprint.completion_percentage || 0
+        const progress =
+          sprint.status === "COMPLETED"
+            ? 100
+            : sprint.status === "PENDING"
+            ? 0
+            : completionPct
 
         return (
           <Card
@@ -505,26 +695,47 @@ function SprintsTab({
               </div>
 
               {/* Progress bar */}
-              {(sprint.status === "ACTIVE" ||
-                sprint.status === "COMPLETED") && (
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>Progress</span>
-                    <span>{progress}%</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-secondary">
-                    <div
-                      className={cn(
-                        "h-2 rounded-full transition-all",
-                        sprint.status === "COMPLETED"
-                          ? "bg-green-500"
-                          : "bg-primary"
-                      )}
-                      style={{ width: `${progress}%` }}
+              <div className="mt-3">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-secondary">
+                  <div
+                    className={cn(
+                      "h-2 rounded-full transition-all",
+                      sprint.status === "COMPLETED"
+                        ? "bg-green-500"
+                        : sprint.status === "DELAYED"
+                        ? "bg-red-500"
+                        : sprint.status === "ACTIVE"
+                        ? "bg-primary"
+                        : "bg-muted-foreground/30"
+                    )}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+
+                {/* Progress slider for ACTIVE and DELAYED sprints */}
+                {(sprint.status === "ACTIVE" || sprint.status === "DELAYED") && (
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-xs text-muted-foreground w-8">
+                      {completionPct}%
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={completionPct}
+                      onChange={(e) =>
+                        handleProgressUpdate(sprint.id, Number(e.target.value))
+                      }
+                      className="flex-1 h-2 accent-primary"
                     />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         )
@@ -941,7 +1152,29 @@ function FinanceTab({ projectId }: { projectId: string }) {
 
 // ---- Daily Logs Tab ----
 
-function DailyLogsTab({ projectId }: { projectId: string }) {
+function DailyLogsTab({
+  projectId,
+  sprints,
+}: {
+  projectId: string
+  sprints: Sprint[]
+}) {
+  const [showLogDialog, setShowLogDialog] = useState(false)
+  const [logSprintId, setLogSprintId] = useState("")
+  const [logDate, setLogDate] = useState(
+    new Date().toISOString().split("T")[0]
+  )
+  const [logNotes, setLogNotes] = useState("")
+  const [logPhotos, setLogPhotos] = useState<string[]>([])
+  const [logVisibleToClient, setLogVisibleToClient] = useState(false)
+
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const userRole = useAuthStore((s) => s.user?.role)
+  const canAddLog = ["SUPERVISOR", "MANAGER", "SUPER_ADMIN"].includes(
+    userRole ?? ""
+  )
+
   const { data: logs = [], isLoading } = useQuery<DailyLog[]>({
     queryKey: ["project-daily-logs", projectId],
     queryFn: async () => {
@@ -950,8 +1183,84 @@ function DailyLogsTab({ projectId }: { projectId: string }) {
     },
   })
 
+  const addLogMutation = useMutation({
+    mutationFn: (data: {
+      sprint_id: string
+      date: string
+      notes: string
+      image_urls: string[]
+      visible_to_client: boolean
+    }) => api.post(`/projects/${projectId}/daily-logs`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["project-daily-logs", projectId],
+      })
+      toast({
+        title: "Added",
+        description: "Daily log saved successfully",
+      })
+      setShowLogDialog(false)
+      resetLogForm()
+    },
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
+      toast({
+        title: "Error",
+        description:
+          err.response?.data?.detail || "Failed to save log",
+        variant: "destructive",
+      })
+    },
+  })
+
+  function resetLogForm() {
+    setLogSprintId("")
+    setLogDate(new Date().toISOString().split("T")[0])
+    setLogNotes("")
+    setLogPhotos([])
+    setLogVisibleToClient(false)
+  }
+
+  function handleSubmitLog() {
+    if (!logSprintId) {
+      toast({
+        title: "Validation",
+        description: "Please select a sprint",
+        variant: "destructive",
+      })
+      return
+    }
+    if (logNotes.trim().length < 10) {
+      toast({
+        title: "Validation",
+        description: "Notes must be at least 10 characters",
+        variant: "destructive",
+      })
+      return
+    }
+    addLogMutation.mutate({
+      sprint_id: logSprintId,
+      date: logDate,
+      notes: logNotes.trim(),
+      image_urls: logPhotos,
+      visible_to_client: logVisibleToClient,
+    })
+  }
+
+  function getLogPhotos(log: DailyLog): string[] {
+    return log.image_urls ?? log.images ?? []
+  }
+
   return (
     <div className="space-y-4">
+      {canAddLog && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setShowLogDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Daily Log
+          </Button>
+        </div>
+      )}
+
       {isLoading && (
         <div className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -968,61 +1277,177 @@ function DailyLogsTab({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {logs.map((log) => (
-        <Card key={log.id}>
-          <CardContent className="p-4">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">
-                    {format(new Date(log.created_at), "EEEE, MMM d, yyyy")}
-                  </p>
-                  {log.visible_to_client && (
-                    <Badge variant="outline" className="text-xs">
-                      Visible to Client
-                    </Badge>
+      {logs.map((log) => {
+        const photos = getLogPhotos(log)
+        return (
+          <Card key={log.id}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <Calendar className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">
+                      {format(
+                        new Date(log.date ?? log.created_at),
+                        "EEEE, MMM d, yyyy"
+                      )}
+                    </p>
+                    {log.visible_to_client && (
+                      <Badge variant="outline" className="text-xs">
+                        Visible to Client
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm">{log.notes}</p>
+
+                  {log.blockers && (
+                    <div className="flex items-start gap-2 rounded-md bg-destructive/5 p-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <div>
+                        <p className="text-xs font-medium text-destructive">
+                          Blockers
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {log.blockers}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {photos.map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <img
+                            src={url}
+                            alt={`Site photo ${i + 1}`}
+                            className="h-16 w-16 rounded border object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <p className="text-sm">{log.notes}</p>
-
-                {log.blockers && (
-                  <div className="flex items-start gap-2 rounded-md bg-destructive/5 p-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                    <div>
-                      <p className="text-xs font-medium text-destructive">
-                        Blockers
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {log.blockers}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {log.images && log.images.length > 0 && (
-                  <div className="flex gap-2 pt-1">
-                    {log.images.map((img, i) => (
-                      <div
-                        key={i}
-                        className="h-16 w-16 rounded-md border bg-muted"
-                      >
-                        <img
-                          src={img}
-                          alt={`Site photo ${i + 1}`}
-                          className="h-full w-full rounded-md object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
+            </CardContent>
+          </Card>
+        )
+      })}
+
+      {/* Add Daily Log Dialog */}
+      <Dialog
+        open={showLogDialog}
+        onOpenChange={(open) => {
+          setShowLogDialog(open)
+          if (!open) resetLogForm()
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Daily Log</DialogTitle>
+            <DialogDescription>
+              Record today&apos;s site progress and upload photos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Sprint */}
+            <div className="space-y-2">
+              <Label>Sprint</Label>
+              <Select value={logSprintId} onValueChange={setLogSprintId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sprint" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sprints.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={logDate}
+                onChange={(e) => setLogDate(e.target.value)}
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notes (min. 10 characters)</Label>
+              <textarea
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Describe work completed today..."
+                value={logNotes}
+                onChange={(e) => setLogNotes(e.target.value)}
+              />
+              {logNotes.length > 0 && logNotes.trim().length < 10 && (
+                <p className="text-xs text-destructive">
+                  At least 10 characters required
+                </p>
+              )}
+            </div>
+
+            {/* Photos */}
+            <div className="space-y-2">
+              <Label>Photos</Label>
+              <MultiFileUpload
+                value={logPhotos}
+                onChange={setLogPhotos}
+                category="daily-logs"
+                maxFiles={5}
+                label="Upload site photos"
+              />
+            </div>
+
+            {/* Visible to Client */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="visible-to-client"
+                checked={logVisibleToClient}
+                onChange={(e) => setLogVisibleToClient(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="visible-to-client" className="cursor-pointer">
+                Visible to Client
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowLogDialog(false)}
+              disabled={addLogMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitLog}
+              disabled={addLogMutation.isPending}
+            >
+              {addLogMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save Log
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2062,6 +2487,974 @@ function MaterialsTab({ projectId }: { projectId: string }) {
   )
 }
 
+// ---- Quality Tab ----
+
+function QualityTab({
+  projectId,
+  sprints,
+}: {
+  projectId: string
+  sprints: Sprint[]
+}) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [subTab, setSubTab] = useState<"inspections" | "snags">("inspections")
+  const [createInspectionOpen, setCreateInspectionOpen] = useState(false)
+  const [createSnagOpen, setCreateSnagOpen] = useState(false)
+
+  // Queries
+  const { data: inspections = [], isLoading: loadingInspections } = useQuery<any[]>({
+    queryKey: ["quality-inspections", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/quality/inspections?project_id=${projectId}`)
+      return res.data.items ?? res.data
+    },
+  })
+
+  const { data: snags = [], isLoading: loadingSnags } = useQuery<any[]>({
+    queryKey: ["quality-snags", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/quality/snags?project_id=${projectId}`)
+      return res.data.items ?? res.data
+    },
+  })
+
+  const { data: qualitySummary } = useQuery<any>({
+    queryKey: ["quality-summary", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/quality/projects/${projectId}/summary`)
+      return res.data
+    },
+  })
+
+  // Create Inspection state
+  const [inspTitle, setInspTitle] = useState("")
+  const [inspSprintId, setInspSprintId] = useState("")
+  const [inspItems, setInspItems] = useState<{ description: string }[]>([{ description: "" }])
+
+  const createInspectionMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        project_id: projectId,
+        sprint_id: inspSprintId || undefined,
+        title: inspTitle,
+        checklist_items: inspItems.filter((i) => i.description.trim()),
+      }
+      await api.post("/quality/inspections", payload)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quality-inspections", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["quality-summary", projectId] })
+      setCreateInspectionOpen(false)
+      setInspTitle("")
+      setInspSprintId("")
+      setInspItems([{ description: "" }])
+      toast({ title: "Inspection created" })
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.response?.data?.detail || "Failed to create inspection.", variant: "destructive" })
+    },
+  })
+
+  const completeInspectionMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      await api.post(`/quality/inspections/${inspectionId}/complete`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quality-inspections", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["quality-snags", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["quality-summary", projectId] })
+      toast({ title: "Inspection completed", description: "Snags auto-created from failed items." })
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.response?.data?.detail || "Failed.", variant: "destructive" })
+    },
+  })
+
+  // Create Snag state
+  const [snagDesc, setSnagDesc] = useState("")
+  const [snagSeverity, setSnagSeverity] = useState("MEDIUM")
+
+  const createSnagMutation = useMutation({
+    mutationFn: async () => {
+      await api.post("/quality/snags", {
+        project_id: projectId,
+        description: snagDesc,
+        severity: snagSeverity,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quality-snags", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["quality-summary", projectId] })
+      setCreateSnagOpen(false)
+      setSnagDesc("")
+      setSnagSeverity("MEDIUM")
+      toast({ title: "Snag created" })
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.response?.data?.detail || "Failed.", variant: "destructive" })
+    },
+  })
+
+  const updateSnagMutation = useMutation({
+    mutationFn: async ({ snagId, status }: { snagId: string; status: string }) => {
+      await api.patch(`/quality/snags/${snagId}`, { status })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quality-snags", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["quality-summary", projectId] })
+      toast({ title: "Snag updated" })
+    },
+  })
+
+  const severityColors: Record<string, string> = {
+    LOW: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    MEDIUM: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    HIGH: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+    CRITICAL: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  }
+
+  const snagStatusColors: Record<string, string> = {
+    OPEN: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    IN_PROGRESS: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    RESOLVED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    VERIFIED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      {qualitySummary && (
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Inspections</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{qualitySummary.completed_inspections}/{qualitySummary.total_inspections}</div>
+              <p className="text-xs text-muted-foreground">completed</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{qualitySummary.avg_score != null ? `${Math.round(qualitySummary.avg_score)}%` : "—"}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Open Snags</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={cn("text-2xl font-bold", qualitySummary.open_snags > 0 && "text-orange-600")}>
+                {qualitySummary.open_snags}
+              </div>
+              <p className="text-xs text-muted-foreground">{qualitySummary.critical_snags} critical</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Resolved</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{qualitySummary.resolved_snags}</div>
+              <p className="text-xs text-muted-foreground">of {qualitySummary.total_snags} total</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 border-b">
+        <button
+          className={cn("px-4 py-2 text-sm font-medium border-b-2 transition-colors", subTab === "inspections" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}
+          onClick={() => setSubTab("inspections")}
+        >
+          Inspections
+        </button>
+        <button
+          className={cn("px-4 py-2 text-sm font-medium border-b-2 transition-colors", subTab === "snags" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}
+          onClick={() => setSubTab("snags")}
+        >
+          Snag List
+        </button>
+      </div>
+
+      {subTab === "inspections" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={createInspectionOpen} onOpenChange={setCreateInspectionOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" />New Inspection</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Create Inspection</DialogTitle>
+                  <DialogDescription>Add a quality inspection with a checklist.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input value={inspTitle} onChange={(e) => setInspTitle(e.target.value)} placeholder="e.g. Sprint 3 Final Check" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Sprint (Optional)</Label>
+                    <select value={inspSprintId} onChange={(e) => setInspSprintId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">Select sprint</option>
+                      {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Checklist Items</Label>
+                    {inspItems.map((item, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          value={item.description}
+                          onChange={(e) => {
+                            const updated = [...inspItems]
+                            updated[idx] = { description: e.target.value }
+                            setInspItems(updated)
+                          }}
+                          placeholder={`Item ${idx + 1}`}
+                        />
+                        {inspItems.length > 1 && (
+                          <Button variant="ghost" size="sm" onClick={() => setInspItems(inspItems.filter((_, i) => i !== idx))}>
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" onClick={() => setInspItems([...inspItems, { description: "" }])}>
+                      <Plus className="mr-1 h-3 w-3" /> Add Item
+                    </Button>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCreateInspectionOpen(false)}>Cancel</Button>
+                  <Button onClick={() => createInspectionMutation.mutate()} disabled={!inspTitle || createInspectionMutation.isPending}>
+                    {createInspectionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingInspections ? (
+                  <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></TableCell></TableRow>
+                ) : inspections.length ? (
+                  inspections.map((insp: any) => (
+                    <TableRow key={insp.id}>
+                      <TableCell className="font-medium">{insp.title}</TableCell>
+                      <TableCell>
+                        <Badge className={cn("text-xs",
+                          insp.status === "COMPLETED" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" :
+                          insp.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" :
+                          "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+                        )}>{insp.status}</Badge>
+                      </TableCell>
+                      <TableCell>{insp.overall_score != null ? `${Math.round(insp.overall_score)}%` : "—"}</TableCell>
+                      <TableCell>
+                        <span className="text-green-600">{insp.pass_count}P</span>
+                        {" / "}
+                        <span className="text-red-600">{insp.fail_count}F</span>
+                        {" / "}
+                        {insp.total_items}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{new Date(insp.inspection_date ?? insp.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                      <TableCell>
+                        {insp.status !== "COMPLETED" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => completeInspectionMutation.mutate(insp.id)}
+                            disabled={completeInspectionMutation.isPending}
+                          >
+                            <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                            Complete
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No inspections yet</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {subTab === "snags" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={createSnagOpen} onOpenChange={setCreateSnagOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" />Report Snag</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Report Snag</DialogTitle>
+                  <DialogDescription>Log a defect or issue found on site.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input value={snagDesc} onChange={(e) => setSnagDesc(e.target.value)} placeholder="Describe the issue..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Severity</Label>
+                    <select value={snagSeverity} onChange={(e) => setSnagSeverity(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="CRITICAL">Critical</option>
+                    </select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCreateSnagOpen(false)}>Cancel</Button>
+                  <Button onClick={() => createSnagMutation.mutate()} disabled={!snagDesc || createSnagMutation.isPending}>
+                    {createSnagMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Snag
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Severity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingSnags ? (
+                  <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></TableCell></TableRow>
+                ) : snags.length ? (
+                  snags.map((snag: any) => (
+                    <TableRow key={snag.id}>
+                      <TableCell className="font-medium max-w-[200px] truncate">{snag.description}</TableCell>
+                      <TableCell><Badge className={cn("text-xs", severityColors[snag.severity])}>{snag.severity}</Badge></TableCell>
+                      <TableCell><Badge className={cn("text-xs", snagStatusColors[snag.status])}>{snag.status.replace("_", " ")}</Badge></TableCell>
+                      <TableCell>{snag.assigned_to_name || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{new Date(snag.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                      <TableCell>
+                        {snag.status !== "VERIFIED" && (
+                          <Select
+                            value={snag.status}
+                            onValueChange={(val) => updateSnagMutation.mutate({ snagId: snag.id, status: val })}
+                          >
+                            <SelectTrigger className="w-[130px] h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="OPEN">Open</SelectItem>
+                              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                              <SelectItem value="RESOLVED">Resolved</SelectItem>
+                              <SelectItem value="VERIFIED">Verified</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No snags reported</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---- Budget Tab ----
+
+function BudgetTab({ projectId }: { projectId: string }) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [addOpen, setAddOpen] = useState(false)
+  const [newCategory, setNewCategory] = useState("MATERIAL")
+  const [newDescription, setNewDescription] = useState("")
+  const [newAmount, setNewAmount] = useState("")
+
+  const { data: budgetItems = [], isLoading } = useQuery<any[]>({
+    queryKey: ["budget-items", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/finance/projects/${projectId}/budget`)
+      return res.data.items ?? res.data
+    },
+  })
+
+  const { data: budgetVsActual } = useQuery<any>({
+    queryKey: ["budget-vs-actual", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/finance/projects/${projectId}/budget-vs-actual`)
+      return res.data
+    },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      await api.post(`/finance/projects/${projectId}/budget`, [
+        { category: newCategory, description: newDescription || undefined, budgeted_amount: parseFloat(newAmount) },
+      ])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-items", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["budget-vs-actual", projectId] })
+      setAddOpen(false)
+      setNewCategory("MATERIAL")
+      setNewDescription("")
+      setNewAmount("")
+      toast({ title: "Budget line added" })
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.response?.data?.detail || "Failed.", variant: "destructive" })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      await api.delete(`/finance/projects/${projectId}/budget/${itemId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-items", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["budget-vs-actual", projectId] })
+      toast({ title: "Budget line removed" })
+    },
+  })
+
+  const bva = budgetVsActual?.line_items ?? []
+
+  return (
+    <div className="space-y-6">
+      {/* Budget vs Actual Summary */}
+      {budgetVsActual && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Budgeted</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(budgetVsActual.total_budgeted)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Actual</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(budgetVsActual.total_actual)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Variance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={cn("text-2xl font-bold", budgetVsActual.total_variance < 0 ? "text-destructive" : "text-green-600")}>
+                {formatCurrency(budgetVsActual.total_variance)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {budgetVsActual.total_variance < 0 ? "Over budget" : "Under budget"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Variance breakdown */}
+      {bva.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Budget vs Actual by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {bva.map((item: any) => {
+                const pct = item.budgeted > 0 ? Math.round((item.actual / item.budgeted) * 100) : 0
+                return (
+                  <div key={item.category}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="font-medium">{item.category}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{formatCurrency(item.actual)} / {formatCurrency(item.budgeted)}</span>
+                        {item.alert && <Badge variant="destructive" className="text-xs">Over 10%</Badge>}
+                      </div>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-secondary">
+                      <div
+                        className={cn("h-2.5 rounded-full transition-all", item.alert ? "bg-red-500" : "bg-primary")}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Budget Line Items */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">Budget Line Items</CardTitle>
+            <CardDescription>Set budget amounts per category</CardDescription>
+          </div>
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="mr-2 h-4 w-4" />Add Line</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Budget Line</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="MATERIAL">Material</option>
+                    <option value="LABOR">Labor</option>
+                    <option value="SUBCONTRACTOR">Subcontractor</option>
+                    <option value="OVERHEAD">Overhead</option>
+                    <option value="CONTINGENCY">Contingency</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description (Optional)</Label>
+                  <Input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Budgeted Amount</Label>
+                  <Input type="number" step="0.01" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                <Button onClick={() => createMutation.mutate()} disabled={!newAmount || createMutation.isPending}>
+                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Add
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></TableCell></TableRow>
+                ) : budgetItems.length ? (
+                  budgetItems.map((item: any) => (
+                    <TableRow key={item.id}>
+                      <TableCell><Badge variant="outline" className="text-xs">{item.category}</Badge></TableCell>
+                      <TableCell>{item.description || "—"}</TableCell>
+                      <TableCell className="font-medium">{formatCurrency(item.budgeted_amount)}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(item.id)} disabled={deleteMutation.isPending}>
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No budget lines set</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ---- Indent (Material Request) Tab ----
+
+function IndentTab({
+  projectId,
+  sprints,
+}: {
+  projectId: string
+  sprints: Sprint[]
+}) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [createOpen, setCreateOpen] = useState(false)
+
+  const { data: requests = [], isLoading } = useQuery<any[]>({
+    queryKey: ["project-material-requests", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/material-requests?project_id=${projectId}&limit=100`)
+      return res.data.items ?? res.data
+    },
+  })
+
+  const { data: inventoryItems = [] } = useQuery<any[]>({
+    queryKey: ["inventory-items-for-indent"],
+    queryFn: async () => {
+      const res = await api.get("/inventory/items?limit=200")
+      return res.data.items ?? res.data
+    },
+    enabled: createOpen,
+  })
+
+  // Create form state
+  const [indentSprintId, setIndentSprintId] = useState("")
+  const [indentUrgency, setIndentUrgency] = useState("MEDIUM")
+  const [indentNotes, setIndentNotes] = useState("")
+  const [indentItems, setIndentItems] = useState<{ item_id: string; quantity_requested: number }[]>([])
+  const [addItemId, setAddItemId] = useState("")
+  const [addQty, setAddQty] = useState("")
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      await api.post("/material-requests", {
+        project_id: projectId,
+        sprint_id: indentSprintId || undefined,
+        urgency: indentUrgency,
+        notes: indentNotes || undefined,
+        items: indentItems,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-material-requests", projectId] })
+      setCreateOpen(false)
+      setIndentSprintId("")
+      setIndentUrgency("MEDIUM")
+      setIndentNotes("")
+      setIndentItems([])
+      toast({ title: "Material request submitted", description: "Awaiting manager approval." })
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.response?.data?.detail || "Failed to submit request.", variant: "destructive" })
+    },
+  })
+
+  function handleAddItem() {
+    if (!addItemId || !addQty) return
+    setIndentItems((prev) => [...prev, { item_id: addItemId, quantity_requested: parseFloat(addQty) }])
+    setAddItemId("")
+    setAddQty("")
+  }
+
+  const statusColors: Record<string, string> = {
+    PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    APPROVED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    PARTIALLY_APPROVED: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    REJECTED: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    FULFILLED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button><Plus className="mr-2 h-4 w-4" />Request Material</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Request Materials</DialogTitle>
+              <DialogDescription>Submit a material indent for this project.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Sprint (Optional)</Label>
+                  <select value={indentSprintId} onChange={(e) => setIndentSprintId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">Select sprint</option>
+                    {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Urgency</Label>
+                  <select value={indentUrgency} onChange={(e) => setIndentUrgency(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Items added */}
+              {indentItems.length > 0 && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {indentItems.map((ii, idx) => {
+                      const item = inventoryItems.find((i: any) => i.id === ii.item_id)
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium">{item?.name || ii.item_id.slice(0, 8)}</TableCell>
+                          <TableCell>{ii.quantity_requested}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" onClick={() => setIndentItems(indentItems.filter((_, i) => i !== idx))}>
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+
+              {/* Add item row */}
+              <div className="grid grid-cols-3 gap-2 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Item</Label>
+                  <select value={addItemId} onChange={(e) => setAddItemId(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm">
+                    <option value="">Select item</option>
+                    {inventoryItems.map((i: any) => (
+                      <option key={i.id} value={i.id}>{i.name} ({i.current_stock} {i.unit})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantity</Label>
+                  <Input type="number" className="h-9" value={addQty} onChange={(e) => setAddQty(e.target.value)} />
+                </div>
+                <Button size="sm" className="h-9" onClick={handleAddItem} disabled={!addItemId || !addQty}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes (Optional)</Label>
+                <Input value={indentNotes} onChange={(e) => setIndentNotes(e.target.value)} placeholder="Any additional notes..." />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button onClick={() => createMutation.mutate()} disabled={indentItems.length === 0 || createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Submit Request
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Request #</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Urgency</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Notes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></TableCell></TableRow>
+            ) : requests.length ? (
+              requests.map((req: any) => (
+                <TableRow key={req.id}>
+                  <TableCell className="font-mono text-sm">MR-{req.id.slice(0, 8).toUpperCase()}</TableCell>
+                  <TableCell>{req.items_count ?? req.items?.length ?? 0}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("text-xs",
+                      req.urgency === "HIGH" && "border-red-500 text-red-600",
+                      req.urgency === "MEDIUM" && "border-yellow-500 text-yellow-600"
+                    )}>{req.urgency}</Badge>
+                  </TableCell>
+                  <TableCell><Badge className={cn("text-xs", statusColors[req.status])}>{req.status.replace("_", " ")}</Badge></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{new Date(req.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{req.notes ?? "—"}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No material requests yet</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+}
+
+// ---- P&L Tab ----
+
+function PnLTab({ projectId }: { projectId: string }) {
+  const { data: pnl, isLoading } = useQuery<any>({
+    queryKey: ["project-pnl", projectId],
+    queryFn: async () => {
+      const res = await api.get(`/projects/${projectId}/pnl`)
+      return res.data
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!pnl) {
+    return <p className="text-center text-muted-foreground py-8">No P&L data available.</p>
+  }
+
+  const statusColors: Record<string, string> = {
+    PROFITABLE: "text-green-600",
+    BREAK_EVEN: "text-yellow-600",
+    LOSS_MAKING: "text-red-600",
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Status & Key Metrics */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(pnl.revenue)}</div>
+            {pnl.approved_vo_total > 0 && (
+              <p className="text-xs text-muted-foreground">incl. {formatCurrency(pnl.approved_vo_total)} VOs</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(pnl.total_cost)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gross Profit</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={cn("text-2xl font-bold", statusColors[pnl.status])}>
+              {formatCurrency(pnl.gross_profit)}
+            </div>
+            <p className="text-xs text-muted-foreground">{pnl.margin_percent}% margin</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={cn("text-2xl font-bold", statusColors[pnl.status])}>
+              {pnl.status.replace("_", " ")}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Burn: {formatCurrency(pnl.monthly_burn_rate)}/mo
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cost Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Cost Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Object.entries(pnl.cost_breakdown).map(([key, value]) => {
+              const amount = Number(value)
+              const pct = pnl.total_cost > 0 ? Math.round((amount / pnl.total_cost) * 100) : 0
+              return (
+                <div key={key}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium capitalize">{key}</span>
+                    <span className="text-muted-foreground">{formatCurrency(amount)} ({pct}%)</span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-secondary">
+                    <div className="h-2.5 rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Financial Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Financial Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-md border p-3 text-center">
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(pnl.total_received)}</p>
+              <p className="text-xs text-muted-foreground">Total Received</p>
+            </div>
+            <div className="rounded-md border p-3 text-center">
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(pnl.total_spent)}</p>
+              <p className="text-xs text-muted-foreground">Total Spent</p>
+            </div>
+            <div className="rounded-md border p-3 text-center">
+              <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pnl.pending_approvals)}</p>
+              <p className="text-xs text-muted-foreground">Pending Approvals</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ---- Main Page ----
 
 export default function ProjectDetailPage() {
@@ -2132,6 +3525,11 @@ export default function ProjectDetailPage() {
               >
                 {project.status.replace("_", " ")}
               </Badge>
+              {project.expected_end_date &&
+               new Date(project.expected_end_date) < new Date() &&
+               project.status !== "COMPLETED" && (
+                <Badge variant="destructive">Overdue</Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground font-mono">
               PRJ-{project.id.slice(0, 8).toUpperCase()}
@@ -2149,6 +3547,10 @@ export default function ProjectDetailPage() {
             <TabsTrigger value="labor">Labor</TabsTrigger>
             <TabsTrigger value="materials">Materials</TabsTrigger>
             <TabsTrigger value="variation-orders">Variation Orders</TabsTrigger>
+            <TabsTrigger value="quality">Quality</TabsTrigger>
+            <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="indent">Indent</TabsTrigger>
+            <TabsTrigger value="pnl">P&L</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -2159,6 +3561,7 @@ export default function ProjectDetailPage() {
             <SprintsTab
               sprints={project.sprints ?? []}
               projectId={projectId}
+              projectStartDate={project.start_date}
             />
           </TabsContent>
 
@@ -2167,7 +3570,7 @@ export default function ProjectDetailPage() {
           </TabsContent>
 
           <TabsContent value="daily-logs">
-            <DailyLogsTab projectId={projectId} />
+            <DailyLogsTab projectId={projectId} sprints={project.sprints ?? []} />
           </TabsContent>
 
           <TabsContent value="labor">
@@ -2183,6 +3586,22 @@ export default function ProjectDetailPage() {
 
           <TabsContent value="variation-orders">
             <VariationOrdersTab projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="quality">
+            <QualityTab projectId={projectId} sprints={project.sprints ?? []} />
+          </TabsContent>
+
+          <TabsContent value="budget">
+            <BudgetTab projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="indent">
+            <IndentTab projectId={projectId} sprints={project.sprints ?? []} />
+          </TabsContent>
+
+          <TabsContent value="pnl">
+            <PnLTab projectId={projectId} />
           </TabsContent>
         </Tabs>
       </div>

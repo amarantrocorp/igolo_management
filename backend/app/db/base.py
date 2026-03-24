@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -28,4 +28,14 @@ class UUIDMixin:
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+
+
+class TenantMixin:
+    """Mixin that adds org_id column for multi-tenant row-level isolation."""
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
     )

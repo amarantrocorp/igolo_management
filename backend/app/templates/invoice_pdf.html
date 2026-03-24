@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice - {{ invoice.invoice_number }}</title>
+    <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #059669; padding-bottom: 15px; margin-bottom: 20px; }
+        .company-name { font-size: 24px; font-weight: bold; color: #059669; }
+        .inv-info { text-align: right; }
+        .inv-info .label { color: #666; font-size: 10px; text-transform: uppercase; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 14px; font-weight: bold; color: #047857; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f0fdf4; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: #166534; border-bottom: 2px solid #86efac; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+        .total-section { margin-top: 20px; text-align: right; }
+        .total-section .row { display: flex; justify-content: flex-end; gap: 40px; margin-bottom: 4px; }
+        .total-section .grand-total { font-size: 16px; font-weight: bold; color: #059669; border-top: 2px solid #059669; padding-top: 8px; margin-top: 8px; }
+        .footer { margin-top: 40px; text-align: center; color: #9ca3af; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-name">Igolo Interiors</div>
+        <div class="inv-info">
+            <div class="label">Tax Invoice</div>
+            <div style="font-size: 18px; font-weight: bold;">{{ invoice.invoice_number }}</div>
+            <div>Issue Date: {{ invoice.issue_date }}</div>
+            <div>Due Date: {{ invoice.due_date }}</div>
+            <div>Status: {{ invoice.status.value if invoice.status else '' }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Line Items</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>HSN</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoice.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.hsn_code or '-' }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ "%.2f"|format(item.rate) }}</td>
+                    <td>{{ "%.2f"|format(item.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="total-section">
+        <div>Subtotal: {{ "%.2f"|format(invoice.subtotal) }}</div>
+        <div>Tax ({{ invoice.tax_percent }}%): {{ "%.2f"|format(invoice.tax_amount) }}</div>
+        <div class="grand-total">Total: {{ "%.2f"|format(invoice.total_amount) }}</div>
+    </div>
+
+    {% if invoice.notes %}
+    <div class="section" style="margin-top: 30px;">
+        <div class="section-title">Notes</div>
+        <p>{{ invoice.notes }}</p>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>This is a computer-generated invoice. No signature is required.</p>
+    </div>
+</body>
+</html>

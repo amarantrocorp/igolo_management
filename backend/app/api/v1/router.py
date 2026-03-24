@@ -10,6 +10,14 @@ from app.api.v1.quotes.router import router as quotes_router
 from app.api.v1.notifications.router import router as notifications_router
 from app.api.v1.upload.router import router as upload_router
 from app.api.v1.users.router import router as users_router
+from app.api.v1.material_requests.router import router as material_requests_router
+from app.api.v1.quality.router import router as quality_router
+from app.api.v1.invoices.router import router as invoices_router
+from app.api.v1.approvals.router import router as approvals_router
+from app.api.v1.work_orders.router import router as work_orders_router
+from app.api.v1.assets.router import router as assets_router
+from app.api.v1.vendor_bills.router import router as vendor_bills_router
+from app.api.v1.platform.router import router as platform_router
 
 api_router = APIRouter()
 
@@ -27,3 +35,15 @@ api_router.include_router(upload_router, prefix="/upload", tags=["Upload"])
 api_router.include_router(
     notifications_router, prefix="/notifications", tags=["Notifications"]
 )
+api_router.include_router(
+    material_requests_router,
+    prefix="/material-requests",
+    tags=["Material Requests"],
+)
+api_router.include_router(quality_router, prefix="/quality", tags=["Quality Management"])
+api_router.include_router(invoices_router, prefix="/invoices", tags=["Invoices"])
+api_router.include_router(approvals_router, prefix="/approvals", tags=["Approvals"])
+api_router.include_router(work_orders_router, prefix="/work-orders", tags=["Work Orders"])
+api_router.include_router(assets_router, prefix="/assets", tags=["Assets"])
+api_router.include_router(vendor_bills_router, prefix="/vendor-bills", tags=["Vendor Bills"])
+api_router.include_router(platform_router, prefix="/platform", tags=["Platform Admin"])

@@ -478,7 +478,7 @@ export default function PurchaseOrdersPage() {
                       {formatCurrency(po.total_amount)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(po.created_at).toLocaleDateString()}
+                      {new Date(po.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                     </TableCell>
                     <TableCell>
                       {(po.status === "ORDERED" || po.status === "DRAFT") && (

@@ -1,4 +1,9 @@
+from typing import List, Optional
+from uuid import UUID
+
 from pydantic import BaseModel
+
+from app.models.user import UserRole
 
 
 class Token(BaseModel):
@@ -9,3 +14,18 @@ class Token(BaseModel):
 
 class TokenRefresh(BaseModel):
     refresh_token: str
+
+
+class OrgOption(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    role: UserRole
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    requires_org_selection: bool = False
+    organizations: Optional[List[OrgOption]] = None

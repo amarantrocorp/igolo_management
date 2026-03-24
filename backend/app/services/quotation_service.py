@@ -17,7 +17,7 @@ from app.schemas.quotation import QuotationCreate
 
 
 async def create_quotation(
-    data: QuotationCreate, user_id: UUID, db: AsyncSession
+    data: QuotationCreate, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> Quotation:
     """Create a new quotation with nested rooms and items.
 
@@ -29,7 +29,7 @@ async def create_quotation(
     # Block quote creation for converted leads
     lead_result = await db.execute(select(Lead).where(Lead.id == data.lead_id))
     lead = lead_result.scalar_one_or_none()
-    if not lead:
+    if not lead or lead.org_id != org_id:
         raise NotFoundException(detail="Lead not found")
     if lead.status == LeadStatus.CONVERTED:
         raise BadRequestException(
@@ -39,7 +39,8 @@ async def create_quotation(
     # Determine the next version number for this lead
     result = await db.execute(
         select(func.coalesce(func.max(Quotation.version), 0)).where(
-            Quotation.lead_id == data.lead_id
+            Quotation.lead_id == data.lead_id,
+            Quotation.org_id == org_id,
         )
     )
     current_max_version = result.scalar()
@@ -52,6 +53,7 @@ async def create_quotation(
         valid_until=data.valid_until,
         created_by_id=user_id,
         total_amount=Decimal("0.00"),
+        org_id=org_id,
     )
     db.add(quotation)
     await db.flush()  # Get quotation ID
@@ -63,6 +65,7 @@ async def create_quotation(
             quotation_id=quotation.id,
             name=room_data.name,
             area_sqft=room_data.area_sqft,
+            org_id=org_id,
         )
         db.add(room)
         await db.flush()  # Get room ID
@@ -88,6 +91,7 @@ async def create_quotation(
                 unit_price=item_data.unit_price,
                 markup_percentage=item_data.markup_percentage,
                 final_price=final_price,
+                org_id=org_id,
             )
             db.add(item)
             total_amount += final_price
@@ -97,7 +101,7 @@ async def create_quotation(
     await db.commit()
 
     # Reload with relationships
-    return await get_quotation(quotation.id, db)
+    return await get_quotation(quotation.id, org_id, db)
 
 
 async def _attach_project_ids(quotations: List[Quotation], db: AsyncSession) -> None:
@@ -115,7 +119,7 @@ async def _attach_project_ids(quotations: List[Quotation], db: AsyncSession) -> 
         q.project_id = mapping.get(q.id)
 
 
-async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
+async def get_quotation(quote_id: UUID, org_id: UUID, db: AsyncSession) -> Quotation:
     """Retrieve a quotation by ID with rooms and items eagerly loaded."""
     result = await db.execute(
         select(Quotation)
@@ -126,7 +130,7 @@ async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
         .where(Quotation.id == quote_id)
     )
     quotation = result.scalar_one_or_none()
-    if not quotation:
+    if not quotation or quotation.org_id != org_id:
         raise NotFoundException(detail=f"Quotation with id '{quote_id}' not found")
     await _attach_project_ids([quotation], db)
     return quotation
@@ -134,6 +138,7 @@ async def get_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
 
 async def get_quotations(
     db: AsyncSession,
+    org_id: UUID,
     lead_id: Optional[UUID] = None,
     skip: int = 0,
     limit: int = 50,
@@ -142,7 +147,7 @@ async def get_quotations(
     query = select(Quotation).options(
         selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
         selectinload(Quotation.lead).selectinload(Lead.assigned_to),
-    )
+    ).where(Quotation.org_id == org_id)
 
     if lead_id:
         query = query.where(Quotation.lead_id == lead_id)
@@ -154,13 +159,13 @@ async def get_quotations(
     return quotations
 
 
-async def finalize_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
+async def finalize_quotation(quote_id: UUID, org_id: UUID, db: AsyncSession) -> Quotation:
     """Freeze a DRAFT quotation into a finalized, versioned quote.
 
     Only DRAFT quotations can be finalized. Once finalized, the status becomes SENT
     and the version number is locked.
     """
-    quotation = await get_quotation(quote_id, db)
+    quotation = await get_quotation(quote_id, org_id, db)
 
     if quotation.status != QuoteStatus.DRAFT:
         raise BadRequestException(
@@ -171,6 +176,7 @@ async def finalize_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
     result = await db.execute(
         select(func.coalesce(func.max(Quotation.version), 0)).where(
             Quotation.lead_id == quotation.lead_id,
+            Quotation.org_id == org_id,
             Quotation.status != QuoteStatus.DRAFT,
         )
     )
@@ -182,9 +188,9 @@ async def finalize_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
     await db.commit()
 
     # Re-fetch with all relationships for email data
-    quotation = await get_quotation(quote_id, db)
+    quotation = await get_quotation(quote_id, org_id, db)
 
-    # Notify client that quotation is ready — full quote in email
+    # Notify client that quotation is ready -- full quote in email
     if quotation.lead and quotation.lead.email:
         send_email_fire_and_forget(
             subject=f"Your Quotation v{quotation.version} is Ready",
@@ -197,7 +203,7 @@ async def finalize_quotation(quote_id: UUID, db: AsyncSession) -> Quotation:
 
 
 def _format_inr(value) -> str:
-    """Format a number as Indian Rupee string: ₹1,23,456.00"""
+    """Format a number as Indian Rupee string: Rs.1,23,456.00"""
     num = float(value or 0)
     if num < 0:
         return f"-₹{_format_inr_abs(-num)}"
@@ -284,11 +290,35 @@ def _build_quote_email_data(quotation: Quotation) -> dict:
     }
 
 
+async def send_quotation_to_client(
+    quote_id: UUID, org_id: UUID, db: AsyncSession
+) -> Quotation:
+    """Send quotation to the client via email with PDF attachment.
+
+    If the quotation is still DRAFT, finalize it first.
+    """
+    quotation = await get_quotation(quote_id, org_id, db)
+
+    # Auto-finalize if still draft
+    if quotation.status == QuoteStatus.DRAFT:
+        quotation = await finalize_quotation(quote_id, org_id, db)
+    elif quotation.lead and quotation.lead.email:
+        # Already finalized — send again
+        send_email_fire_and_forget(
+            subject=f"Your Quotation v{quotation.version} is Ready",
+            email_to=quotation.lead.email,
+            template_name="quotation_sent.html",
+            template_data=_build_quote_email_data(quotation),
+        )
+
+    return quotation
+
+
 async def update_quotation_status(
-    quote_id: UUID, status: QuoteStatus, db: AsyncSession
+    quote_id: UUID, status: QuoteStatus, org_id: UUID, db: AsyncSession
 ) -> Quotation:
     """Update the status of a quotation (e.g., APPROVED, REJECTED, ARCHIVED)."""
-    quotation = await get_quotation(quote_id, db)
+    quotation = await get_quotation(quote_id, org_id, db)
     quotation.status = status
     db.add(quotation)
     await db.commit()
@@ -301,6 +331,7 @@ async def update_quotation_status(
         lead_name = quotation.lead.name if quotation.lead else "Unknown"
         await notify_role(
             db=db,
+            org_id=org_id,
             role=UserRole.MANAGER,
             type=NotificationType.APPROVAL_REQ,
             title=f"Quote Approved: {lead_name}",

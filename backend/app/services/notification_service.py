@@ -13,6 +13,7 @@ from app.models.user import User, UserRole
 async def create_notification(
     db: AsyncSession,
     recipient_id: UUID,
+    org_id: UUID,
     type: NotificationType,
     title: str,
     body: str,
@@ -28,6 +29,7 @@ async def create_notification(
         title=title,
         body=body,
         action_url=action_url,
+        org_id=org_id,
     )
     db.add(notification)
     await db.commit()
@@ -53,6 +55,7 @@ async def create_notification(
 async def notify_role(
     db: AsyncSession,
     role: UserRole,
+    org_id: UUID,
     type: NotificationType,
     title: str,
     body: str,
@@ -60,15 +63,32 @@ async def notify_role(
     email_template: Optional[str] = None,
     email_data: Optional[dict] = None,
 ):
-    """Send notification + email to all active users with a given role."""
-    result = await db.execute(
-        select(User).where(User.role == role, User.is_active == True)
+    """Send notification + email to all active members with a given role in the org."""
+    from app.models.organization import OrgMembership
+
+    # Query org memberships for the given role within the org
+    mem_result = await db.execute(
+        select(OrgMembership).where(
+            OrgMembership.org_id == org_id,
+            OrgMembership.role == role,
+            OrgMembership.is_active == True,  # noqa: E712
+        )
     )
-    users = result.scalars().all()
-    for user in users:
+    memberships = mem_result.scalars().all()
+
+    for membership in memberships:
+        # Fetch user details for the email
+        user_result = await db.execute(
+            select(User).where(User.id == membership.user_id, User.is_active == True)  # noqa: E712
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            continue
+
         await create_notification(
             db=db,
             recipient_id=user.id,
+            org_id=org_id,
             type=type,
             title=title,
             body=body,
@@ -82,51 +102,63 @@ async def notify_role(
 async def get_notifications(
     db: AsyncSession,
     user_id: UUID,
+    org_id: UUID,
     unread_only: bool = False,
     skip: int = 0,
     limit: int = 50,
 ) -> List[Notification]:
     """List notifications for a user, optionally filtered to unread only."""
-    query = select(Notification).where(Notification.recipient_id == user_id)
+    query = select(Notification).where(
+        Notification.recipient_id == user_id,
+        Notification.org_id == org_id,
+    )
     if unread_only:
-        query = query.where(Notification.is_read == False)
+        query = query.where(Notification.is_read == False)  # noqa: E712
     query = query.order_by(Notification.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
 
-async def get_unread_count(db: AsyncSession, user_id: UUID) -> int:
+async def get_unread_count(db: AsyncSession, user_id: UUID, org_id: UUID) -> int:
     """Return the count of unread notifications for a user."""
     result = await db.execute(
         select(func.count()).select_from(Notification).where(
-            Notification.recipient_id == user_id, Notification.is_read == False
+            Notification.recipient_id == user_id,
+            Notification.org_id == org_id,
+            Notification.is_read == False,  # noqa: E712
         )
     )
     return result.scalar() or 0
 
 
 async def mark_as_read(
-    db: AsyncSession, notification_id: UUID, user_id: UUID
+    db: AsyncSession, notification_id: UUID, user_id: UUID, org_id: UUID
 ) -> None:
     """Mark a single notification as read."""
-    await db.execute(
+    from app.core.exceptions import NotFoundException
+
+    result = await db.execute(
         update(Notification)
         .where(
             Notification.id == notification_id,
             Notification.recipient_id == user_id,
+            Notification.org_id == org_id,
         )
         .values(is_read=True)
     )
+    if result.rowcount == 0:
+        raise NotFoundException(detail="Notification not found")
     await db.commit()
 
 
-async def mark_all_read(db: AsyncSession, user_id: UUID) -> None:
+async def mark_all_read(db: AsyncSession, user_id: UUID, org_id: UUID) -> None:
     """Mark all unread notifications as read for a user."""
     await db.execute(
         update(Notification)
         .where(
             Notification.recipient_id == user_id,
-            Notification.is_read == False,
+            Notification.org_id == org_id,
+            Notification.is_read == False,  # noqa: E712
         )
         .values(is_read=True)
     )

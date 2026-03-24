@@ -476,7 +476,7 @@ function StockHistoryTab({ item }: { item: Item }) {
           return (
             <TableRow key={t.id}>
               <TableCell className="text-sm text-muted-foreground">
-                {new Date(t.created_at).toLocaleDateString()}
+                {new Date(t.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
               </TableCell>
               <TableCell>
                 <Badge

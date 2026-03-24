@@ -22,6 +22,22 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Hammer,
+  Wrench,
+  Receipt,
+  Shield,
+  ClipboardCheck,
+  Ruler,
+  MapPin,
+  Palette,
+  PenTool,
+  Calculator,
+  CheckSquare,
+  Truck,
+  CreditCard,
+  BarChart3,
+  Bell,
+  Settings,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -38,95 +54,139 @@ interface NavSection {
   items: NavItem[]
 }
 
+const ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN", "MANAGER"]
+const SALES_ROLES: UserRole[] = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES"]
+const OPS_ROLES: UserRole[] = ["SUPER_ADMIN", "MANAGER", "SUPERVISOR"]
+const ALL_INTERNAL: UserRole[] = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES", "SUPERVISOR"]
+
 const navSections: NavSection[] = [
   {
-    label: "Overview",
+    label: "Main Menu",
     items: [
       {
         title: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
-        roles: ["SUPER_ADMIN", "MANAGER", "BDE", "SALES", "SUPERVISOR"],
+        roles: ALL_INTERNAL,
       },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
       {
-        title: "Leads",
+        title: "Lead Management",
         href: "/dashboard/sales/leads",
         icon: Users,
-        roles: ["BDE", "SALES", "MANAGER", "SUPER_ADMIN"],
+        roles: SALES_ROLES,
       },
       {
-        title: "Quotes",
+        title: "Client Requirements",
+        href: "/dashboard/client-requirements",
+        icon: ClipboardCheck,
+        roles: SALES_ROLES,
+      },
+      {
+        title: "Site Survey",
+        href: "/dashboard/site-survey",
+        icon: MapPin,
+        roles: OPS_ROLES,
+      },
+      {
+        title: "Design Concepts",
+        href: "/dashboard/design-concepts",
+        icon: Palette,
+        roles: OPS_ROLES,
+      },
+      {
+        title: "Drawings",
+        href: "/dashboard/drawings",
+        icon: PenTool,
+        roles: OPS_ROLES,
+      },
+      {
+        title: "Smart Quotation",
         href: "/dashboard/sales/quotes",
         icon: FileText,
-        roles: ["BDE", "SALES", "MANAGER", "SUPER_ADMIN"],
+        roles: SALES_ROLES,
       },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
+      {
+        title: "BOQ & Estimates",
+        href: "/dashboard/boq",
+        icon: Calculator,
+        roles: SALES_ROLES,
+      },
+      {
+        title: "Budget Approval",
+        href: "/dashboard/budget-approval",
+        icon: CheckSquare,
+        roles: ADMIN_ROLES,
+      },
       {
         title: "Projects",
         href: "/dashboard/projects",
         icon: FolderKanban,
-        roles: ["MANAGER", "SUPERVISOR", "SUPER_ADMIN"],
+        roles: OPS_ROLES,
       },
       {
-        title: "Inventory",
-        href: "/dashboard/admin/inventory",
+        title: "Material Planning",
+        href: "/dashboard/material-planning",
         icon: Package,
-        roles: ["MANAGER", "SUPER_ADMIN"],
-      },
-      {
-        title: "Purchase Orders",
-        href: "/dashboard/admin/purchase-orders",
-        icon: ShoppingCart,
-        roles: ["MANAGER", "SUPER_ADMIN"],
-      },
-      {
-        title: "Finance",
-        href: "/dashboard/admin/finance",
-        icon: DollarSign,
-        roles: ["MANAGER", "SUPER_ADMIN"],
-      },
-      {
-        title: "Labor Teams",
-        href: "/dashboard/admin/labor",
-        icon: HardHat,
-        roles: ["MANAGER", "SUPERVISOR", "SUPER_ADMIN"],
-      },
-      {
-        title: "Payroll",
-        href: "/dashboard/admin/payroll",
-        icon: ClipboardList,
-        roles: ["MANAGER", "SUPER_ADMIN"],
-      },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      {
-        title: "Users",
-        href: "/dashboard/admin/users",
-        icon: UserCog,
-        roles: ["SUPER_ADMIN"],
+        roles: ADMIN_ROLES,
       },
       {
         title: "Vendors",
         href: "/dashboard/admin/vendors",
         icon: Store,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Purchasing",
+        href: "/dashboard/purchasing",
+        icon: ShoppingCart,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Labour Management",
+        href: "/dashboard/labour",
+        icon: HardHat,
+        roles: OPS_ROLES,
+      },
+      {
+        title: "Execution Tracking",
+        href: "/dashboard/execution-tracking",
+        icon: Truck,
+        roles: OPS_ROLES,
+      },
+      {
+        title: "Expenses",
+        href: "/dashboard/expenses",
+        icon: DollarSign,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Client Billing",
+        href: "/dashboard/client-billing",
+        icon: CreditCard,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Reports",
+        href: "/dashboard/reports",
+        icon: BarChart3,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Notifications",
+        href: "/dashboard/notifications",
+        icon: Bell,
+        roles: ALL_INTERNAL,
+      },
+      {
+        title: "Settings",
+        href: "/dashboard/settings",
+        icon: Settings,
         roles: ["SUPER_ADMIN"],
       },
     ],
   },
   {
-    label: "Client",
+    label: "Client Portal",
     items: [
       {
         title: "My Projects",
@@ -137,25 +197,43 @@ const navSections: NavSection[] = [
       {
         title: "Payments",
         href: "/dashboard/client-portal/payments",
-        icon: ClipboardList,
+        icon: CreditCard,
         roles: ["CLIENT"],
       },
     ],
   },
 ]
 
+const platformSection: NavSection = {
+  label: "Platform",
+  items: [
+    {
+      title: "Organizations",
+      href: "/dashboard/platform/organizations",
+      icon: Shield,
+      roles: ["SUPER_ADMIN"],
+    },
+  ],
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
-  const { user } = useAuthStore()
+  const { user, roleInOrg } = useAuthStore()
   const [collapsed, setCollapsed] = useState(false)
 
   if (!user) return null
 
-  const filteredSections = navSections
+  const effectiveRole = roleInOrg ?? user.role
+
+  const allSections = user.is_platform_admin
+    ? [...navSections, platformSection]
+    : navSections
+
+  const filteredSections = allSections
     .map((section) => ({
       ...section,
       items: section.items.filter((item) =>
-        item.roles.includes(user.role as UserRole)
+        effectiveRole ? item.roles.includes(effectiveRole as UserRole) : false
       ),
     }))
     .filter((section) => section.items.length > 0)
@@ -197,7 +275,9 @@ export default function Sidebar() {
               )}
               <ul className="space-y-1">
                 {section.items.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+                  const isActive = item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname === item.href || pathname.startsWith(item.href + "/")
                   const Icon = item.icon
                   return (
                     <li key={item.href} className="relative">

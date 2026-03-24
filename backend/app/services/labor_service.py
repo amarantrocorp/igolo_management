@@ -34,7 +34,7 @@ from app.services.finance_service import authorize_expense
 # ---------------------------------------------------------------------------
 
 
-async def create_labor_team(data: LaborTeamCreate, db: AsyncSession) -> LaborTeam:
+async def create_labor_team(data: LaborTeamCreate, org_id: UUID, db: AsyncSession) -> LaborTeam:
     """Create a new labor team."""
     team = LaborTeam(
         name=data.name,
@@ -44,6 +44,7 @@ async def create_labor_team(data: LaborTeamCreate, db: AsyncSession) -> LaborTea
         payment_model=data.payment_model,
         default_daily_rate=data.default_daily_rate,
         supervisor_id=data.supervisor_id,
+        org_id=org_id,
     )
     db.add(team)
     await db.commit()
@@ -57,12 +58,13 @@ async def create_labor_team(data: LaborTeamCreate, db: AsyncSession) -> LaborTea
 
 
 async def get_labor_teams(
-    db: AsyncSession, skip: int = 0, limit: int = 50
+    db: AsyncSession, org_id: UUID, skip: int = 0, limit: int = 50
 ) -> List[LaborTeam]:
     """Retrieve a paginated list of labor teams with their workers."""
     result = await db.execute(
         select(LaborTeam)
         .options(selectinload(LaborTeam.workers))
+        .where(LaborTeam.org_id == org_id)
         .order_by(LaborTeam.name)
         .offset(skip)
         .limit(limit)
@@ -70,7 +72,7 @@ async def get_labor_teams(
     return list(result.scalars().all())
 
 
-async def get_team(team_id: UUID, db: AsyncSession) -> LaborTeam:
+async def get_team(team_id: UUID, org_id: UUID, db: AsyncSession) -> LaborTeam:
     """Retrieve a single labor team by ID, including its workers."""
     result = await db.execute(
         select(LaborTeam)
@@ -78,13 +80,13 @@ async def get_team(team_id: UUID, db: AsyncSession) -> LaborTeam:
         .where(LaborTeam.id == team_id)
     )
     team = result.scalar_one_or_none()
-    if not team:
+    if not team or team.org_id != org_id:
         raise NotFoundException(detail=f"Labor team with id '{team_id}' not found")
     return team
 
 
 async def update_team(
-    team_id: UUID, data: LaborTeamUpdate, db: AsyncSession
+    team_id: UUID, data: LaborTeamUpdate, org_id: UUID, db: AsyncSession
 ) -> LaborTeam:
     """Update an existing labor team with partial data."""
     result = await db.execute(
@@ -93,7 +95,7 @@ async def update_team(
         .where(LaborTeam.id == team_id)
     )
     team = result.scalar_one_or_none()
-    if not team:
+    if not team or team.org_id != org_id:
         raise NotFoundException(detail=f"Labor team with id '{team_id}' not found")
 
     update_data = data.model_dump(exclude_unset=True)
@@ -116,12 +118,12 @@ async def update_team(
 # ---------------------------------------------------------------------------
 
 
-async def add_worker(team_id: UUID, data: WorkerCreate, db: AsyncSession) -> Worker:
+async def add_worker(team_id: UUID, data: WorkerCreate, org_id: UUID, db: AsyncSession) -> Worker:
     """Add a worker to an existing labor team."""
-    # Validate team exists
+    # Validate team exists and belongs to org
     team_result = await db.execute(select(LaborTeam).where(LaborTeam.id == team_id))
     team = team_result.scalar_one_or_none()
-    if not team:
+    if not team or team.org_id != org_id:
         raise NotFoundException(detail=f"Labor team with id '{team_id}' not found")
 
     worker = Worker(
@@ -130,6 +132,7 @@ async def add_worker(team_id: UUID, data: WorkerCreate, db: AsyncSession) -> Wor
         skill_level=data.skill_level,
         daily_rate=data.daily_rate,
         phone=data.phone,
+        org_id=org_id,
     )
     db.add(worker)
     await db.commit()
@@ -143,7 +146,7 @@ async def add_worker(team_id: UUID, data: WorkerCreate, db: AsyncSession) -> Wor
 
 
 async def log_attendance(
-    data: AttendanceLogCreate, user_id: UUID, db: AsyncSession
+    data: AttendanceLogCreate, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> AttendanceLog:
     """Log daily attendance for a labor team on a project.
 
@@ -152,12 +155,18 @@ async def log_attendance(
 
     The daily_rate used is the team's default_daily_rate.
     """
+    # Validate: project must exist
+    from app.models.project import Project
+    project = await db.execute(select(Project).where(Project.id == data.project_id))
+    if not project.scalar_one_or_none():
+        raise NotFoundException(detail=f"Project '{data.project_id}' not found")
+
     # Fetch the team to get the daily rate
     team_result = await db.execute(
         select(LaborTeam).where(LaborTeam.id == data.team_id)
     )
     team = team_result.scalar_one_or_none()
-    if not team:
+    if not team or team.org_id != org_id:
         raise NotFoundException(detail=f"Labor team with id '{data.team_id}' not found")
 
     # Calculate cost: workers * daily_rate * (hours / 8)
@@ -180,6 +189,7 @@ async def log_attendance(
         site_photo_url=data.site_photo_url,
         notes=data.notes,
         logged_by_id=user_id,
+        org_id=org_id,
     )
     db.add(attendance)
     await db.commit()
@@ -195,6 +205,7 @@ async def log_attendance(
 async def get_weekly_payroll(
     week_start: date,
     week_end: date,
+    org_id: UUID,
     db: AsyncSession,
     project_id: UUID | None = None,
 ) -> dict:
@@ -220,6 +231,7 @@ async def get_weekly_payroll(
         .where(
             AttendanceLog.date >= week_start,
             AttendanceLog.date <= week_end,
+            AttendanceLog.org_id == org_id,
         )
     )
 
@@ -297,6 +309,7 @@ async def get_weekly_payroll(
 
 async def list_attendance_logs(
     db: AsyncSession,
+    org_id: UUID,
     project_id: UUID | None = None,
     sprint_id: UUID | None = None,
     team_id: UUID | None = None,
@@ -307,7 +320,9 @@ async def list_attendance_logs(
     limit: int = 50,
 ) -> List[AttendanceLog]:
     """List attendance logs with optional filters and pagination."""
-    query = select(AttendanceLog).options(selectinload(AttendanceLog.team))
+    query = select(AttendanceLog).options(
+        selectinload(AttendanceLog.team)
+    ).where(AttendanceLog.org_id == org_id)
     if project_id:
         query = query.where(AttendanceLog.project_id == project_id)
     if sprint_id:
@@ -326,7 +341,7 @@ async def list_attendance_logs(
 
 
 async def approve_payroll(
-    attendance_ids: List[UUID], user_id: UUID, db: AsyncSession
+    attendance_ids: List[UUID], user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> List[AttendanceLog]:
     """Approve a batch of attendance logs and create an OUTFLOW transaction.
 
@@ -341,7 +356,10 @@ async def approve_payroll(
 
     # Fetch all attendance logs
     result = await db.execute(
-        select(AttendanceLog).where(AttendanceLog.id.in_(attendance_ids))
+        select(AttendanceLog).where(
+            AttendanceLog.id.in_(attendance_ids),
+            AttendanceLog.org_id == org_id,
+        )
     )
     logs = list(result.scalars().all())
 
@@ -366,7 +384,7 @@ async def approve_payroll(
     total_cost = sum(log.calculated_cost for log in logs)
 
     # Authorize the expense from the project wallet
-    await authorize_expense(project_id, total_cost, db)
+    await authorize_expense(project_id, total_cost, org_id, db)
 
     # Mark all logs as approved
     for log in logs:
@@ -382,6 +400,7 @@ async def approve_payroll(
         description=(f"Weekly labor payroll approval - {len(logs)} attendance log(s)"),
         recorded_by_id=user_id,
         status=TransactionStatus.CLEARED,
+        org_id=org_id,
     )
     db.add(transaction)
 
@@ -404,6 +423,7 @@ async def approve_payroll(
     await notify_role(
         db=db,
         role=UserRole.MANAGER,
+        org_id=org_id,
         type=NotificationType.INFO,
         title="Payroll Approved",
         body=f"Labor payroll of Rs. {total_cost} approved for {len(logs)} attendance log(s).",
@@ -429,6 +449,7 @@ async def approve_payroll_by_filters(
     week_start: date,
     week_end: date,
     user_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
 ) -> List[AttendanceLog]:
     """Find pending attendance logs matching the project, team, and date range,
@@ -444,6 +465,7 @@ async def approve_payroll_by_filters(
             AttendanceLog.date >= week_start,
             AttendanceLog.date <= week_end,
             AttendanceLog.status == AttendanceStatus.PENDING,
+            AttendanceLog.org_id == org_id,
         )
     )
     attendance_ids = [row[0] for row in result.all()]
@@ -456,4 +478,6 @@ async def approve_payroll_by_filters(
             )
         )
 
-    return await approve_payroll(attendance_ids=attendance_ids, user_id=user_id, db=db)
+    return await approve_payroll(
+        attendance_ids=attendance_ids, user_id=user_id, org_id=org_id, db=db
+    )

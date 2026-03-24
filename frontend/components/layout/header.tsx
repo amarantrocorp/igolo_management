@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import NotificationBell from "@/components/layout/notification-bell"
+import OrgSwitcher from "@/components/layout/org-switcher"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 
 export default function Header() {
-  const { user, logout } = useAuthStore()
+  const { user, roleInOrg, logout } = useAuthStore()
   const router = useRouter()
 
   const handleLogout = () => {
@@ -52,13 +53,16 @@ export default function Header() {
     }
   }
 
+  const displayRole = roleInOrg ?? user?.role
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-6">
-      {/* Left: Project Title */}
+      {/* Left: Project Title + Org Switcher */}
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-semibold text-foreground">
           IntDesignERP
         </h2>
+        <OrgSwitcher />
       </div>
 
       {/* Right: Notifications + User */}
@@ -81,12 +85,14 @@ export default function Header() {
                 </Avatar>
                 <div className="hidden flex-col items-start md:flex">
                   <span className="text-sm font-medium">{user.full_name}</span>
-                  <Badge
-                    variant={getRoleBadgeVariant(user.role)}
-                    className="h-4 px-1 text-[10px]"
-                  >
-                    {user.role.replace("_", " ")}
-                  </Badge>
+                  {displayRole && (
+                    <Badge
+                      variant={getRoleBadgeVariant(displayRole)}
+                      className="h-4 px-1 text-[10px]"
+                    >
+                      {displayRole.replace("_", " ")}
+                    </Badge>
+                  )}
                 </div>
               </Button>
             </DropdownMenuTrigger>

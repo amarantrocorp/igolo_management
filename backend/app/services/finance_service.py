@@ -22,19 +22,19 @@ from app.models.finance import (
 from app.schemas.finance import TransactionCreate
 
 
-async def get_wallet(project_id: UUID, db: AsyncSession) -> ProjectWallet:
+async def get_wallet(project_id: UUID, org_id: UUID, db: AsyncSession) -> ProjectWallet:
     """Retrieve the financial wallet for a project."""
     result = await db.execute(
         select(ProjectWallet).where(ProjectWallet.project_id == project_id)
     )
     wallet = result.scalar_one_or_none()
-    if not wallet:
+    if not wallet or wallet.org_id != org_id:
         raise NotFoundException(detail=f"Wallet for project '{project_id}' not found")
     return wallet
 
 
 async def authorize_expense(
-    project_id: UUID, amount: Decimal, db: AsyncSession
+    project_id: UUID, amount: Decimal, org_id: UUID, db: AsyncSession
 ) -> bool:
     """Check if the project wallet has sufficient funds for the given expense.
 
@@ -43,7 +43,7 @@ async def authorize_expense(
 
     Raises InsufficientFundsException if effective_balance < amount.
     """
-    wallet = await get_wallet(project_id, db)
+    wallet = await get_wallet(project_id, org_id, db)
 
     effective_balance = wallet.total_received - (
         wallet.total_spent + wallet.pending_approvals
@@ -62,18 +62,18 @@ async def authorize_expense(
 
 
 async def create_transaction(
-    data: TransactionCreate, user_id: UUID, db: AsyncSession
+    data: TransactionCreate, user_id: UUID, org_id: UUID, db: AsyncSession
 ) -> Transaction:
     """Create a financial transaction for a project.
 
     For OUTFLOW transactions, authorize_expense is called first to ensure
     sufficient funds. Wallet totals are updated accordingly.
     """
-    wallet = await get_wallet(data.project_id, db)
+    wallet = await get_wallet(data.project_id, org_id, db)
 
     # For outflow, validate spending power
     if data.category == TransactionCategory.OUTFLOW:
-        await authorize_expense(data.project_id, data.amount, db)
+        await authorize_expense(data.project_id, data.amount, org_id, db)
 
     transaction = Transaction(
         project_id=data.project_id,
@@ -88,6 +88,7 @@ async def create_transaction(
         recorded_by_id=user_id,
         proof_doc_url=data.proof_doc_url,
         status=TransactionStatus.PENDING,
+        org_id=org_id,
     )
     db.add(transaction)
 
@@ -111,6 +112,7 @@ async def create_transaction(
     await notify_role(
         db=db,
         role=UserRole.MANAGER,
+        org_id=org_id,
         type=NotificationType.APPROVAL_REQ,
         title="Transaction Pending Verification",
         body=f"{data.category.value} of Rs. {data.amount} ({data.source.value}) needs verification.",
@@ -126,10 +128,18 @@ async def create_transaction(
         },
     )
 
+    # Check budget variance alerts (fire-and-forget, non-blocking)
+    try:
+        from app.services.budget_service import check_variance_alerts
+
+        await check_variance_alerts(data.project_id, org_id, db)
+    except Exception:
+        pass  # Budget check is best-effort; never block transaction creation
+
     return transaction
 
 
-async def verify_transaction(txn_id: UUID, db: AsyncSession) -> Transaction:
+async def verify_transaction(txn_id: UUID, org_id: UUID, db: AsyncSession) -> Transaction:
     """Mark a PENDING transaction as CLEARED and update the wallet.
 
     For INFLOW: Increases total_received on the wallet.
@@ -137,7 +147,7 @@ async def verify_transaction(txn_id: UUID, db: AsyncSession) -> Transaction:
     """
     result = await db.execute(select(Transaction).where(Transaction.id == txn_id))
     transaction = result.scalar_one_or_none()
-    if not transaction:
+    if not transaction or transaction.org_id != org_id:
         raise NotFoundException(detail=f"Transaction with id '{txn_id}' not found")
 
     if transaction.status != TransactionStatus.PENDING:
@@ -146,7 +156,7 @@ async def verify_transaction(txn_id: UUID, db: AsyncSession) -> Transaction:
             f"Current status: {transaction.status.value}"
         )
 
-    wallet = await get_wallet(transaction.project_id, db)
+    wallet = await get_wallet(transaction.project_id, org_id, db)
 
     transaction.status = TransactionStatus.CLEARED
 
@@ -197,7 +207,7 @@ async def verify_transaction(txn_id: UUID, db: AsyncSession) -> Transaction:
     return transaction
 
 
-async def get_financial_health(project_id: UUID, db: AsyncSession) -> dict:
+async def get_financial_health(project_id: UUID, org_id: UUID, db: AsyncSession) -> dict:
     """Return a complete financial snapshot of a project.
 
     Includes:
@@ -206,7 +216,7 @@ async def get_financial_health(project_id: UUID, db: AsyncSession) -> dict:
     - can_spend_more flag (True if effective_balance > 0)
     - estimated_margin_percent: ((agreed - spent) / agreed) * 100
     """
-    wallet = await get_wallet(project_id, db)
+    wallet = await get_wallet(project_id, org_id, db)
 
     current_balance = wallet.total_received - wallet.total_spent
     effective_balance = wallet.total_received - (
@@ -241,6 +251,7 @@ async def get_financial_health(project_id: UUID, db: AsyncSession) -> dict:
 
 async def list_all_transactions(
     db: AsyncSession,
+    org_id: UUID,
     category: Optional[TransactionCategory] = None,
     source: Optional[TransactionSource] = None,
     txn_status: Optional[TransactionStatus] = None,
@@ -251,7 +262,7 @@ async def list_all_transactions(
     limit: int = 50,
 ) -> list[Transaction]:
     """List all transactions across all projects with optional filters."""
-    query = select(Transaction)
+    query = select(Transaction).where(Transaction.org_id == org_id)
 
     if category is not None:
         query = query.where(Transaction.category == category)
@@ -278,6 +289,7 @@ async def list_all_transactions(
 
 async def list_project_transactions(
     project_id: UUID,
+    org_id: UUID,
     db: AsyncSession,
     category: Optional[TransactionCategory] = None,
     source: Optional[TransactionSource] = None,
@@ -292,7 +304,10 @@ async def list_project_transactions(
     Results are ordered by creation date descending (newest first) and
     paginated via skip/limit.
     """
-    query = select(Transaction).where(Transaction.project_id == project_id)
+    query = select(Transaction).where(
+        Transaction.project_id == project_id,
+        Transaction.org_id == org_id,
+    )
 
     if category is not None:
         query = query.where(Transaction.category == category)
@@ -327,6 +342,7 @@ def _apply_date_project_filters(query, date_from, date_to, project_id):
 
 async def get_transaction_summary(
     db: AsyncSession,
+    org_id: UUID,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     project_id: Optional[UUID] = None,
@@ -391,7 +407,7 @@ async def get_transaction_summary(
             )
         ).label("pending_count"),
         func.count().label("total_count"),
-    )
+    ).where(Transaction.org_id == org_id)
 
     query = _apply_date_project_filters(query, date_from, date_to, project_id)
     row = (await db.execute(query)).one()
@@ -412,6 +428,7 @@ async def get_transaction_summary(
 
 async def get_transaction_aggregation(
     db: AsyncSession,
+    org_id: UUID,
     group_by: str,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -448,7 +465,10 @@ async def get_transaction_aggregation(
                 Decimal("0"),
             ).label("outflow"),
         )
-        .where(Transaction.status == TransactionStatus.CLEARED)
+        .where(
+            Transaction.status == TransactionStatus.CLEARED,
+            Transaction.org_id == org_id,
+        )
         .group_by(period)
         .order_by(period)
     )
@@ -472,6 +492,7 @@ async def get_transaction_aggregation(
 
 async def get_source_breakdown(
     db: AsyncSession,
+    org_id: UUID,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     project_id: Optional[UUID] = None,
@@ -505,7 +526,10 @@ async def get_source_breakdown(
                 Decimal("0"),
             ).label("total_outflow"),
         )
-        .where(Transaction.status == TransactionStatus.CLEARED)
+        .where(
+            Transaction.status == TransactionStatus.CLEARED,
+            Transaction.org_id == org_id,
+        )
         .group_by(Transaction.source)
     )
 
@@ -524,6 +548,7 @@ async def get_source_breakdown(
 
 async def get_project_breakdown(
     db: AsyncSession,
+    org_id: UUID,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
 ) -> list[dict]:
@@ -560,7 +585,10 @@ async def get_project_breakdown(
             ).label("total_outflow"),
         )
         .join(Project, Transaction.project_id == Project.id)
-        .where(Transaction.status == TransactionStatus.CLEARED)
+        .where(
+            Transaction.status == TransactionStatus.CLEARED,
+            Transaction.org_id == org_id,
+        )
         .group_by(Transaction.project_id, Project.name)
         .order_by(func.sum(
             case(

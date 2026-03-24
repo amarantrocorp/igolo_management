@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile
 
-from app.core.security import get_current_user
-from app.models.user import User
+from app.core.security import get_auth_context, AuthContext
 from app.services import upload_service
 
 router = APIRouter()
@@ -11,7 +10,7 @@ router = APIRouter()
 async def upload_file(
     file: UploadFile,
     category: str,
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Upload a file. Returns the URL of the uploaded file.
 

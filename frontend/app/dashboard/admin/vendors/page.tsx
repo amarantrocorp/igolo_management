@@ -105,7 +105,7 @@ const columns: ColumnDef<Vendor>[] = [
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
         {row.original.created_at
-          ? new Date(row.original.created_at).toLocaleDateString()
+          ? new Date(row.original.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
           : "--"}
       </span>
     ),

@@ -10,7 +10,7 @@ from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, Numeric, Stri
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.crm import Lead
@@ -26,7 +26,7 @@ class QuoteStatus(str, enum.Enum):
     ARCHIVED = "ARCHIVED"
 
 
-class Quotation(Base, UUIDMixin, TimestampMixin):
+class Quotation(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "quotations"
 
     lead_id: Mapped[uuid.UUID] = mapped_column(
@@ -56,7 +56,7 @@ class Quotation(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class QuoteRoom(Base, UUIDMixin, TimestampMixin):
+class QuoteRoom(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "quote_rooms"
 
     quotation_id: Mapped[uuid.UUID] = mapped_column(
@@ -74,7 +74,7 @@ class QuoteRoom(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class QuoteItem(Base, UUIDMixin, TimestampMixin):
+class QuoteItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "quote_items"
 
     room_id: Mapped[uuid.UUID] = mapped_column(

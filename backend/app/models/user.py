@@ -11,6 +11,7 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.crm import Client, Lead
     from app.models.notification import Notification
+    from app.models.organization import OrgMembership
 
 
 class UserRole(str, enum.Enum):
@@ -32,9 +33,12 @@ class User(Base, UUIDMixin, TimestampMixin):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
+    role: Mapped[Optional[UserRole]] = mapped_column(Enum(UserRole), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    is_platform_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
 
     # Relationships
     leads_assigned: Mapped[List["Lead"]] = relationship(
@@ -45,4 +49,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     )
     notifications: Mapped[List["Notification"]] = relationship(
         "Notification", back_populates="recipient"
+    )
+    memberships: Mapped[List["OrgMembership"]] = relationship(
+        "OrgMembership", back_populates="user"
     )

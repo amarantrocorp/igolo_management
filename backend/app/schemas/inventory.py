@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.inventory import POStatus, StockTransactionType
 
@@ -173,7 +173,7 @@ class PurchaseOrderCreate(BaseModel):
     is_project_specific: bool = False
     project_id: Optional[UUID] = None
     notes: Optional[str] = None
-    items: List[POItemCreate] = []
+    items: List[POItemCreate] = Field(..., min_length=1)
 
 
 class PurchaseOrderUpdate(BaseModel):

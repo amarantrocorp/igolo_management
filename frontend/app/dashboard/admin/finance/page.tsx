@@ -239,6 +239,28 @@ export default function FinancePage() {
           title="Finance"
           subtitle="Track payments, expenses, and project financial health"
           gradient="linear-gradient(135deg, #CBB282, #A8956E)"
+          action={
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  window.open(`${api.defaults.baseURL}/finance/export/transactions`, "_blank")
+                }}
+              >
+                Export Transactions
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  window.open(`${api.defaults.baseURL}/finance/export/cash-flow`, "_blank")
+                }}
+              >
+                Cash Flow
+              </Button>
+            </div>
+          }
         />
 
         {/* ===== GLOBAL FILTER BAR ===== */}

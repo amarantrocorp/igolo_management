@@ -5,9 +5,8 @@ from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user, role_required
+from app.core.security import get_auth_context, role_required, AuthContext
 from app.db.session import get_db
-from app.models.user import User
 from app.models.inventory import POStatus
 from app.schemas.inventory import (
     ItemCreate,
@@ -36,10 +35,10 @@ router = APIRouter()
 async def create_item(
     payload: ItemCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new inventory item."""
-    item = await inventory_service.create_item(data=payload, db=db)
+    item = await inventory_service.create_item(data=payload, org_id=ctx.org_id, db=db)
     return item
 
 
@@ -51,11 +50,12 @@ async def list_items(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """List inventory items with optional filters for category, low stock, and search."""
     items = await inventory_service.get_items(
         db=db,
+        org_id=ctx.org_id,
         skip=skip,
         limit=limit,
         category=category,
@@ -71,10 +71,10 @@ async def list_items(
 async def get_item(
     item_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single inventory item by ID."""
-    item = await inventory_service.get_item(item_id=item_id, db=db)
+    item = await inventory_service.get_item(item_id=item_id, org_id=ctx.org_id, db=db)
     return item
 
 
@@ -85,10 +85,10 @@ async def update_item(
     item_id: UUID,
     payload: ItemUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing inventory item."""
-    item = await inventory_service.update_item(item_id=item_id, data=payload, db=db)
+    item = await inventory_service.update_item(item_id=item_id, data=payload, org_id=ctx.org_id, db=db)
     return item
 
 
@@ -103,10 +103,10 @@ async def update_item(
 async def create_vendor(
     payload: VendorCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new vendor."""
-    vendor = await inventory_service.create_vendor(data=payload, db=db)
+    vendor = await inventory_service.create_vendor(data=payload, org_id=ctx.org_id, db=db)
     return vendor
 
 
@@ -117,10 +117,10 @@ async def list_vendors(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """List vendors."""
-    vendors = await inventory_service.get_vendors(db=db, skip=skip, limit=limit)
+    vendors = await inventory_service.get_vendors(db=db, org_id=ctx.org_id, skip=skip, limit=limit)
     return vendors
 
 
@@ -132,10 +132,10 @@ async def list_vendors(
 async def get_vendor(
     vendor_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single vendor by ID."""
-    vendor = await inventory_service.get_vendor(vendor_id=vendor_id, db=db)
+    vendor = await inventory_service.get_vendor(vendor_id=vendor_id, org_id=ctx.org_id, db=db)
     return vendor
 
 
@@ -148,11 +148,11 @@ async def update_vendor(
     vendor_id: UUID,
     payload: VendorUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing vendor."""
     vendor = await inventory_service.update_vendor(
-        vendor_id=vendor_id, data=payload, db=db
+        vendor_id=vendor_id, data=payload, org_id=ctx.org_id, db=db
     )
     return vendor
 
@@ -170,12 +170,12 @@ async def update_vendor(
 async def create_purchase_order(
     payload: PurchaseOrderCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new Purchase Order (PO). If is_project_specific is True,
     a project_id must be provided."""
     po = await inventory_service.create_purchase_order(
-        data=payload, user_id=current_user.id, db=db
+        data=payload, user_id=ctx.user.id, org_id=ctx.org_id, db=db
     )
     return po
 
@@ -192,7 +192,7 @@ async def list_purchase_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """List Purchase Orders with optional vendor, project, and status filters."""
     status_filter = None
@@ -204,6 +204,7 @@ async def list_purchase_orders(
 
     orders = await inventory_service.get_purchase_orders(
         db=db,
+        org_id=ctx.org_id,
         vendor_id=vendor_id,
         project_id=project_id,
         status_filter=status_filter,
@@ -221,13 +222,13 @@ async def list_purchase_orders(
 async def receive_purchase_order(
     po_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Mark a PO as received (GRN). For general stock, increases Item.current_stock
     and creates StockTransaction entries. For project-specific POs, creates an expense
     record against the project wallet without touching general stock."""
     po = await inventory_service.receive_purchase_order(
-        po_id=po_id, user_id=current_user.id, db=db
+        po_id=po_id, user_id=ctx.user.id, org_id=ctx.org_id, db=db
     )
     return po
 
@@ -251,7 +252,7 @@ async def issue_stock_to_project(
     item_id: UUID,
     payload: StockIssuePayload,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
+    ctx: AuthContext = Depends(
         role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])
     ),
 ):
@@ -261,11 +262,12 @@ async def issue_stock_to_project(
         item_id=item_id,
         quantity=payload.quantity,
         project_id=payload.project_id,
-        user_id=current_user.id,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
         db=db,
     )
     # Return the updated item
-    item = await inventory_service.get_item(item_id=item_id, db=db)
+    item = await inventory_service.get_item(item_id=item_id, org_id=ctx.org_id, db=db)
     return item
 
 
@@ -283,11 +285,11 @@ async def add_supplier_to_item(
     item_id: UUID,
     payload: VendorItemCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Link a vendor as a supplier for an inventory item."""
     vendor_item = await inventory_service.add_vendor_to_item(
-        item_id=item_id, data=payload, db=db
+        item_id=item_id, data=payload, org_id=ctx.org_id, db=db
     )
     return vendor_item
 
@@ -300,10 +302,10 @@ async def add_supplier_to_item(
 async def list_item_suppliers(
     item_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """List all vendors that supply a given item."""
-    return await inventory_service.get_item_suppliers(item_id=item_id, db=db)
+    return await inventory_service.get_item_suppliers(item_id=item_id, org_id=ctx.org_id, db=db)
 
 
 @router.delete(
@@ -314,11 +316,11 @@ async def remove_supplier_from_item(
     item_id: UUID,
     vendor_item_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Remove a vendor-item link."""
     await inventory_service.remove_vendor_from_item(
-        item_id=item_id, vendor_item_id=vendor_item_id, db=db
+        item_id=item_id, vendor_item_id=vendor_item_id, org_id=ctx.org_id, db=db
     )
 
 
@@ -336,9 +338,47 @@ async def get_item_stock_history(
     item_id: UUID,
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
 ):
     """Get recent stock transactions for an inventory item."""
     return await inventory_service.get_item_stock_transactions(
-        item_id=item_id, db=db, limit=limit
+        item_id=item_id, org_id=ctx.org_id, db=db, limit=limit
+    )
+
+
+# ---------------------------------------------------------------------------
+# Vendor Performance Analytics
+# ---------------------------------------------------------------------------
+
+
+@router.get("/vendors/{vendor_id}/performance", status_code=status.HTTP_200_OK)
+async def get_vendor_performance(
+    vendor_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Get performance metrics for a vendor (total spend, delivery rate, order breakdown)."""
+    from app.services import vendor_analytics_service
+
+    return await vendor_analytics_service.get_vendor_performance(vendor_id, org_id=ctx.org_id, db=db)
+
+
+@router.get("/purchase-orders/{po_id}/pdf", status_code=status.HTTP_200_OK)
+async def download_po_pdf(
+    po_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Download purchase order as PDF."""
+    from io import BytesIO
+
+    from fastapi.responses import StreamingResponse
+
+    from app.services import pdf_service
+
+    pdf_bytes = await pdf_service.generate_po_pdf(po_id, ctx.org_id, db)
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=po-{po_id}.pdf"},
     )
