@@ -72,9 +72,11 @@ async def get_items(
     Supports filtering by category, showing only low-stock items
     (where current_stock < reorder_level), and text search on name.
     """
-    query = select(Item).options(
-        selectinload(Item.suppliers).selectinload(VendorItem.vendor)
-    ).where(Item.org_id == org_id)
+    query = (
+        select(Item)
+        .options(selectinload(Item.suppliers).selectinload(VendorItem.vendor))
+        .where(Item.org_id == org_id)
+    )
 
     if category:
         query = query.where(Item.category == category)
@@ -104,7 +106,9 @@ async def get_item(item_id: UUID, org_id: UUID, db: AsyncSession) -> Item:
     return item
 
 
-async def update_item(item_id: UUID, data: ItemUpdate, org_id: UUID, db: AsyncSession) -> Item:
+async def update_item(
+    item_id: UUID, data: ItemUpdate, org_id: UUID, db: AsyncSession
+) -> Item:
     """Update inventory item fields. Only non-None fields are applied."""
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
@@ -143,10 +147,16 @@ async def create_vendor(data: VendorCreate, org_id: UUID, db: AsyncSession) -> V
     return vendor
 
 
-async def get_vendors(db: AsyncSession, org_id: UUID, skip: int = 0, limit: int = 50) -> List[Vendor]:
+async def get_vendors(
+    db: AsyncSession, org_id: UUID, skip: int = 0, limit: int = 50
+) -> List[Vendor]:
     """Retrieve a paginated list of vendors."""
     result = await db.execute(
-        select(Vendor).where(Vendor.org_id == org_id).order_by(Vendor.name).offset(skip).limit(limit)
+        select(Vendor)
+        .where(Vendor.org_id == org_id)
+        .order_by(Vendor.name)
+        .offset(skip)
+        .limit(limit)
     )
     return list(result.scalars().all())
 
@@ -236,7 +246,9 @@ async def create_purchase_order(
     return await _get_purchase_order(po.id, org_id, db)
 
 
-async def _get_purchase_order(po_id: UUID, org_id: UUID, db: AsyncSession) -> PurchaseOrder:
+async def _get_purchase_order(
+    po_id: UUID, org_id: UUID, db: AsyncSession
+) -> PurchaseOrder:
     """Internal helper to fetch a PO with its items and vendor loaded."""
     result = await db.execute(
         select(PurchaseOrder)
@@ -262,10 +274,14 @@ async def get_purchase_orders(
     limit: int = 50,
 ) -> List[PurchaseOrder]:
     """Retrieve a paginated list of purchase orders with optional filters."""
-    query = select(PurchaseOrder).options(
-        selectinload(PurchaseOrder.vendor),
-        selectinload(PurchaseOrder.items).selectinload(POItem.item),
-    ).where(PurchaseOrder.org_id == org_id)
+    query = (
+        select(PurchaseOrder)
+        .options(
+            selectinload(PurchaseOrder.vendor),
+            selectinload(PurchaseOrder.items).selectinload(POItem.item),
+        )
+        .where(PurchaseOrder.org_id == org_id)
+    )
     if vendor_id:
         query = query.where(PurchaseOrder.vendor_id == vendor_id)
     if project_id:
@@ -552,14 +568,18 @@ async def get_item_stock_transactions(
 # ---------------------------------------------------------------------------
 
 
-async def get_project_materials(project_id: UUID, org_id: UUID, db: AsyncSession) -> dict:
+async def get_project_materials(
+    project_id: UUID, org_id: UUID, db: AsyncSession
+) -> dict:
     """Aggregate materials data for a project.
 
     Returns purchase orders linked to the project and stock issues
     from warehouse, along with summary totals.
     """
     # 1. Project-specific POs
-    purchase_orders = await get_purchase_orders(db=db, org_id=org_id, project_id=project_id)
+    purchase_orders = await get_purchase_orders(
+        db=db, org_id=org_id, project_id=project_id
+    )
 
     # 2. Stock issues (warehouse -> project)
     stock_result = await db.execute(

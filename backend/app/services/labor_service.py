@@ -34,7 +34,9 @@ from app.services.finance_service import authorize_expense
 # ---------------------------------------------------------------------------
 
 
-async def create_labor_team(data: LaborTeamCreate, org_id: UUID, db: AsyncSession) -> LaborTeam:
+async def create_labor_team(
+    data: LaborTeamCreate, org_id: UUID, db: AsyncSession
+) -> LaborTeam:
     """Create a new labor team."""
     team = LaborTeam(
         name=data.name,
@@ -118,7 +120,9 @@ async def update_team(
 # ---------------------------------------------------------------------------
 
 
-async def add_worker(team_id: UUID, data: WorkerCreate, org_id: UUID, db: AsyncSession) -> Worker:
+async def add_worker(
+    team_id: UUID, data: WorkerCreate, org_id: UUID, db: AsyncSession
+) -> Worker:
     """Add a worker to an existing labor team."""
     # Validate team exists and belongs to org
     team_result = await db.execute(select(LaborTeam).where(LaborTeam.id == team_id))
@@ -157,6 +161,7 @@ async def log_attendance(
     """
     # Validate: project must exist
     from app.models.project import Project
+
     project = await db.execute(select(Project).where(Project.id == data.project_id))
     if not project.scalar_one_or_none():
         raise NotFoundException(detail=f"Project '{data.project_id}' not found")
@@ -256,7 +261,9 @@ async def get_weekly_payroll(
         proj = team_logs[0].project
         cost = sum((lg.calculated_cost for lg in team_logs), Decimal("0.00"))
         hours = sum(lg.total_hours for lg in team_logs)
-        workers_avg = sum(lg.workers_present for lg in team_logs) // max(len(team_logs), 1)
+        workers_avg = sum(lg.workers_present for lg in team_logs) // max(
+            len(team_logs), 1
+        )
         statuses = {lg.status for lg in team_logs}
 
         if len(statuses) == 1:
@@ -267,7 +274,11 @@ async def get_weekly_payroll(
             entry_status = "APPROVED_BY_MANAGER"
 
         pending_cost = sum(
-            (lg.calculated_cost for lg in team_logs if lg.status == AttendanceStatus.PENDING),
+            (
+                lg.calculated_cost
+                for lg in team_logs
+                if lg.status == AttendanceStatus.PENDING
+            ),
             Decimal("0.00"),
         )
         approved_cost = cost - pending_cost
@@ -320,9 +331,11 @@ async def list_attendance_logs(
     limit: int = 50,
 ) -> List[AttendanceLog]:
     """List attendance logs with optional filters and pagination."""
-    query = select(AttendanceLog).options(
-        selectinload(AttendanceLog.team)
-    ).where(AttendanceLog.org_id == org_id)
+    query = (
+        select(AttendanceLog)
+        .options(selectinload(AttendanceLog.team))
+        .where(AttendanceLog.org_id == org_id)
+    )
     if project_id:
         query = query.where(AttendanceLog.project_id == project_id)
     if sprint_id:

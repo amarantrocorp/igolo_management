@@ -52,7 +52,7 @@ async def get_org_plan(org_id: UUID, db: AsyncSession) -> dict:
     org = result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    tier = (org.plan_tier.value if org.plan_tier else "FREE")
+    tier = org.plan_tier.value if org.plan_tier else "FREE"
     return PLAN_LIMITS.get(tier, PLAN_LIMITS["FREE"])
 
 

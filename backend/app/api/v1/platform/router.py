@@ -36,9 +36,7 @@ async def create_organization(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new organization."""
-    return await platform_service.create_organization(
-        data=payload.model_dump(), db=db
-    )
+    return await platform_service.create_organization(data=payload.model_dump(), db=db)
 
 
 @router.get("/organizations", response_model=list[OrganizationResponse])
@@ -60,6 +58,7 @@ async def get_organization(
 ):
     """Get a single organization."""
     from uuid import UUID
+
     return await platform_service.get_organization(org_id=UUID(org_id), db=db)
 
 
@@ -72,6 +71,7 @@ async def update_organization(
 ):
     """Update an organization."""
     from uuid import UUID
+
     return await platform_service.update_organization(
         org_id=UUID(org_id),
         data=payload.model_dump(exclude_unset=True),
@@ -88,6 +88,7 @@ async def add_member(
 ):
     """Add a user to an organization."""
     from uuid import UUID
+
     return await platform_service.add_member(
         org_id=UUID(org_id),
         user_id=payload.user_id,
@@ -109,6 +110,7 @@ async def remove_member(
 ):
     """Remove a user from an organization."""
     from uuid import UUID
+
     await platform_service.remove_member(
         org_id=UUID(org_id), user_id=UUID(user_id), db=db
     )
@@ -122,6 +124,7 @@ async def list_members(
 ):
     """List members of an organization."""
     from uuid import UUID
+
     return await platform_service.list_members(org_id=UUID(org_id), db=db)
 
 
@@ -225,4 +228,3 @@ async def invite_to_organization(
         "token": invitation.token,
         "expires_at": invitation.expires_at,
     }
-

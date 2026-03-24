@@ -33,6 +33,7 @@ class UUIDMixin:
 
 class TenantMixin:
     """Mixin that adds org_id column for multi-tenant row-level isolation."""
+
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("organizations.id"),

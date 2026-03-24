@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from app.models.budget import BudgetCategory
 
-
 # ---------------------------------------------------------------------------
 # Budget Line Items
 # ---------------------------------------------------------------------------

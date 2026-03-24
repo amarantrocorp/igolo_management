@@ -84,7 +84,8 @@ async def initiate_approval_chain(
 
     # Filter rules where max_amount is None (unlimited) or >= amount
     matching = [
-        r for r in rules
+        r
+        for r in rules
         if r.max_amount is None or Decimal(str(r.max_amount)) >= amount_dec
     ]
 
@@ -122,9 +123,7 @@ async def process_approval(
     db: AsyncSession,
 ) -> ApprovalLog:
     """Process a single approval step."""
-    result = await db.execute(
-        select(ApprovalLog).where(ApprovalLog.id == log_id)
-    )
+    result = await db.execute(select(ApprovalLog).where(ApprovalLog.id == log_id))
     log = result.scalar_one_or_none()
     if not log or log.org_id != org_id:
         raise NotFoundException(detail=f"Approval log '{log_id}' not found")

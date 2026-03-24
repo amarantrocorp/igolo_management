@@ -58,6 +58,7 @@ def decode_token(token: str) -> dict:
 @dataclass
 class AuthContext:
     """Holds the authenticated user, active org, role, and tenant schema."""
+
     user: User
     org_id: UUID
     role: UserRole
@@ -118,7 +119,7 @@ async def get_auth_context(
 
     # Resolve tenant schema — try request.state first (set by TenantMiddleware)
     schema_name = None
-    if request and hasattr(request.state, 'tenant_schema'):
+    if request and hasattr(request.state, "tenant_schema"):
         schema_name = request.state.tenant_schema
 
     # Fallback: look up schema_name from the Organization record
@@ -132,7 +133,9 @@ async def get_auth_context(
 
     # Platform admins bypass membership check
     if user.is_platform_admin:
-        return AuthContext(user=user, org_id=org_id, role=UserRole.SUPER_ADMIN, schema_name=schema_name)
+        return AuthContext(
+            user=user, org_id=org_id, role=UserRole.SUPER_ADMIN, schema_name=schema_name
+        )
 
     # Verify org membership
     mem_result = await db.execute(
@@ -146,7 +149,9 @@ async def get_auth_context(
     if not membership:
         raise ForbiddenException(detail="You do not belong to this organization")
 
-    return AuthContext(user=user, org_id=org_id, role=membership.role, schema_name=schema_name)
+    return AuthContext(
+        user=user, org_id=org_id, role=membership.role, schema_name=schema_name
+    )
 
 
 def role_required(allowed_roles: List[str]):
@@ -154,6 +159,7 @@ def role_required(allowed_roles: List[str]):
 
     Returns AuthContext (not User). Callers use ctx.user, ctx.org_id, ctx.role.
     """
+
     async def dependency(
         token: str = Depends(oauth2_scheme),
         db: AsyncSession = Depends(get_db),
@@ -181,7 +187,7 @@ async def get_tenant_session(
     from app.db.session import AsyncSessionLocal
     from sqlalchemy import text
 
-    schema_name = getattr(request.state, 'tenant_schema', None)
+    schema_name = getattr(request.state, "tenant_schema", None)
 
     async with AsyncSessionLocal() as session:
         try:

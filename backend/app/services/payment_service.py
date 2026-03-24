@@ -30,7 +30,9 @@ def get_razorpay_client() -> razorpay.Client:
         raise BadRequestException(
             detail="Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
         )
-    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    return razorpay.Client(
+        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+    )
 
 
 async def create_razorpay_order(
@@ -49,12 +51,14 @@ async def create_razorpay_order(
         Razorpay order dict containing ``id``, ``amount``, ``currency``, etc.
     """
     client = get_razorpay_client()
-    order = client.order.create({
-        "amount": int(amount_inr * 100),  # Razorpay uses paise
-        "currency": "INR",
-        "receipt": receipt,
-        "notes": {"project_id": str(project_id)},
-    })
+    order = client.order.create(
+        {
+            "amount": int(amount_inr * 100),  # Razorpay uses paise
+            "currency": "INR",
+            "receipt": receipt,
+            "notes": {"project_id": str(project_id)},
+        }
+    )
     return order
 
 
@@ -69,11 +73,13 @@ async def verify_razorpay_payment(
     """
     client = get_razorpay_client()
     try:
-        client.utility.verify_payment_signature({
-            "razorpay_order_id": order_id,
-            "razorpay_payment_id": payment_id,
-            "razorpay_signature": signature,
-        })
+        client.utility.verify_payment_signature(
+            {
+                "razorpay_order_id": order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature,
+            }
+        )
         return True
     except razorpay.errors.SignatureVerificationError:
         return False
@@ -106,9 +112,7 @@ async def process_successful_payment(
         The created Transaction record.
     """
     # Validate project exists and belongs to org
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project or project.org_id != org_id:
         raise NotFoundException(detail=f"Project '{project_id}' not found")

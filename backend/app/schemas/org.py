@@ -7,7 +7,6 @@ from pydantic import BaseModel, EmailStr
 from app.models.organization import PlanTier, SubscriptionStatus
 from app.models.user import UserRole
 
-
 # ── Settings ──
 
 

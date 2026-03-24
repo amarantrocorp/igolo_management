@@ -6,13 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_auth_context, role_required, AuthContext
 from app.db.session import get_db
-from app.schemas.vendor_bill import VendorBillCreate, VendorBillResponse, VendorBillUpdate
+from app.schemas.vendor_bill import (
+    VendorBillCreate,
+    VendorBillResponse,
+    VendorBillUpdate,
+)
 from app.services import vendor_bill_service
 
 router = APIRouter()
 
 
-@router.post("/", response_model=VendorBillResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=VendorBillResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_vendor_bill(
     data: VendorBillCreate,
     db: AsyncSession = Depends(get_db),
@@ -33,7 +39,12 @@ async def list_vendor_bills(
 ):
     """List vendor bills with optional filters."""
     return await vendor_bill_service.list_vendor_bills(
-        db, org_id=ctx.org_id, vendor_id=vendor_id, status=bill_status, skip=skip, limit=limit,
+        db,
+        org_id=ctx.org_id,
+        vendor_id=vendor_id,
+        status=bill_status,
+        skip=skip,
+        limit=limit,
     )
 
 

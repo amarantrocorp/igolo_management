@@ -25,7 +25,9 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("phone", sa.String(length=20), nullable=False),
         sa.Column("template_name", sa.String(length=255), nullable=False),
-        sa.Column("status", sa.String(length=20), nullable=False, server_default="sent"),
+        sa.Column(
+            "status", sa.String(length=20), nullable=False, server_default="sent"
+        ),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column(
             "created_at",

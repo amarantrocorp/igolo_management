@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
+from app.core.security import (
+    AuthContext,
+    get_auth_context,
+    get_tenant_session,
+    role_required,
+)
 from app.models.inventory import POStatus
 from app.schemas.inventory import (
     ItemCreate,
@@ -87,7 +92,9 @@ async def update_item(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing inventory item."""
-    item = await inventory_service.update_item(item_id=item_id, data=payload, org_id=ctx.org_id, db=db)
+    item = await inventory_service.update_item(
+        item_id=item_id, data=payload, org_id=ctx.org_id, db=db
+    )
     return item
 
 
@@ -105,7 +112,9 @@ async def create_vendor(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new vendor."""
-    vendor = await inventory_service.create_vendor(data=payload, org_id=ctx.org_id, db=db)
+    vendor = await inventory_service.create_vendor(
+        data=payload, org_id=ctx.org_id, db=db
+    )
     return vendor
 
 
@@ -119,7 +128,9 @@ async def list_vendors(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List vendors."""
-    vendors = await inventory_service.get_vendors(db=db, org_id=ctx.org_id, skip=skip, limit=limit)
+    vendors = await inventory_service.get_vendors(
+        db=db, org_id=ctx.org_id, skip=skip, limit=limit
+    )
     return vendors
 
 
@@ -134,7 +145,9 @@ async def get_vendor(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single vendor by ID."""
-    vendor = await inventory_service.get_vendor(vendor_id=vendor_id, org_id=ctx.org_id, db=db)
+    vendor = await inventory_service.get_vendor(
+        vendor_id=vendor_id, org_id=ctx.org_id, db=db
+    )
     return vendor
 
 
@@ -251,9 +264,7 @@ async def issue_stock_to_project(
     item_id: UUID,
     payload: StockIssuePayload,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])),
 ):
     """Issue general stock to a specific project. Deducts from Item.current_stock
     and creates a StockTransaction record."""
@@ -304,7 +315,9 @@ async def list_item_suppliers(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List all vendors that supply a given item."""
-    return await inventory_service.get_item_suppliers(item_id=item_id, org_id=ctx.org_id, db=db)
+    return await inventory_service.get_item_suppliers(
+        item_id=item_id, org_id=ctx.org_id, db=db
+    )
 
 
 @router.delete(
@@ -359,7 +372,9 @@ async def get_vendor_performance(
     """Get performance metrics for a vendor (total spend, delivery rate, order breakdown)."""
     from app.services import vendor_analytics_service
 
-    return await vendor_analytics_service.get_vendor_performance(vendor_id, org_id=ctx.org_id, db=db)
+    return await vendor_analytics_service.get_vendor_performance(
+        vendor_id, org_id=ctx.org_id, db=db
+    )
 
 
 @router.get("/purchase-orders/{po_id}/pdf", status_code=status.HTTP_200_OK)

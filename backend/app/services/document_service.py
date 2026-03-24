@@ -12,7 +12,11 @@ from app.schemas.document import DocumentCreate
 
 
 async def create_document(
-    project_id: UUID, data: DocumentCreate, user_id: UUID, org_id: UUID, db: AsyncSession
+    project_id: UUID,
+    data: DocumentCreate,
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
 ) -> ProjectDocument:
     """Upload/register a document for a project."""
     doc = ProjectDocument(

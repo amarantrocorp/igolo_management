@@ -40,7 +40,12 @@ async def list_work_orders(
 ):
     """List work orders with optional filters."""
     return await work_order_service.list_work_orders(
-        db, org_id=ctx.org_id, project_id=project_id, status=wo_status, skip=skip, limit=limit,
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
+        status=wo_status,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -89,7 +94,9 @@ async def update_ra_bill_status(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update RA bill status (SUBMITTED -> VERIFIED -> APPROVED -> PAID)."""
-    return await work_order_service.update_ra_bill_status(bill_id, new_status, ctx.org_id, db)
+    return await work_order_service.update_ra_bill_status(
+        bill_id, new_status, ctx.org_id, db
+    )
 
 
 @router.get("/{wo_id}/pdf", status_code=status.HTTP_200_OK)

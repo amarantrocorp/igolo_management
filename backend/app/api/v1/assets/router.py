@@ -40,7 +40,12 @@ async def list_assets(
 ):
     """List assets with optional filters."""
     return await asset_service.list_assets(
-        db, org_id=ctx.org_id, category=category, status=asset_status, skip=skip, limit=limit,
+        db,
+        org_id=ctx.org_id,
+        category=category,
+        status=asset_status,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -78,7 +83,11 @@ async def assign_asset(
 ):
     """Assign an asset to a project."""
     return await asset_service.assign_asset(
-        asset_id, data.project_id, data.assigned_date, ctx.org_id, db,
+        asset_id,
+        data.project_id,
+        data.assigned_date,
+        ctx.org_id,
+        db,
     )
 
 
@@ -90,7 +99,9 @@ async def return_asset(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Return an assigned asset."""
-    return await asset_service.return_asset(asset_id, data.condition_on_return, ctx.org_id, db)
+    return await asset_service.return_asset(
+        asset_id, data.condition_on_return, ctx.org_id, db
+    )
 
 
 @router.get("/{asset_id}/usage-logs", response_model=list[AssetUsageLogResponse])

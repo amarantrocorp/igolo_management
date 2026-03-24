@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.models.inventory import POStatus, StockTransactionType
 
-
 # ---------------------------------------------------------------------------
 # Vendor-Item (junction)
 # ---------------------------------------------------------------------------
@@ -233,7 +232,11 @@ class StockIssueResponse(BaseModel):
             data.item_category = data.item.category
             data.item_unit = data.item.unit
         qty = abs(data.quantity) if hasattr(data, "quantity") else 0
-        cost = data.unit_cost_at_time if hasattr(data, "unit_cost_at_time") else Decimal("0")
+        cost = (
+            data.unit_cost_at_time
+            if hasattr(data, "unit_cost_at_time")
+            else Decimal("0")
+        )
         data.total_cost = Decimal(str(qty)) * cost
         return data
 

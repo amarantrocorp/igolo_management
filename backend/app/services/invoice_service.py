@@ -34,7 +34,9 @@ async def _get_invoice(invoice_id: UUID, org_id: UUID, db: AsyncSession) -> Invo
     return invoice
 
 
-async def create_invoice(data: InvoiceCreate, org_id: UUID, db: AsyncSession) -> Invoice:
+async def create_invoice(
+    data: InvoiceCreate, org_id: UUID, db: AsyncSession
+) -> Invoice:
     """Create a new invoice with line items. Auto-calculates totals."""
     invoice_number = await _next_invoice_number(org_id, db)
 
@@ -136,7 +138,9 @@ async def send_invoice(invoice_id: UUID, org_id: UUID, db: AsyncSession) -> Invo
     return await _get_invoice(invoice_id, org_id, db)
 
 
-async def mark_invoice_paid(invoice_id: UUID, org_id: UUID, db: AsyncSession) -> Invoice:
+async def mark_invoice_paid(
+    invoice_id: UUID, org_id: UUID, db: AsyncSession
+) -> Invoice:
     """Mark invoice as PAID and create an INFLOW transaction on the project wallet."""
     invoice = await _get_invoice(invoice_id, org_id, db)
     if invoice.status not in (InvoiceStatus.SENT, InvoiceStatus.OVERDUE):

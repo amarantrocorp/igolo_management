@@ -32,9 +32,7 @@ async def get_project_pnl(project_id: UUID, org_id: UUID, db: AsyncSession) -> d
         monthly_burn_rate: total_cost / months_elapsed
     """
     # Fetch project + wallet
-    proj_result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
+    proj_result = await db.execute(select(Project).where(Project.id == project_id))
     project = proj_result.scalar_one_or_none()
     if not project or project.org_id != org_id:
         raise NotFoundException(detail=f"Project '{project_id}' not found")
@@ -48,14 +46,17 @@ async def get_project_pnl(project_id: UUID, org_id: UUID, db: AsyncSession) -> d
 
     # Revenue: agreed value + approved VOs
     vo_result = await db.execute(
-        select(func.coalesce(func.sum(VariationOrder.additional_cost), Decimal("0")))
-        .where(
+        select(
+            func.coalesce(func.sum(VariationOrder.additional_cost), Decimal("0"))
+        ).where(
             VariationOrder.project_id == project_id,
             VariationOrder.org_id == org_id,
-            VariationOrder.status.in_([
-                VOStatus.APPROVED,
-                VOStatus.PAID,
-            ]),
+            VariationOrder.status.in_(
+                [
+                    VOStatus.APPROVED,
+                    VOStatus.PAID,
+                ]
+            ),
         )
     )
     approved_vo_total = vo_result.scalar() or Decimal("0")

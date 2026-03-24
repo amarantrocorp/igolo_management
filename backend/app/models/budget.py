@@ -32,12 +32,8 @@ class BudgetLineItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
     category: Mapped[BudgetCategory] = mapped_column(
         Enum(BudgetCategory), nullable=False
     )
-    description: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True
-    )
-    budgeted_amount: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False
-    )
+    description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    budgeted_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
     # Relationships
     project: Mapped["Project"] = relationship("Project")

@@ -65,9 +65,7 @@ async def get_current_billing(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Returns current org's plan, status, trial info, and usage counts."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == ctx.org_id)
-    )
+    result = await db.execute(select(Organization).where(Organization.id == ctx.org_id))
     org = result.scalar_one_or_none()
     if not org:
         raise BadRequestException(detail="Organization not found")
@@ -82,12 +80,13 @@ async def get_current_billing(
     user_count = await db.scalar(
         select(func.count())
         .select_from(OrgMembership)
-        .where(OrgMembership.org_id == ctx.org_id, OrgMembership.is_active == True)  # noqa: E712
+        .where(
+            OrgMembership.org_id == ctx.org_id,
+            OrgMembership.is_active == True,  # noqa: E712
+        )  # noqa: E712
     )
     project_count = await db.scalar(
-        select(func.count())
-        .select_from(Project)
-        .where(Project.org_id == ctx.org_id)
+        select(func.count()).select_from(Project).where(Project.org_id == ctx.org_id)
     )
 
     return BillingStatusResponse(
@@ -110,15 +109,17 @@ async def get_current_billing(
 async def subscribe_to_plan(
     payload: SubscribeRequest,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPER_ADMIN", "MANAGER"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPER_ADMIN", "MANAGER"])),
 ):
     """Creates Razorpay order for plan upgrade."""
     if payload.plan not in ("STARTER", "PRO", "ENTERPRISE"):
-        raise BadRequestException(detail="Invalid plan. Choose STARTER, PRO, or ENTERPRISE.")
+        raise BadRequestException(
+            detail="Invalid plan. Choose STARTER, PRO, or ENTERPRISE."
+        )
     if payload.billing_cycle not in ("monthly", "yearly"):
-        raise BadRequestException(detail="Invalid billing cycle. Choose monthly or yearly.")
+        raise BadRequestException(
+            detail="Invalid billing cycle. Choose monthly or yearly."
+        )
     if payload.plan == "ENTERPRISE":
         raise BadRequestException(
             detail="Enterprise plans require custom pricing. Please contact sales."
@@ -143,9 +144,7 @@ async def subscribe_to_plan(
 async def verify_subscription_payment(
     payload: VerifySubscriptionRequest,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPER_ADMIN", "MANAGER"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPER_ADMIN", "MANAGER"])),
 ):
     """Verifies Razorpay payment signature. On success, activates subscription."""
     is_valid = await verify_razorpay_signature(

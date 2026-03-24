@@ -9,7 +9,9 @@ from app.core.exceptions import NotFoundException
 from app.models.inventory import PurchaseOrder, Vendor
 
 
-async def get_vendor_performance(vendor_id: UUID, org_id: UUID, db: AsyncSession) -> dict:
+async def get_vendor_performance(
+    vendor_id: UUID, org_id: UUID, db: AsyncSession
+) -> dict:
     """Get performance metrics for a vendor based on PO history."""
     result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
     vendor = result.scalar_one_or_none()
@@ -40,7 +42,10 @@ async def get_vendor_performance(vendor_id: UUID, org_id: UUID, db: AsyncSession
         )
         .group_by(PurchaseOrder.status)
     )
-    status_breakdown = {str(r[0].value) if hasattr(r[0], "value") else str(r[0]): int(r[1]) for r in status_result.all()}
+    status_breakdown = {
+        str(r[0].value) if hasattr(r[0], "value") else str(r[0]): int(r[1])
+        for r in status_result.all()
+    }
 
     received_count = status_breakdown.get("RECEIVED", 0)
     delivery_rate = (received_count / total_orders * 100) if total_orders > 0 else 0

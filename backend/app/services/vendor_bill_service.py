@@ -11,7 +11,9 @@ from app.models.vendor_bill import VendorBill, VendorBillStatus
 from app.schemas.vendor_bill import VendorBillCreate, VendorBillUpdate
 
 
-async def create_vendor_bill(data: VendorBillCreate, org_id: UUID, db: AsyncSession) -> VendorBill:
+async def create_vendor_bill(
+    data: VendorBillCreate, org_id: UUID, db: AsyncSession
+) -> VendorBill:
     """Create a new vendor bill."""
     bill = VendorBill(
         vendor_id=data.vendor_id,

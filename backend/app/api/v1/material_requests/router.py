@@ -21,9 +21,7 @@ router = APIRouter()
 async def create_material_request(
     data: MaterialRequestCreate,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new material request (indent)."""
     return await material_request_service.create_material_request(
@@ -42,7 +40,12 @@ async def list_material_requests(
 ):
     """List material requests with optional filters."""
     return await material_request_service.get_material_requests(
-        db, org_id=ctx.org_id, project_id=project_id, status=status, skip=skip, limit=limit
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
+        status=status,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -53,19 +56,17 @@ async def get_material_request(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Get a single material request."""
-    return await material_request_service.get_material_request(request_id, ctx.org_id, db)
+    return await material_request_service.get_material_request(
+        request_id, ctx.org_id, db
+    )
 
 
-@router.patch(
-    "/{request_id}/approve", response_model=MaterialRequestResponse
-)
+@router.patch("/{request_id}/approve", response_model=MaterialRequestResponse)
 async def approve_material_request(
     request_id: UUID,
     approval: MaterialRequestApproval,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Approve a material request with approved quantities."""
     return await material_request_service.approve_material_request(
@@ -73,15 +74,11 @@ async def approve_material_request(
     )
 
 
-@router.patch(
-    "/{request_id}/reject", response_model=MaterialRequestResponse
-)
+@router.patch("/{request_id}/reject", response_model=MaterialRequestResponse)
 async def reject_material_request(
     request_id: UUID,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Reject a material request."""
     return await material_request_service.reject_material_request(
@@ -89,15 +86,11 @@ async def reject_material_request(
     )
 
 
-@router.post(
-    "/{request_id}/fulfill", response_model=MaterialRequestResponse
-)
+@router.post("/{request_id}/fulfill", response_model=MaterialRequestResponse)
 async def fulfill_material_request(
     request_id: UUID,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Fulfill an approved request by issuing stock from warehouse."""
     return await material_request_service.fulfill_material_request(

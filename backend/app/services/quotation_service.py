@@ -146,10 +146,14 @@ async def get_quotations(
     limit: int = 50,
 ) -> List[Quotation]:
     """Retrieve a paginated list of quotations, optionally filtered by lead."""
-    query = select(Quotation).options(
-        selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
-        selectinload(Quotation.lead).selectinload(Lead.assigned_to),
-    ).where(Quotation.org_id == org_id)
+    query = (
+        select(Quotation)
+        .options(
+            selectinload(Quotation.rooms).selectinload(QuoteRoom.items),
+            selectinload(Quotation.lead).selectinload(Lead.assigned_to),
+        )
+        .where(Quotation.org_id == org_id)
+    )
 
     if lead_id:
         query = query.where(Quotation.lead_id == lead_id)
@@ -161,7 +165,9 @@ async def get_quotations(
     return quotations
 
 
-async def finalize_quotation(quote_id: UUID, org_id: UUID, db: AsyncSession) -> Quotation:
+async def finalize_quotation(
+    quote_id: UUID, org_id: UUID, db: AsyncSession
+) -> Quotation:
     """Freeze a DRAFT quotation into a finalized, versioned quote.
 
     Only DRAFT quotations can be finalized. Once finalized, the status becomes SENT
@@ -272,21 +278,25 @@ def _build_quote_email_data(quotation: Quotation) -> dict:
             final_price = Decimal(str(item.final_price or 0))
             unit_price = Decimal(str(item.unit_price or 0))
             room_total += final_price
-            items_data.append({
-                "index": global_index,
-                "description": item.description or "—",
-                "quantity": float(item.quantity),
-                "unit": item.unit or "nos",
-                "unit_price_fmt": _format_inr(unit_price),
-                "final_price_fmt": _format_inr(final_price),
-            })
+            items_data.append(
+                {
+                    "index": global_index,
+                    "description": item.description or "—",
+                    "quantity": float(item.quantity),
+                    "unit": item.unit or "nos",
+                    "unit_price_fmt": _format_inr(unit_price),
+                    "final_price_fmt": _format_inr(final_price),
+                }
+            )
         grand_total += room_total
-        rooms_data.append({
-            "name": room.name,
-            "area_sqft": float(room.area_sqft) if room.area_sqft else None,
-            "line_items": items_data,
-            "subtotal_fmt": _format_inr(room_total),
-        })
+        rooms_data.append(
+            {
+                "name": room.name,
+                "area_sqft": float(room.area_sqft) if room.area_sqft else None,
+                "line_items": items_data,
+                "subtotal_fmt": _format_inr(room_total),
+            }
+        )
 
     return {
         "client_name": lead.name if lead else "Client",

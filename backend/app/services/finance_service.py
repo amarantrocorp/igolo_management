@@ -139,7 +139,9 @@ async def create_transaction(
     return transaction
 
 
-async def verify_transaction(txn_id: UUID, org_id: UUID, db: AsyncSession) -> Transaction:
+async def verify_transaction(
+    txn_id: UUID, org_id: UUID, db: AsyncSession
+) -> Transaction:
     """Mark a PENDING transaction as CLEARED and update the wallet.
 
     For INFLOW: Increases total_received on the wallet.
@@ -180,9 +182,7 @@ async def verify_transaction(txn_id: UUID, org_id: UUID, db: AsyncSession) -> Tr
 
         proj_result = await db.execute(
             select(Project)
-            .options(
-                selectinload(Project.client).selectinload(Client.user)
-            )
+            .options(selectinload(Project.client).selectinload(Client.user))
             .where(Project.id == transaction.project_id)
         )
         project = proj_result.scalar_one_or_none()
@@ -207,7 +207,9 @@ async def verify_transaction(txn_id: UUID, org_id: UUID, db: AsyncSession) -> Tr
     return transaction
 
 
-async def get_financial_health(project_id: UUID, org_id: UUID, db: AsyncSession) -> dict:
+async def get_financial_health(
+    project_id: UUID, org_id: UUID, db: AsyncSession
+) -> dict:
     """Return a complete financial snapshot of a project.
 
     Includes:
@@ -278,7 +280,8 @@ async def list_all_transactions(
         )
     if date_to is not None:
         query = query.where(
-            Transaction.created_at < datetime.combine(date_to + timedelta(days=1), time.min)
+            Transaction.created_at
+            < datetime.combine(date_to + timedelta(days=1), time.min)
         )
 
     query = query.order_by(Transaction.created_at.desc()).offset(skip).limit(limit)
@@ -335,7 +338,8 @@ def _apply_date_project_filters(query, date_from, date_to, project_id):
         )
     if date_to is not None:
         query = query.where(
-            Transaction.created_at < datetime.combine(date_to + timedelta(days=1), time.min)
+            Transaction.created_at
+            < datetime.combine(date_to + timedelta(days=1), time.min)
         )
     return query
 
@@ -480,12 +484,14 @@ async def get_transaction_aggregation(
     for row in rows:
         inflow = row.inflow or Decimal("0")
         outflow = row.outflow or Decimal("0")
-        buckets.append({
-            "period": row.period.date().isoformat() if row.period else "",
-            "inflow": inflow,
-            "outflow": outflow,
-            "net": inflow - outflow,
-        })
+        buckets.append(
+            {
+                "period": row.period.date().isoformat() if row.period else "",
+                "inflow": inflow,
+                "outflow": outflow,
+                "net": inflow - outflow,
+            }
+        )
 
     return {"group_by": group_by, "buckets": buckets}
 
@@ -590,15 +596,17 @@ async def get_project_breakdown(
             Transaction.org_id == org_id,
         )
         .group_by(Transaction.project_id, Project.name)
-        .order_by(func.sum(
-            case(
-                (
-                    Transaction.category == TransactionCategory.OUTFLOW,
-                    Transaction.amount,
-                ),
-                else_=Decimal("0"),
-            )
-        ).desc())
+        .order_by(
+            func.sum(
+                case(
+                    (
+                        Transaction.category == TransactionCategory.OUTFLOW,
+                        Transaction.amount,
+                    ),
+                    else_=Decimal("0"),
+                )
+            ).desc()
+        )
     )
 
     if date_from is not None:
@@ -607,7 +615,8 @@ async def get_project_breakdown(
         )
     if date_to is not None:
         query = query.where(
-            Transaction.created_at < datetime.combine(date_to + timedelta(days=1), time.min)
+            Transaction.created_at
+            < datetime.combine(date_to + timedelta(days=1), time.min)
         )
 
     rows = (await db.execute(query)).all()
@@ -618,7 +627,8 @@ async def get_project_breakdown(
             "project_name": row.project_name,
             "total_inflow": row.total_inflow or Decimal("0"),
             "total_outflow": row.total_outflow or Decimal("0"),
-            "net": (row.total_inflow or Decimal("0")) - (row.total_outflow or Decimal("0")),
+            "net": (row.total_inflow or Decimal("0"))
+            - (row.total_outflow or Decimal("0")),
         }
         for row in rows
     ]

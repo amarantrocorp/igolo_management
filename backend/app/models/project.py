@@ -121,7 +121,9 @@ class Sprint(Base, UUIDMixin, TimestampMixin, TenantMixin):
     planned_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     executed_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     quantity_unit: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
-    completion_percentage: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    completion_percentage: Mapped[float] = mapped_column(
+        Float, default=0.0, nullable=False
+    )
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="sprints")
@@ -149,7 +151,9 @@ class VariationOrder(Base, UUIDMixin, TimestampMixin, TenantMixin):
     requested_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
-    supporting_doc_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    supporting_doc_url: Mapped[Optional[str]] = mapped_column(
+        String(500), nullable=True
+    )
 
     # Relationships
     project: Mapped["Project"] = relationship(

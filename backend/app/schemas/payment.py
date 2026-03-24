@@ -17,7 +17,9 @@ class CreateOrderResponse(BaseModel):
     razorpay_order_id: str
     amount: int = Field(..., description="Amount in paise (INR * 100)")
     currency: str = "INR"
-    key_id: str = Field(..., description="Razorpay publishable key for frontend checkout")
+    key_id: str = Field(
+        ..., description="Razorpay publishable key for frontend checkout"
+    )
 
 
 class VerifyPaymentRequest(BaseModel):

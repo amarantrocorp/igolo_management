@@ -27,7 +27,9 @@ async def list_users(
     ctx: AuthContext = Depends(role_required(["SUPER_ADMIN"])),
 ):
     """List all users. Admin only."""
-    users = await user_service.get_users(org_id=ctx.org_id, db=db, skip=skip, limit=limit)
+    users = await user_service.get_users(
+        org_id=ctx.org_id, db=db, skip=skip, limit=limit
+    )
     return users
 
 
@@ -52,7 +54,9 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Update an existing user. Admin only."""
-    return await user_service.update_user(user_id=user_id, data=data, org_id=ctx.org_id, db=db)
+    return await user_service.update_user(
+        user_id=user_id, data=data, org_id=ctx.org_id, db=db
+    )
 
 
 @router.delete("/{user_id}", status_code=204)

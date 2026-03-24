@@ -26,15 +26,29 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 # Paths that bypass subscription checks entirely
-_SKIP_PREFIXES = ("/auth/", "/billing/", "/platform/", "/health", "/docs", "/redoc", "/openapi")
+_SKIP_PREFIXES = (
+    "/auth/",
+    "/billing/",
+    "/platform/",
+    "/health",
+    "/docs",
+    "/redoc",
+    "/openapi",
+)
 
 
 class TrialEnforcementMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         path = request.url.path
 
         # Skip non-API and exempt paths
-        if any(path.startswith(prefix) or path.startswith(f"{settings.API_V1_PREFIX}{prefix}") for prefix in _SKIP_PREFIXES):
+        if any(
+            path.startswith(prefix)
+            or path.startswith(f"{settings.API_V1_PREFIX}{prefix}")
+            for prefix in _SKIP_PREFIXES
+        ):
             return await call_next(request)
 
         # Skip if no auth header (let downstream auth handle 401)
@@ -45,7 +59,9 @@ class TrialEnforcementMiddleware(BaseHTTPMiddleware):
         # Decode JWT to extract org_id and user info
         token = auth_header.removeprefix("Bearer ").strip()
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
         except JWTError:
             # Let downstream auth handle invalid tokens
             return await call_next(request)
@@ -113,6 +129,8 @@ class TrialEnforcementMiddleware(BaseHTTPMiddleware):
 
         except Exception:
             # If we can't check subscription, let request through and log
-            logger.exception("TrialEnforcementMiddleware: failed to check subscription status")
+            logger.exception(
+                "TrialEnforcementMiddleware: failed to check subscription status"
+            )
 
         return await call_next(request)

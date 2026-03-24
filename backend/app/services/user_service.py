@@ -78,7 +78,9 @@ async def get_user_by_id(user_id: UUID, db: AsyncSession) -> User:
     return user
 
 
-async def get_users(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 50) -> List[User]:
+async def get_users(
+    org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 50
+) -> List[User]:
     """Retrieve a paginated list of users belonging to the given org."""
     result = await db.execute(
         select(User)
@@ -91,7 +93,9 @@ async def get_users(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 
     return list(result.scalars().all())
 
 
-async def update_user(user_id: UUID, data: UserUpdate, db: AsyncSession, org_id: UUID | None = None) -> User:
+async def update_user(
+    user_id: UUID, data: UserUpdate, db: AsyncSession, org_id: UUID | None = None
+) -> User:
     """Update user fields. Only non-None fields from the update schema are applied.
 
     When *org_id* is supplied the function also validates that the target user

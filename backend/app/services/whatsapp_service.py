@@ -2,6 +2,7 @@
 WhatsApp Business Cloud API integration.
 Uses Meta's Graph API to send template messages and notifications.
 """
+
 import logging
 
 import httpx
@@ -85,9 +86,7 @@ def normalize_phone(phone: str) -> str:
 
 async def notify_lead_assigned(phone: str, lead_name: str, assigned_to: str) -> bool:
     """Notify a sales person that a new lead has been assigned to them."""
-    return await send_whatsapp_message(
-        phone, "lead_assigned", [lead_name, assigned_to]
-    )
+    return await send_whatsapp_message(phone, "lead_assigned", [lead_name, assigned_to])
 
 
 async def notify_quote_sent(

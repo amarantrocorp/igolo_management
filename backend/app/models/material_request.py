@@ -49,9 +49,7 @@ class MaterialRequest(Base, UUIDMixin, TimestampMixin, TenantMixin):
         default=MaterialRequestStatus.PENDING,
         nullable=False,
     )
-    urgency: Mapped[str] = mapped_column(
-        String(20), default="NORMAL", nullable=False
-    )
+    urgency: Mapped[str] = mapped_column(String(20), default="NORMAL", nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     approved_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
@@ -63,9 +61,7 @@ class MaterialRequest(Base, UUIDMixin, TimestampMixin, TenantMixin):
     # Relationships
     project: Mapped["Project"] = relationship("Project")
     sprint: Mapped[Optional["Sprint"]] = relationship("Sprint")
-    requested_by: Mapped["User"] = relationship(
-        "User", foreign_keys=[requested_by_id]
-    )
+    requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id])
     approved_by: Mapped[Optional["User"]] = relationship(
         "User", foreign_keys=[approved_by_id]
     )
@@ -88,9 +84,7 @@ class MaterialRequestItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
         UUID(as_uuid=True), ForeignKey("items.id"), nullable=False
     )
     quantity_requested: Mapped[float] = mapped_column(Float, nullable=False)
-    quantity_approved: Mapped[Optional[float]] = mapped_column(
-        Float, nullable=True
-    )
+    quantity_approved: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Relationships

@@ -22,15 +22,12 @@ from app.core.security import (
 from app.models.organization import OrgInvitation, OrgMembership, Organization
 from app.models.user import User
 
-
 # ── Settings ──
 
 
 async def get_org_settings(org_id: UUID, db: AsyncSession) -> Organization:
     """Return the organization record for settings display."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
         raise NotFoundException(detail="Organization not found")
@@ -82,7 +79,9 @@ async def remove_member(
 ) -> None:
     """Deactivate a membership. Cannot remove self."""
     if user_id == current_user_id:
-        raise BadRequestException(detail="You cannot remove yourself from the organization")
+        raise BadRequestException(
+            detail="You cannot remove yourself from the organization"
+        )
 
     result = await db.execute(
         select(OrgMembership).where(
@@ -166,12 +165,15 @@ async def invite_member(
     existing_mem = await db.execute(
         select(OrgMembership).where(
             OrgMembership.org_id == org_id,
-            OrgMembership.user_id == select(User.id).where(User.email == email).scalar_subquery(),
+            OrgMembership.user_id
+            == select(User.id).where(User.email == email).scalar_subquery(),
             OrgMembership.is_active == True,  # noqa: E712
         )
     )
     if existing_mem.scalar_one_or_none():
-        raise BadRequestException(detail="This user is already a member of the organization")
+        raise BadRequestException(
+            detail="This user is already a member of the organization"
+        )
 
     # Check for pending invitation
     existing_inv = await db.execute(
@@ -183,7 +185,9 @@ async def invite_member(
         )
     )
     if existing_inv.scalar_one_or_none():
-        raise BadRequestException(detail="A pending invitation already exists for this email")
+        raise BadRequestException(
+            detail="A pending invitation already exists for this email"
+        )
 
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
@@ -243,9 +247,7 @@ async def get_invite_info(token: str, db: AsyncSession) -> dict:
         raise BadRequestException(detail="This invitation has expired")
 
     # Check if user already has an account
-    user_result = await db.execute(
-        select(User).where(User.email == invitation.email)
-    )
+    user_result = await db.execute(select(User).where(User.email == invitation.email))
     has_account = user_result.scalar_one_or_none() is not None
 
     return {
@@ -280,9 +282,7 @@ async def accept_invite(
         raise BadRequestException(detail="This invitation has expired")
 
     # Find or create user
-    user_result = await db.execute(
-        select(User).where(User.email == invitation.email)
-    )
+    user_result = await db.execute(select(User).where(User.email == invitation.email))
     user = user_result.scalar_one_or_none()
 
     if not user:
@@ -412,5 +412,10 @@ def _plan_lead_limit(tier: str) -> int:
 def _plan_storage_limit(tier: str) -> int:
     """Return storage limit in bytes."""
     gb = 1024 * 1024 * 1024
-    limits = {"FREE": 1 * gb, "STARTER": 10 * gb, "PRO": 100 * gb, "ENTERPRISE": 1000 * gb}
+    limits = {
+        "FREE": 1 * gb,
+        "STARTER": 10 * gb,
+        "PRO": 100 * gb,
+        "ENTERPRISE": 1000 * gb,
+    }
     return limits.get(tier, 1 * gb)

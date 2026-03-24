@@ -20,68 +20,138 @@ depends_on: Union[str, Sequence[str], None] = None
 
 # ── Enum types for new tables ────────────────────────────────────────────
 plantier = postgresql.ENUM(
-    "FREE", "STARTER", "PRO", "ENTERPRISE",
-    name="plantier", create_type=False,
+    "FREE",
+    "STARTER",
+    "PRO",
+    "ENTERPRISE",
+    name="plantier",
+    create_type=False,
 )
 materialrequeststatus = postgresql.ENUM(
-    "PENDING", "APPROVED", "PARTIALLY_APPROVED", "REJECTED", "FULFILLED",
-    name="materialrequeststatus", create_type=False,
+    "PENDING",
+    "APPROVED",
+    "PARTIALLY_APPROVED",
+    "REJECTED",
+    "FULFILLED",
+    name="materialrequeststatus",
+    create_type=False,
 )
 inspectionstatus = postgresql.ENUM(
-    "DRAFT", "IN_PROGRESS", "COMPLETED",
-    name="inspectionstatus", create_type=False,
+    "DRAFT",
+    "IN_PROGRESS",
+    "COMPLETED",
+    name="inspectionstatus",
+    create_type=False,
 )
 checklistitemstatus = postgresql.ENUM(
-    "PASS", "FAIL", "NA", "PENDING",
-    name="checklistitemstatus", create_type=False,
+    "PASS",
+    "FAIL",
+    "NA",
+    "PENDING",
+    name="checklistitemstatus",
+    create_type=False,
 )
 snagseverity = postgresql.ENUM(
-    "LOW", "MEDIUM", "HIGH", "CRITICAL",
-    name="snagseverity", create_type=False,
+    "LOW",
+    "MEDIUM",
+    "HIGH",
+    "CRITICAL",
+    name="snagseverity",
+    create_type=False,
 )
 snagstatus = postgresql.ENUM(
-    "OPEN", "IN_PROGRESS", "RESOLVED", "VERIFIED",
-    name="snagstatus", create_type=False,
+    "OPEN",
+    "IN_PROGRESS",
+    "RESOLVED",
+    "VERIFIED",
+    name="snagstatus",
+    create_type=False,
 )
 budgetcategory = postgresql.ENUM(
-    "MATERIAL", "LABOR", "SUBCONTRACTOR", "OVERHEAD", "CONTINGENCY",
-    name="budgetcategory", create_type=False,
+    "MATERIAL",
+    "LABOR",
+    "SUBCONTRACTOR",
+    "OVERHEAD",
+    "CONTINGENCY",
+    name="budgetcategory",
+    create_type=False,
 )
 invoicestatus = postgresql.ENUM(
-    "DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED",
-    name="invoicestatus", create_type=False,
+    "DRAFT",
+    "SENT",
+    "PAID",
+    "OVERDUE",
+    "CANCELLED",
+    name="invoicestatus",
+    create_type=False,
 )
 approvalentitytype = postgresql.ENUM(
-    "PO", "VO", "EXPENSE", "MATERIAL_REQUEST", "INVOICE",
-    name="approvalentitytype", create_type=False,
+    "PO",
+    "VO",
+    "EXPENSE",
+    "MATERIAL_REQUEST",
+    "INVOICE",
+    name="approvalentitytype",
+    create_type=False,
 )
 approvalstatus = postgresql.ENUM(
-    "PENDING", "APPROVED", "REJECTED",
-    name="approvalstatus", create_type=False,
+    "PENDING",
+    "APPROVED",
+    "REJECTED",
+    name="approvalstatus",
+    create_type=False,
 )
 workorderstatus = postgresql.ENUM(
-    "DRAFT", "ACTIVE", "COMPLETED", "CANCELLED",
-    name="workorderstatus", create_type=False,
+    "DRAFT",
+    "ACTIVE",
+    "COMPLETED",
+    "CANCELLED",
+    name="workorderstatus",
+    create_type=False,
 )
 rabillstatus = postgresql.ENUM(
-    "SUBMITTED", "VERIFIED", "APPROVED", "PAID",
-    name="rabillstatus", create_type=False,
+    "SUBMITTED",
+    "VERIFIED",
+    "APPROVED",
+    "PAID",
+    name="rabillstatus",
+    create_type=False,
 )
 assetcondition = postgresql.ENUM(
-    "EXCELLENT", "GOOD", "FAIR", "POOR",
-    name="assetcondition", create_type=False,
+    "EXCELLENT",
+    "GOOD",
+    "FAIR",
+    "POOR",
+    name="assetcondition",
+    create_type=False,
 )
 assetstatus = postgresql.ENUM(
-    "AVAILABLE", "ASSIGNED", "MAINTENANCE", "RETIRED",
-    name="assetstatus", create_type=False,
+    "AVAILABLE",
+    "ASSIGNED",
+    "MAINTENANCE",
+    "RETIRED",
+    name="assetstatus",
+    create_type=False,
 )
 documentcategory = postgresql.ENUM(
-    "DRAWING", "BOQ", "CONTRACT", "PHOTO", "REPORT", "INVOICE", "OTHER",
-    name="documentcategory", create_type=False,
+    "DRAWING",
+    "BOQ",
+    "CONTRACT",
+    "PHOTO",
+    "REPORT",
+    "INVOICE",
+    "OTHER",
+    name="documentcategory",
+    create_type=False,
 )
 vendorbillstatus = postgresql.ENUM(
-    "RECEIVED", "VERIFIED", "APPROVED", "PAID", "DISPUTED",
-    name="vendorbillstatus", create_type=False,
+    "RECEIVED",
+    "VERIFIED",
+    "APPROVED",
+    "PAID",
+    "DISPUTED",
+    name="vendorbillstatus",
+    create_type=False,
 )
 
 
@@ -119,7 +189,9 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_organizations_slug"), "organizations", ["slug"], unique=True)
+    op.create_index(
+        op.f("ix_organizations_slug"), "organizations", ["slug"], unique=True
+    )
 
     # ── 2. Create org_memberships table ──────────────────────────────────
     op.create_table(
@@ -129,9 +201,15 @@ def upgrade() -> None:
         sa.Column(
             "role",
             postgresql.ENUM(
-                "SUPER_ADMIN", "MANAGER", "BDE", "SALES",
-                "SUPERVISOR", "CLIENT", "LABOR_LEAD",
-                name="userrole", create_type=False,
+                "SUPER_ADMIN",
+                "MANAGER",
+                "BDE",
+                "SALES",
+                "SUPERVISOR",
+                "CLIENT",
+                "LABOR_LEAD",
+                name="userrole",
+                create_type=False,
             ),
             nullable=False,
         ),
@@ -149,15 +227,27 @@ def upgrade() -> None:
     # ── 3. Add is_platform_admin to users ────────────────────────────────
     op.add_column(
         "users",
-        sa.Column("is_platform_admin", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column(
+            "is_platform_admin", sa.Boolean(), nullable=False, server_default="false"
+        ),
     )
 
     # ── 4. Make users.role nullable (role now lives on OrgMembership) ────
-    op.alter_column("users", "role", existing_type=sa.Enum(
-        "SUPER_ADMIN", "MANAGER", "BDE", "SALES",
-        "SUPERVISOR", "CLIENT", "LABOR_LEAD",
-        name="userrole",
-    ), nullable=True)
+    op.alter_column(
+        "users",
+        "role",
+        existing_type=sa.Enum(
+            "SUPER_ADMIN",
+            "MANAGER",
+            "BDE",
+            "SALES",
+            "SUPERVISOR",
+            "CLIENT",
+            "LABOR_LEAD",
+            name="userrole",
+        ),
+        nullable=True,
+    )
 
     # ── 5. Insert default organization & backfill ────────────────────────
     #    We use raw SQL for the data migration part.
@@ -248,7 +338,9 @@ def upgrade() -> None:
         sa.Column("project_id", sa.UUID(), nullable=False),
         sa.Column("sprint_id", sa.UUID(), nullable=True),
         sa.Column("requested_by_id", sa.UUID(), nullable=False),
-        sa.Column("status", materialrequeststatus, nullable=False, server_default="PENDING"),
+        sa.Column(
+            "status", materialrequeststatus, nullable=False, server_default="PENDING"
+        ),
         sa.Column("urgency", sa.String(20), nullable=False, server_default="NORMAL"),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("approved_by_id", sa.UUID(), nullable=True),
@@ -285,7 +377,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_material_request_items_org_id", "material_request_items", ["org_id"])
+    op.create_index(
+        "ix_material_request_items_org_id", "material_request_items", ["org_id"]
+    )
 
     # inspections
     op.create_table(
@@ -315,7 +409,9 @@ def upgrade() -> None:
         "inspection_items",
         sa.Column("inspection_id", sa.UUID(), nullable=False),
         sa.Column("description", sa.String(500), nullable=False),
-        sa.Column("status", checklistitemstatus, nullable=False, server_default="PENDING"),
+        sa.Column(
+            "status", checklistitemstatus, nullable=False, server_default="PENDING"
+        ),
         sa.Column("photo_url", sa.String(500), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("org_id", sa.UUID(), nullable=False),
@@ -385,7 +481,9 @@ def upgrade() -> None:
         sa.Column("subtotal", sa.Numeric(12, 2), nullable=False, server_default="0"),
         sa.Column("tax_percent", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("tax_amount", sa.Numeric(12, 2), nullable=False, server_default="0"),
-        sa.Column("total_amount", sa.Numeric(12, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "total_amount", sa.Numeric(12, 2), nullable=False, server_default="0"
+        ),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("org_id", sa.UUID(), nullable=False),
         sa.Column("id", sa.UUID(), nullable=False),
@@ -398,7 +496,9 @@ def upgrade() -> None:
     op.create_index("ix_invoices_project_id", "invoices", ["project_id"])
     op.create_index("ix_invoices_org_id", "invoices", ["org_id"])
     # Composite unique: (org_id, invoice_number) instead of global unique
-    op.create_unique_constraint("uq_invoices_org_number", "invoices", ["org_id", "invoice_number"])
+    op.create_unique_constraint(
+        "uq_invoices_org_number", "invoices", ["org_id", "invoice_number"]
+    )
     op.create_index("ix_invoices_invoice_number", "invoices", ["invoice_number"])
 
     # invoice_items
@@ -415,9 +515,7 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["invoice_id"], ["invoices.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["invoice_id"], ["invoices.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["linked_sprint_id"], ["sprints.id"]),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
@@ -472,7 +570,9 @@ def upgrade() -> None:
         sa.Column("wo_number", sa.String(50), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("scope_of_work", sa.Text(), nullable=True),
-        sa.Column("contract_amount", sa.Numeric(12, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "contract_amount", sa.Numeric(12, 2), nullable=False, server_default="0"
+        ),
         sa.Column("unit_rate", sa.Numeric(12, 2), nullable=True),
         sa.Column("estimated_quantity", sa.Numeric(10, 2), nullable=True),
         sa.Column("unit", sa.String(20), nullable=True),
@@ -492,7 +592,9 @@ def upgrade() -> None:
     op.create_index("ix_work_orders_project_id", "work_orders", ["project_id"])
     op.create_index("ix_work_orders_org_id", "work_orders", ["org_id"])
     # Composite unique: (org_id, wo_number) instead of global unique
-    op.create_unique_constraint("uq_work_orders_org_number", "work_orders", ["org_id", "wo_number"])
+    op.create_unique_constraint(
+        "uq_work_orders_org_number", "work_orders", ["org_id", "wo_number"]
+    )
     op.create_index("ix_work_orders_wo_number", "work_orders", ["wo_number"])
 
     # ra_bills
@@ -539,7 +641,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_assets_org_id", "assets", ["org_id"])
     # Composite unique: (org_id, serial_number) instead of global unique
-    op.create_unique_constraint("uq_assets_org_serial", "assets", ["org_id", "serial_number"])
+    op.create_unique_constraint(
+        "uq_assets_org_serial", "assets", ["org_id", "serial_number"]
+    )
 
     # asset_usage_logs
     op.create_table(
@@ -553,9 +657,7 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["asset_id"], ["assets.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["asset_id"], ["assets.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"]),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
@@ -576,14 +678,14 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["project_id"], ["projects.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["uploaded_by_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_project_documents_project_id", "project_documents", ["project_id"])
+    op.create_index(
+        "ix_project_documents_project_id", "project_documents", ["project_id"]
+    )
     op.create_index("ix_project_documents_org_id", "project_documents", ["org_id"])
 
     # vendor_bills
@@ -596,7 +698,9 @@ def upgrade() -> None:
         sa.Column("amount", sa.Numeric(12, 2), nullable=False),
         sa.Column("tax_amount", sa.Numeric(12, 2), nullable=False, server_default="0"),
         sa.Column("total_amount", sa.Numeric(12, 2), nullable=False),
-        sa.Column("status", vendorbillstatus, nullable=False, server_default="RECEIVED"),
+        sa.Column(
+            "status", vendorbillstatus, nullable=False, server_default="RECEIVED"
+        ),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("org_id", sa.UUID(), nullable=False),
         sa.Column("id", sa.UUID(), nullable=False),
@@ -687,7 +791,9 @@ def downgrade() -> None:
     op.drop_index("ix_inspections_org_id", table_name="inspections")
     op.drop_table("inspections")
 
-    op.drop_index("ix_material_request_items_org_id", table_name="material_request_items")
+    op.drop_index(
+        "ix_material_request_items_org_id", table_name="material_request_items"
+    )
     op.drop_table("material_request_items")
 
     op.drop_index("ix_material_requests_org_id", table_name="material_requests")
@@ -724,11 +830,21 @@ def downgrade() -> None:
         op.drop_column(tbl, "org_id")
 
     # ── Restore users.role to NOT NULL ───────────────────────────────────
-    op.alter_column("users", "role", existing_type=sa.Enum(
-        "SUPER_ADMIN", "MANAGER", "BDE", "SALES",
-        "SUPERVISOR", "CLIENT", "LABOR_LEAD",
-        name="userrole",
-    ), nullable=False)
+    op.alter_column(
+        "users",
+        "role",
+        existing_type=sa.Enum(
+            "SUPER_ADMIN",
+            "MANAGER",
+            "BDE",
+            "SALES",
+            "SUPERVISOR",
+            "CLIENT",
+            "LABOR_LEAD",
+            name="userrole",
+        ),
+        nullable=False,
+    )
 
     # ── Drop is_platform_admin ───────────────────────────────────────────
     op.drop_column("users", "is_platform_admin")

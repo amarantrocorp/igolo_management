@@ -71,9 +71,7 @@ class Inspection(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
     inspection_date: Mapped[date] = mapped_column(Date, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    overall_score: Mapped[Optional[float]] = mapped_column(
-        Float, nullable=True
-    )
+    overall_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Relationships
     project: Mapped["Project"] = relationship("Project")
@@ -100,9 +98,7 @@ class InspectionItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
         default=ChecklistItemStatus.PENDING,
         nullable=False,
     )
-    photo_url: Mapped[Optional[str]] = mapped_column(
-        String(500), nullable=True
-    )
+    photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -124,22 +120,16 @@ class SnagItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
         UUID(as_uuid=True), ForeignKey("inspections.id"), nullable=True
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    severity: Mapped[SnagSeverity] = mapped_column(
-        Enum(SnagSeverity), nullable=False
-    )
+    severity: Mapped[SnagSeverity] = mapped_column(Enum(SnagSeverity), nullable=False)
     status: Mapped[SnagStatus] = mapped_column(
         Enum(SnagStatus), default=SnagStatus.OPEN, nullable=False
     )
-    photo_url: Mapped[Optional[str]] = mapped_column(
-        String(500), nullable=True
-    )
+    photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     assigned_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    resolution_notes: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True
-    )
+    resolution_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

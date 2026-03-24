@@ -5,11 +5,11 @@ Revises: bdc2529576a3
 Create Date: 2026-03-24
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = "c1d2e3f4g5h6"
@@ -34,7 +34,9 @@ def upgrade() -> None:
     )
 
     # 3. Create the tenant schema for each existing org
-    result = conn.execute(sa.text("SELECT schema_name FROM organizations WHERE schema_name IS NOT NULL"))
+    result = conn.execute(
+        sa.text("SELECT schema_name FROM organizations WHERE schema_name IS NOT NULL")
+    )
     for row in result:
         schema = row[0]
         conn.execute(sa.text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
@@ -43,7 +45,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Drop tenant schemas
     conn = op.get_bind()
-    result = conn.execute(sa.text("SELECT schema_name FROM organizations WHERE schema_name IS NOT NULL"))
+    result = conn.execute(
+        sa.text("SELECT schema_name FROM organizations WHERE schema_name IS NOT NULL")
+    )
     for row in result:
         schema = row[0]
         conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))

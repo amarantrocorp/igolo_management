@@ -4,7 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
+from app.core.security import (
+    AuthContext,
+    get_auth_context,
+    get_tenant_session,
+    role_required,
+)
 from app.models.project import ProjectStatus
 from app.schemas.inventory import ProjectMaterialsResponse
 from app.schemas.project import (
@@ -170,14 +175,15 @@ async def create_daily_log(
     project_id: UUID,
     payload: DailyLogCreate,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Log daily site progress for a project sprint."""
     log = await project_service.create_daily_log(
-        project_id=project_id, data=payload, user_id=ctx.user.id,
-        org_id=ctx.org_id, db=db
+        project_id=project_id,
+        data=payload,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
+        db=db,
     )
     return log
 
@@ -247,8 +253,11 @@ async def create_variation_order(
     """Create a new Variation Order (VO) for a project. VOs handle changes
     after the main contract is signed."""
     vo = await project_service.create_variation_order(
-        project_id=project_id, data=payload, user_id=ctx.user.id,
-        org_id=ctx.org_id, db=db
+        project_id=project_id,
+        data=payload,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
+        db=db,
     )
     return vo
 
@@ -286,9 +295,7 @@ async def update_variation_order(
 async def get_project_materials(
     project_id: UUID,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])),
 ):
     """Retrieve all materials (purchase orders + stock issues) linked to a project."""
     return await inventory_service.get_project_materials(
@@ -412,7 +419,9 @@ async def list_documents(
     """List all documents for a project."""
     from app.services import document_service
 
-    return await document_service.list_documents(project_id, db, org_id=ctx.org_id, category=category)
+    return await document_service.list_documents(
+        project_id, db, org_id=ctx.org_id, category=category
+    )
 
 
 @router.delete(

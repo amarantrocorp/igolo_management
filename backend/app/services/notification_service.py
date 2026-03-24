@@ -79,7 +79,9 @@ async def notify_role(
     for membership in memberships:
         # Fetch user details for the email
         user_result = await db.execute(
-            select(User).where(User.id == membership.user_id, User.is_active == True)  # noqa: E712
+            select(User).where(
+                User.id == membership.user_id, User.is_active == True  # noqa: E712
+            )  # noqa: E712
         )
         user = user_result.scalar_one_or_none()
         if not user:
@@ -122,7 +124,9 @@ async def get_notifications(
 async def get_unread_count(db: AsyncSession, user_id: UUID, org_id: UUID) -> int:
     """Return the count of unread notifications for a user."""
     result = await db.execute(
-        select(func.count()).select_from(Notification).where(
+        select(func.count())
+        .select_from(Notification)
+        .where(
             Notification.recipient_id == user_id,
             Notification.org_id == org_id,
             Notification.is_read == False,  # noqa: E712

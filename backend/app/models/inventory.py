@@ -28,9 +28,7 @@ if TYPE_CHECKING:
 
 class Item(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "items"
-    __table_args__ = (
-        UniqueConstraint("org_id", "sku", name="uq_items_org_sku"),
-    )
+    __table_args__ = (UniqueConstraint("org_id", "sku", name="uq_items_org_sku"),)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     sku: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

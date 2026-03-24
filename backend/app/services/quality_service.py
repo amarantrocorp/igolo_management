@@ -23,7 +23,6 @@ from app.schemas.quality import (
     SnagItemUpdate,
 )
 
-
 # ---------------------------------------------------------------------------
 # Inspections
 # ---------------------------------------------------------------------------
@@ -146,12 +145,8 @@ async def complete_inspection(
         if i.status in (ChecklistItemStatus.PASS, ChecklistItemStatus.FAIL)
     ]
     if scorable:
-        pass_count = sum(
-            1 for i in scorable if i.status == ChecklistItemStatus.PASS
-        )
-        inspection.overall_score = round(
-            (pass_count / len(scorable)) * 100, 1
-        )
+        pass_count = sum(1 for i in scorable if i.status == ChecklistItemStatus.PASS)
+        inspection.overall_score = round((pass_count / len(scorable)) * 100, 1)
 
     inspection.status = InspectionStatus.COMPLETED
 
@@ -179,9 +174,7 @@ async def complete_inspection(
 # ---------------------------------------------------------------------------
 
 
-async def create_snag(
-    data: SnagItemCreate, org_id: UUID, db: AsyncSession
-) -> SnagItem:
+async def create_snag(data: SnagItemCreate, org_id: UUID, db: AsyncSession) -> SnagItem:
     """Create a standalone snag item."""
     snag = SnagItem(
         project_id=data.project_id,
@@ -287,18 +280,12 @@ async def get_project_quality_summary(
     snag_result = await db.execute(
         select(
             func.count().label("total"),
-            func.count()
-            .filter(SnagItem.status == SnagStatus.OPEN)
-            .label("open"),
+            func.count().filter(SnagItem.status == SnagStatus.OPEN).label("open"),
             func.count()
             .filter(SnagItem.severity == SnagSeverity.CRITICAL)
             .label("critical"),
             func.count()
-            .filter(
-                SnagItem.status.in_(
-                    [SnagStatus.RESOLVED, SnagStatus.VERIFIED]
-                )
-            )
+            .filter(SnagItem.status.in_([SnagStatus.RESOLVED, SnagStatus.VERIFIED]))
             .label("resolved"),
         ).where(
             SnagItem.project_id == project_id,

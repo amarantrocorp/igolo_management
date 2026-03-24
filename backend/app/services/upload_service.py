@@ -86,7 +86,9 @@ def _generate_filename(file: UploadFile) -> str:
     return f"{uuid.uuid4()}{ext}"
 
 
-async def upload_file(file: UploadFile, category: str, org_id: str | None = None) -> str:
+async def upload_file(
+    file: UploadFile, category: str, org_id: str | None = None
+) -> str:
     """Upload a file and return its URL.
 
     Uses S3 in production, local filesystem otherwise.
@@ -123,7 +125,9 @@ async def _upload_to_s3(file: UploadFile, category: str, filename: str) -> str:
         ContentType=file.content_type or "application/octet-stream",
     )
 
-    return f"https://{settings.S3_BUCKET_NAME}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+    return (
+        f"https://{settings.S3_BUCKET_NAME}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+    )
 
 
 async def _upload_to_local(file: UploadFile, category: str, filename: str) -> str:

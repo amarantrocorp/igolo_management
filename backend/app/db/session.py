@@ -33,9 +33,7 @@ async def get_tenant_db(schema_name: str) -> AsyncSession:
     """
     async with AsyncSessionLocal() as session:
         try:
-            await session.execute(
-                text(f'SET search_path TO "{schema_name}", public')
-            )
+            await session.execute(text(f'SET search_path TO "{schema_name}", public'))
             yield session
         finally:
             await session.execute(text("SET search_path TO public"))

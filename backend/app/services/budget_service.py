@@ -18,7 +18,6 @@ from app.models.user import UserRole
 from app.schemas.budget import BudgetLineItemCreate, BudgetLineItemUpdate
 from app.services import notification_service
 
-
 # Mapping from TransactionSource to BudgetCategory
 SOURCE_TO_BUDGET = {
     TransactionSource.VENDOR: BudgetCategory.MATERIAL,
@@ -121,9 +120,7 @@ async def get_budget_vs_actual(
         )
         .group_by(BudgetLineItem.category)
     )
-    budgeted_by_cat = {
-        row.category: row.total for row in budget_result.all()
-    }
+    budgeted_by_cat = {row.category: row.total for row in budget_result.all()}
 
     # Get actual spend grouped by source (OUTFLOW only, CLEARED)
     actual_result = await db.execute(
@@ -139,17 +136,13 @@ async def get_budget_vs_actual(
         )
         .group_by(Transaction.source)
     )
-    actual_by_source = {
-        row.source: row.total for row in actual_result.all()
-    }
+    actual_by_source = {row.source: row.total for row in actual_result.all()}
 
     # Map actual spend to budget categories
     actual_by_cat = {}
     for source, budget_cat in SOURCE_TO_BUDGET.items():
         amt = actual_by_source.get(source, Decimal("0.00"))
-        actual_by_cat[budget_cat] = actual_by_cat.get(
-            budget_cat, Decimal("0.00")
-        ) + amt
+        actual_by_cat[budget_cat] = actual_by_cat.get(budget_cat, Decimal("0.00")) + amt
 
     # Build variance report
     all_categories = set(budgeted_by_cat.keys()) | set(actual_by_cat.keys())
@@ -161,9 +154,7 @@ async def get_budget_vs_actual(
         budgeted = budgeted_by_cat.get(cat, Decimal("0.00"))
         actual = actual_by_cat.get(cat, Decimal("0.00"))
         variance = actual - budgeted
-        variance_pct = (
-            float((variance / budgeted) * 100) if budgeted > 0 else 0.0
-        )
+        variance_pct = float((variance / budgeted) * 100) if budgeted > 0 else 0.0
         items.append(
             {
                 "category": cat.value,

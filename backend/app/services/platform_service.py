@@ -12,11 +12,13 @@ from app.models.project import Project
 from app.models.user import User
 
 
-async def create_organization(
-    data: dict, db: AsyncSession
-) -> Organization:
+async def create_organization(data: dict, db: AsyncSession) -> Organization:
     """Create a new organization and provision its tenant schema."""
-    from app.services.tenant_provisioner import slugify_schema_name, create_tenant_schema, provision_tenant_tables
+    from app.services.tenant_provisioner import (
+        slugify_schema_name,
+        create_tenant_schema,
+        provision_tenant_tables,
+    )
 
     # Check slug uniqueness
     existing = await db.execute(
@@ -41,7 +43,10 @@ async def create_organization(
     except Exception as e:
         # Log but don't fail org creation — schema can be provisioned later
         import logging
-        logging.getLogger(__name__).error(f"Failed to provision schema '{schema_name}': {e}")
+
+        logging.getLogger(__name__).error(
+            f"Failed to provision schema '{schema_name}': {e}"
+        )
 
     return org
 
@@ -51,16 +56,17 @@ async def list_organizations(
 ) -> list[Organization]:
     """List all organizations (platform admin only)."""
     result = await db.execute(
-        select(Organization).offset(skip).limit(limit).order_by(Organization.created_at.desc())
+        select(Organization)
+        .offset(skip)
+        .limit(limit)
+        .order_by(Organization.created_at.desc())
     )
     return list(result.scalars().all())
 
 
 async def get_organization(org_id: UUID, db: AsyncSession) -> Organization:
     """Get a single organization by ID."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
         raise NotFoundException(detail=f"Organization '{org_id}' not found")
@@ -100,7 +106,9 @@ async def add_member(
         )
     )
     if existing.scalar_one_or_none():
-        raise BadRequestException(detail="User is already a member of this organization")
+        raise BadRequestException(
+            detail="User is already a member of this organization"
+        )
 
     membership = OrgMembership(
         user_id=user_id,
@@ -115,9 +123,7 @@ async def add_member(
     return membership
 
 
-async def remove_member(
-    org_id: UUID, user_id: UUID, db: AsyncSession
-) -> None:
+async def remove_member(org_id: UUID, user_id: UUID, db: AsyncSession) -> None:
     """Remove a user from an organization (deactivate membership)."""
     result = await db.execute(
         select(OrgMembership).where(
@@ -133,9 +139,7 @@ async def remove_member(
     await db.commit()
 
 
-async def list_members(
-    org_id: UUID, db: AsyncSession
-) -> list[OrgMembership]:
+async def list_members(org_id: UUID, db: AsyncSession) -> list[OrgMembership]:
     """List all members of an organization."""
     result = await db.execute(
         select(OrgMembership)
@@ -192,9 +196,7 @@ async def get_platform_stats(db: AsyncSession) -> dict:
             Organization.subscription_status == SubscriptionStatus.ACTIVE
         )
     )
-    mrr = sum(
-        plan_prices.get(row[0], 0) for row in active_orgs_result.all()
-    )
+    mrr = sum(plan_prices.get(row[0], 0) for row in active_orgs_result.all())
 
     total_orgs = org_count.scalar() or 0
     active_paying = paying_orgs.scalar() or 0
@@ -245,9 +247,7 @@ async def activate_organization(org_id: UUID, db: AsyncSession) -> Organization:
     return org
 
 
-async def change_plan(
-    org_id: UUID, plan_tier: str, db: AsyncSession
-) -> Organization:
+async def change_plan(org_id: UUID, plan_tier: str, db: AsyncSession) -> Organization:
     """Override an organization's plan tier."""
     from app.models.organization import PlanTier
 

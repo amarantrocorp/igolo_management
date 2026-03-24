@@ -48,7 +48,9 @@ async def list_approval_rules(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """List all approval rules."""
-    return await approval_service.list_rules(db, org_id=ctx.org_id, entity_type=entity_type)
+    return await approval_service.list_rules(
+        db, org_id=ctx.org_id, entity_type=entity_type
+    )
 
 
 @router.delete("/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)

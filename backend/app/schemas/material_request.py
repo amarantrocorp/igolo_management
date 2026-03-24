@@ -6,7 +6,6 @@ from pydantic import BaseModel, model_validator
 
 from app.models.material_request import MaterialRequestStatus
 
-
 # ---------------------------------------------------------------------------
 # Material Request Item
 # ---------------------------------------------------------------------------

@@ -5,7 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
+from app.core.security import (
+    AuthContext,
+    get_auth_context,
+    get_tenant_session,
+    role_required,
+)
 from app.models.labor import AttendanceStatus
 from app.schemas.labor import (
     AttendanceLogCreate,
@@ -36,9 +41,7 @@ async def create_labor_team(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new labor team."""
-    team = await labor_service.create_labor_team(
-        data=payload, org_id=ctx.org_id, db=db
-    )
+    team = await labor_service.create_labor_team(data=payload, org_id=ctx.org_id, db=db)
     return team
 
 
@@ -67,9 +70,7 @@ async def get_labor_team(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single labor team with its workers."""
-    team = await labor_service.get_team(
-        team_id=team_id, org_id=ctx.org_id, db=db
-    )
+    team = await labor_service.get_team(team_id=team_id, org_id=ctx.org_id, db=db)
     return team
 
 
@@ -125,9 +126,7 @@ async def add_worker(
 async def log_attendance(
     payload: AttendanceLogCreate,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Log daily attendance for a labor team on a project sprint.
     Automatically calculates cost as workers_present * daily_rate * (total_hours / 8).
@@ -153,9 +152,7 @@ async def list_attendance(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """List attendance logs with optional filters and pagination."""
     parsed_status = AttendanceStatus(attendance_status) if attendance_status else None

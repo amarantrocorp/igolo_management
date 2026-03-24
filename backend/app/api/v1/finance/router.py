@@ -5,7 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
+from app.core.security import (
+    AuthContext,
+    get_auth_context,
+    get_tenant_session,
+    role_required,
+)
 from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
 from app.schemas.budget import (
     BudgetLineItemCreate,
@@ -78,8 +83,11 @@ async def get_transaction_summary(
     """Get aggregated summary totals (inflow, outflow, pending) with optional
     date range and project filters."""
     return await finance_service.get_transaction_summary(
-        db=db, org_id=ctx.org_id,
-        date_from=date_from, date_to=date_to, project_id=project_id,
+        db=db,
+        org_id=ctx.org_id,
+        date_from=date_from,
+        date_to=date_to,
+        project_id=project_id,
     )
 
 
@@ -98,8 +106,12 @@ async def get_transaction_aggregation(
 ):
     """Get inflow/outflow totals bucketed by day, week, or month."""
     return await finance_service.get_transaction_aggregation(
-        db=db, org_id=ctx.org_id, group_by=group_by,
-        date_from=date_from, date_to=date_to, project_id=project_id,
+        db=db,
+        org_id=ctx.org_id,
+        group_by=group_by,
+        date_from=date_from,
+        date_to=date_to,
+        project_id=project_id,
     )
 
 
@@ -117,8 +129,11 @@ async def get_source_breakdown(
 ):
     """Get inflow/outflow totals grouped by transaction source."""
     return await finance_service.get_source_breakdown(
-        db=db, org_id=ctx.org_id,
-        date_from=date_from, date_to=date_to, project_id=project_id,
+        db=db,
+        org_id=ctx.org_id,
+        date_from=date_from,
+        date_to=date_to,
+        project_id=project_id,
     )
 
 
@@ -135,8 +150,10 @@ async def get_project_breakdown(
 ):
     """Get inflow/outflow totals grouped by project, sorted by outflow descending."""
     return await finance_service.get_project_breakdown(
-        db=db, org_id=ctx.org_id,
-        date_from=date_from, date_to=date_to,
+        db=db,
+        org_id=ctx.org_id,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
@@ -258,7 +275,9 @@ async def create_budget_line_items(
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create budget line items for a project."""
-    return await budget_service.create_budget_line_items(project_id, items, ctx.org_id, db)
+    return await budget_service.create_budget_line_items(
+        project_id, items, ctx.org_id, db
+    )
 
 
 @router.get(
@@ -339,8 +358,11 @@ async def export_transactions(
     from app.services import export_service
 
     csv_content = await export_service.export_transactions_csv(
-        db, org_id=ctx.org_id,
-        project_id=project_id, date_from=date_from, date_to=date_to,
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
+        date_from=date_from,
+        date_to=date_to,
     )
     return StreamingResponse(
         StringIO(csv_content),
@@ -363,8 +385,10 @@ async def export_payroll(
     from app.services import export_service
 
     csv_content = await export_service.export_payroll_csv(
-        db, org_id=ctx.org_id,
-        date_from=date_from, date_to=date_to,
+        db,
+        org_id=ctx.org_id,
+        date_from=date_from,
+        date_to=date_to,
     )
     return StreamingResponse(
         StringIO(csv_content),
@@ -385,7 +409,8 @@ async def export_inventory(
     from app.services import export_service
 
     csv_content = await export_service.export_inventory_csv(
-        db, org_id=ctx.org_id,
+        db,
+        org_id=ctx.org_id,
     )
     return StreamingResponse(
         StringIO(csv_content),
@@ -407,7 +432,9 @@ async def export_cash_flow(
     from app.services import export_service
 
     csv_content = await export_service.generate_cash_flow_report(
-        db, org_id=ctx.org_id, project_id=project_id,
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
     )
     return StreamingResponse(
         StringIO(csv_content),

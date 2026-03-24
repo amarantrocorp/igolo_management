@@ -12,7 +12,6 @@ from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.asset import Asset, AssetCondition, AssetStatus, AssetUsageLog
 from app.schemas.asset import AssetCreate, AssetUpdate
 
-
 # ---------------------------------------------------------------------------
 # Asset CRUD
 # ---------------------------------------------------------------------------
@@ -73,7 +72,9 @@ async def list_assets(
     return list(result.scalars().all())
 
 
-async def update_asset(asset_id: UUID, data: AssetUpdate, org_id: UUID, db: AsyncSession) -> Asset:
+async def update_asset(
+    asset_id: UUID, data: AssetUpdate, org_id: UUID, db: AsyncSession
+) -> Asset:
     """Update asset details."""
     asset = await get_asset(asset_id, org_id, db)
     if data.name is not None:
@@ -96,7 +97,11 @@ async def update_asset(asset_id: UUID, data: AssetUpdate, org_id: UUID, db: Asyn
 
 
 async def assign_asset(
-    asset_id: UUID, project_id: UUID, assigned_date: date, org_id: UUID, db: AsyncSession
+    asset_id: UUID,
+    project_id: UUID,
+    assigned_date: date,
+    org_id: UUID,
+    db: AsyncSession,
 ) -> AssetUsageLog:
     """Assign an asset to a project."""
     asset = await get_asset(asset_id, org_id, db)

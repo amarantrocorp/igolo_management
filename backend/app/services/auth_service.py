@@ -25,7 +25,9 @@ from app.services.user_service import (
 )
 
 
-async def authenticate_user(email: str, password: str, db: AsyncSession) -> LoginResponse:
+async def authenticate_user(
+    email: str, password: str, db: AsyncSession
+) -> LoginResponse:
     """Authenticate a user and return login response with org context."""
     user = await _authenticate_user(email, password, db)
     if not user:
@@ -170,7 +172,9 @@ async def refresh_tokens(refresh_token_str: str, db: AsyncSession) -> Token:
     return Token(access_token=access_token, refresh_token=new_refresh_token)
 
 
-async def request_password_reset(email: str, db: AsyncSession) -> ForgotPasswordResponse:
+async def request_password_reset(
+    email: str, db: AsyncSession
+) -> ForgotPasswordResponse:
     """Generate a password reset token and send email.
 
     Always returns a success message regardless of whether the email exists,
@@ -211,7 +215,9 @@ async def request_password_reset(email: str, db: AsyncSession) -> ForgotPassword
     )
 
 
-async def reset_password(token: str, new_password: str, db: AsyncSession) -> ForgotPasswordResponse:
+async def reset_password(
+    token: str, new_password: str, db: AsyncSession
+) -> ForgotPasswordResponse:
     """Validate the reset token and update the user's password."""
     result = await db.execute(
         select(PasswordResetToken).where(PasswordResetToken.token == token)

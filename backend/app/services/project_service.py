@@ -38,7 +38,9 @@ from app.schemas.project import (
 )
 
 
-async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: AsyncSession) -> Project:
+async def convert_quote_to_project(
+    data: ProjectConvert, org_id: UUID, db: AsyncSession
+) -> Project:
     """Convert an approved quotation into a project.
 
     Steps:
@@ -49,7 +51,9 @@ async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: Async
     """
     # Fetch and validate the quotation
     result = await db.execute(
-        select(Quotation).where(Quotation.id == data.quotation_id, Quotation.org_id == org_id)
+        select(Quotation).where(
+            Quotation.id == data.quotation_id, Quotation.org_id == org_id
+        )
     )
     quotation = result.scalar_one_or_none()
     if not quotation:
@@ -65,7 +69,9 @@ async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: Async
     from app.models.crm import Client
 
     client_result = await db.execute(
-        select(Client).where(Client.lead_id == quotation.lead_id, Client.org_id == org_id)
+        select(Client).where(
+            Client.lead_id == quotation.lead_id, Client.org_id == org_id
+        )
     )
     client = client_result.scalar_one_or_none()
     if not client:
@@ -134,7 +140,11 @@ async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: Async
                     "recipient_name": client_user.full_name,
                     "project_name": full_project.name,
                     "start_date": str(full_project.start_date),
-                    "expected_end_date": str(full_project.expected_end_date) if full_project.expected_end_date else None,
+                    "expected_end_date": (
+                        str(full_project.expected_end_date)
+                        if full_project.expected_end_date
+                        else None
+                    ),
                     "action_url": None,
                     "frontend_url": settings.FRONTEND_URL,
                 },
@@ -156,7 +166,11 @@ async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: Async
             email_data={
                 "project_name": full_project.name,
                 "start_date": str(full_project.start_date),
-                "expected_end_date": str(full_project.expected_end_date) if full_project.expected_end_date else None,
+                "expected_end_date": (
+                    str(full_project.expected_end_date)
+                    if full_project.expected_end_date
+                    else None
+                ),
                 "action_url": f"/dashboard/projects/{full_project.id}",
             },
         )
@@ -173,7 +187,11 @@ async def convert_quote_to_project(data: ProjectConvert, org_id: UUID, db: Async
             email_data={
                 "project_name": full_project.name,
                 "start_date": str(full_project.start_date),
-                "expected_end_date": str(full_project.expected_end_date) if full_project.expected_end_date else None,
+                "expected_end_date": (
+                    str(full_project.expected_end_date)
+                    if full_project.expected_end_date
+                    else None
+                ),
                 "action_url": f"/dashboard/projects/{full_project.id}",
             },
         )
@@ -244,14 +262,18 @@ async def get_projects(
     status_filter: Optional[ProjectStatus] = None,
 ) -> List[Project]:
     """Retrieve a paginated list of projects with optional status filter."""
-    query = select(Project).options(
-        selectinload(Project.sprints),
-        selectinload(Project.wallet),
-        selectinload(Project.client).options(
-            selectinload(Client.user),
-            selectinload(Client.lead),
-        ),
-    ).where(Project.org_id == org_id)
+    query = (
+        select(Project)
+        .options(
+            selectinload(Project.sprints),
+            selectinload(Project.wallet),
+            selectinload(Project.client).options(
+                selectinload(Client.user),
+                selectinload(Client.lead),
+            ),
+        )
+        .where(Project.org_id == org_id)
+    )
 
     if status_filter:
         query = query.where(Project.status == status_filter)
@@ -340,7 +362,11 @@ async def _ripple_date_update(
 
 
 async def create_daily_log(
-    project_id: UUID, data: DailyLogCreate, user_id: UUID, org_id: UUID, db: AsyncSession
+    project_id: UUID,
+    data: DailyLogCreate,
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
 ) -> DailyLog:
     """Create a daily progress log for a project (used by supervisors)."""
     # Validate project exists
@@ -498,9 +524,9 @@ async def update_variation_order(
     await db.refresh(vo)
 
     # Notify on VO status changes (APPROVED or PAID)
-    if (
-        "status" in update_data
-        and update_data["status"] in (VOStatus.APPROVED, VOStatus.PAID)
+    if "status" in update_data and update_data["status"] in (
+        VOStatus.APPROVED,
+        VOStatus.PAID,
     ):
         from app.services.notification_service import notify_role
 
@@ -547,7 +573,11 @@ async def get_project_financial_health(
 
 
 async def create_transaction(
-    project_id: UUID, data: TransactionCreate, user_id: UUID, org_id: UUID, db: AsyncSession
+    project_id: UUID,
+    data: TransactionCreate,
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
 ) -> Transaction:
     """Record a financial transaction via the finance service.
 
@@ -567,7 +597,9 @@ async def create_transaction(
         reference_id=data.reference_id,
         proof_doc_url=data.proof_doc_url,
     )
-    return await finance_create_txn(data=finance_data, user_id=user_id, org_id=org_id, db=db)
+    return await finance_create_txn(
+        data=finance_data, user_id=user_id, org_id=org_id, db=db
+    )
 
 
 async def list_transactions(

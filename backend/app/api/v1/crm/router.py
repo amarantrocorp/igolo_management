@@ -96,7 +96,9 @@ async def update_lead(
     ),
 ):
     """Update an existing lead."""
-    lead = await crm_service.update_lead(lead_id=lead_id, data=payload, org_id=ctx.org_id, db=db)
+    lead = await crm_service.update_lead(
+        lead_id=lead_id, data=payload, org_id=ctx.org_id, db=db
+    )
     return lead
 
 
@@ -112,7 +114,9 @@ async def convert_lead_to_client(
 ):
     """Convert a qualified lead into a client. Creates a User account with CLIENT role
     and a Client record linked to the original lead."""
-    client = await crm_service.convert_lead_to_client(lead_id=lead_id, org_id=ctx.org_id, db=db)
+    client = await crm_service.convert_lead_to_client(
+        lead_id=lead_id, org_id=ctx.org_id, db=db
+    )
     return client
 
 

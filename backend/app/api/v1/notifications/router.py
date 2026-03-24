@@ -59,8 +59,7 @@ async def mark_notification_read(
 ):
     """Mark a single notification as read."""
     await notification_service.mark_as_read(
-        db=db, notification_id=notification_id,
-        user_id=ctx.user.id, org_id=ctx.org_id
+        db=db, notification_id=notification_id, user_id=ctx.user.id, org_id=ctx.org_id
     )
 
 

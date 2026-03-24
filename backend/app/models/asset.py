@@ -60,7 +60,9 @@ class AssetUsageLog(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "asset_usage_logs"
 
     asset_id: Mapped[str] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("assets.id", ondelete="CASCADE"),
+        nullable=False,
     )
     project_id: Mapped[str] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("projects.id"), nullable=False

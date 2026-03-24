@@ -19,7 +19,6 @@ from app.models.work_order import RABill, RABillStatus, WorkOrder, WorkOrderStat
 from app.schemas.work_order import RABillCreate, WorkOrderCreate, WorkOrderUpdate
 from app.services.finance_service import authorize_expense, get_wallet
 
-
 # ---------------------------------------------------------------------------
 # Work Order CRUD
 # ---------------------------------------------------------------------------
@@ -34,7 +33,9 @@ async def _next_wo_number(org_id: UUID, db: AsyncSession) -> str:
     return f"WO-{count + 1:05d}"
 
 
-async def create_work_order(data: WorkOrderCreate, org_id: UUID, db: AsyncSession) -> WorkOrder:
+async def create_work_order(
+    data: WorkOrderCreate, org_id: UUID, db: AsyncSession
+) -> WorkOrder:
     """Create a new work order in DRAFT status."""
     wo_number = await _next_wo_number(org_id, db)
     wo = WorkOrder(

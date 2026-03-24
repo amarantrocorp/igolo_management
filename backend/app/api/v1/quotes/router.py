@@ -62,7 +62,9 @@ async def get_quotation(
     ),
 ):
     """Retrieve a single quotation with its rooms and items."""
-    quotation = await quotation_service.get_quotation(quote_id=quote_id, org_id=ctx.org_id, db=db)
+    quotation = await quotation_service.get_quotation(
+        quote_id=quote_id, org_id=ctx.org_id, db=db
+    )
     return quotation
 
 
@@ -78,7 +80,9 @@ async def finalize_quotation(
 ):
     """Finalize a DRAFT quotation, freezing it as a versioned snapshot.
     Creates a new version if previous versions exist for the same lead."""
-    quotation = await quotation_service.finalize_quotation(quote_id=quote_id, org_id=ctx.org_id, db=db)
+    quotation = await quotation_service.finalize_quotation(
+        quote_id=quote_id, org_id=ctx.org_id, db=db
+    )
     return quotation
 
 
@@ -101,6 +105,7 @@ async def update_quotation_status(
     restricted_statuses = {"APPROVED", "REJECTED", "ARCHIVED"}
     if payload.status in restricted_statuses and ctx.role == "SALES":
         from fastapi import HTTPException
+
         raise HTTPException(
             status_code=403,
             detail=f"SALES role cannot set quotation status to {payload.status}. Only MANAGER or SUPER_ADMIN can approve/reject quotations.",

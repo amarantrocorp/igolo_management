@@ -31,9 +31,7 @@ router = APIRouter()
 async def create_inspection(
     data: InspectionCreate,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new inspection with checklist items."""
     return await quality_service.create_inspection(data, ctx.user.id, ctx.org_id, db)
@@ -50,7 +48,12 @@ async def list_inspections(
 ):
     """List inspections with optional filters."""
     return await quality_service.list_inspections(
-        db, org_id=ctx.org_id, project_id=project_id, sprint_id=sprint_id, skip=skip, limit=limit
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
+        sprint_id=sprint_id,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -73,9 +76,7 @@ async def update_inspection_item(
     item_id: UUID,
     data: InspectionItemUpdate,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a checklist item's status, photo, or notes."""
     return await quality_service.update_inspection_item(item_id, data, ctx.org_id, db)
@@ -88,9 +89,7 @@ async def update_inspection_item(
 async def complete_inspection(
     inspection_id: UUID,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Complete an inspection, compute score, and auto-create snags from FAILs."""
     return await quality_service.complete_inspection(inspection_id, ctx.org_id, db)
@@ -105,9 +104,7 @@ async def complete_inspection(
 async def create_snag(
     data: SnagItemCreate,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a standalone snag item."""
     return await quality_service.create_snag(data, ctx.org_id, db)
@@ -125,8 +122,13 @@ async def list_snags(
 ):
     """List snag items with optional filters."""
     return await quality_service.list_snags(
-        db, org_id=ctx.org_id, project_id=project_id, severity=severity, status=status,
-        skip=skip, limit=limit,
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
+        severity=severity,
+        status=status,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -135,9 +137,7 @@ async def update_snag(
     snag_id: UUID,
     data: SnagItemUpdate,
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(
-        role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a snag item's status, severity, assignment, etc."""
     return await quality_service.update_snag(snag_id, data, ctx.org_id, db)

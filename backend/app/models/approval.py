@@ -40,9 +40,7 @@ class ApprovalRule(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
     min_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     max_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    required_roles: Mapped[list[str]] = mapped_column(
-        ARRAY(String(50)), nullable=False
-    )
+    required_roles: Mapped[list[str]] = mapped_column(ARRAY(String(50)), nullable=False)
 
 
 class ApprovalLog(Base, UUIDMixin, TimestampMixin, TenantMixin):

@@ -167,7 +167,9 @@ async def reset_password(
     )
 
 
-@router.get("/invite-info", response_model=InviteInfoResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/invite-info", response_model=InviteInfoResponse, status_code=status.HTTP_200_OK
+)
 async def get_invite_info(
     token: str,
     db: AsyncSession = Depends(get_db),
@@ -176,7 +178,11 @@ async def get_invite_info(
     return await org_service.get_invite_info(token=token, db=db)
 
 
-@router.post("/accept-invite", response_model=AcceptInviteResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/accept-invite",
+    response_model=AcceptInviteResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def accept_invite(
     payload: AcceptInviteRequest,
     db: AsyncSession = Depends(get_db),

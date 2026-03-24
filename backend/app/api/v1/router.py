@@ -43,12 +43,18 @@ api_router.include_router(
     prefix="/material-requests",
     tags=["Material Requests"],
 )
-api_router.include_router(quality_router, prefix="/quality", tags=["Quality Management"])
+api_router.include_router(
+    quality_router, prefix="/quality", tags=["Quality Management"]
+)
 api_router.include_router(invoices_router, prefix="/invoices", tags=["Invoices"])
 api_router.include_router(approvals_router, prefix="/approvals", tags=["Approvals"])
-api_router.include_router(work_orders_router, prefix="/work-orders", tags=["Work Orders"])
+api_router.include_router(
+    work_orders_router, prefix="/work-orders", tags=["Work Orders"]
+)
 api_router.include_router(assets_router, prefix="/assets", tags=["Assets"])
-api_router.include_router(vendor_bills_router, prefix="/vendor-bills", tags=["Vendor Bills"])
+api_router.include_router(
+    vendor_bills_router, prefix="/vendor-bills", tags=["Vendor Bills"]
+)
 api_router.include_router(payments_router, prefix="/payments", tags=["Payments"])
 api_router.include_router(billing_router, prefix="/billing", tags=["Billing"])
 api_router.include_router(org_router, prefix="/org", tags=["Organization"])

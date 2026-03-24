@@ -15,9 +15,15 @@ class OrgUsage(Base):
     org_id: Mapped[_uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), primary_key=True
     )
-    total_leads: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
-    total_projects: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
-    total_users: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    total_leads: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
+    total_projects: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
+    total_users: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
     storage_used_bytes: Mapped[int] = mapped_column(
         BigInteger, default=0, nullable=False, server_default="0"
     )

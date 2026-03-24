@@ -24,8 +24,14 @@ logger = logging.getLogger(__name__)
 
 # Paths that don't need tenant context
 _SKIP_PREFIXES = (
-    "/auth/", "/platform/", "/health", "/docs", "/redoc", "/openapi",
-    "/uploads/", "/billing/",
+    "/auth/",
+    "/platform/",
+    "/health",
+    "/docs",
+    "/redoc",
+    "/openapi",
+    "/uploads/",
+    "/billing/",
 )
 
 # In-memory cache: org_id → schema_name  (cleared on restart)
@@ -35,7 +41,9 @@ _SCHEMA_CACHE: dict[str, str] = {}
 class TenantMiddleware(BaseHTTPMiddleware):
     """Resolve the tenant schema for every request and store on request.state."""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         path = request.url.path
 
         # Skip exempt paths
@@ -68,7 +76,9 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         token = auth_header.removeprefix("Bearer ").strip()
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
         except JWTError:
             return None
 
@@ -96,7 +106,9 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     _SCHEMA_CACHE[org_id] = row[0]
                     return row[0]
         except Exception:
-            logger.exception("TenantMiddleware: failed to resolve schema for org_id=%s", org_id)
+            logger.exception(
+                "TenantMiddleware: failed to resolve schema for org_id=%s", org_id
+            )
 
         return None
 
@@ -119,7 +131,9 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     _SCHEMA_CACHE[cache_key] = row[0]
                     return row[0]
         except Exception:
-            logger.exception("TenantMiddleware: failed to resolve schema for slug=%s", slug)
+            logger.exception(
+                "TenantMiddleware: failed to resolve schema for slug=%s", slug
+            )
 
         return None
 

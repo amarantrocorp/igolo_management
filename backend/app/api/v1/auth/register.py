@@ -1,4 +1,5 @@
 """Self-service organization registration."""
+
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -10,11 +11,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email import send_email_fire_and_forget
-from app.core.security import create_access_token, create_refresh_token, get_password_hash
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    get_password_hash,
+)
 from app.db.session import get_db
 from app.models.organization import Organization, OrgMembership, SubscriptionStatus
 from app.models.user import User, UserRole
-from app.services.tenant_provisioner import slugify_schema_name, create_tenant_schema, provision_tenant_tables
+from app.services.tenant_provisioner import (
+    slugify_schema_name,
+    create_tenant_schema,
+    provision_tenant_tables,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +54,13 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # 1. Check email not taken
     existing = await db.scalar(select(User).where(User.email == data.email.lower()))
     if existing:
-        raise HTTPException(400, "An account with this email already exists. Please login.")
+        raise HTTPException(
+            400, "An account with this email already exists. Please login."
+        )
 
     # 2. Create organization with trial + schema
     slug = (
-        data.company_name.lower()
-        .replace(" ", "-")
-        .replace(".", "")[:50]
+        data.company_name.lower().replace(" ", "-").replace(".", "")[:50]
         + "-"
         + secrets.token_hex(4)
     )
@@ -109,7 +118,12 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
     # 7. Send welcome email (fire and forget)
     from app.core.config import settings
-    dashboard_url = f"http://{slug}.{settings.BASE_DOMAIN}/dashboard" if settings.USE_SUBDOMAINS else f"{settings.FRONTEND_URL}/dashboard"
+
+    dashboard_url = (
+        f"http://{slug}.{settings.BASE_DOMAIN}/dashboard"
+        if settings.USE_SUBDOMAINS
+        else f"{settings.FRONTEND_URL}/dashboard"
+    )
 
     send_email_fire_and_forget(
         subject=f"Welcome to IntDesignERP, {data.full_name}!",

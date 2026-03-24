@@ -42,6 +42,7 @@ async def provision_tenant_tables(schema_name: str) -> None:
     search_path set to the tenant schema.
     """
     from app.db.base import Base
+
     # Import all models so metadata is populated
     import app.models  # noqa: F401
 
@@ -49,22 +50,39 @@ async def provision_tenant_tables(schema_name: str) -> None:
     # Control Plane tables (users, organizations, org_memberships, org_invitations)
     # remain in the public schema
     TENANT_TABLES = {
-        "projects", "project_sprints", "project_rooms",
-        "leads", "lead_activities",
-        "quotations", "quotation_items",
-        "invoices", "invoice_items",
-        "material_requests", "material_request_items",
-        "work_orders", "work_order_items",
-        "vendors", "vendor_categories",
+        "projects",
+        "project_sprints",
+        "project_rooms",
+        "leads",
+        "lead_activities",
+        "quotations",
+        "quotation_items",
+        "invoices",
+        "invoice_items",
+        "material_requests",
+        "material_request_items",
+        "work_orders",
+        "work_order_items",
+        "vendors",
+        "vendor_categories",
         "assets",
-        "inventory_items", "stock_movements", "purchase_orders", "purchase_order_items",
+        "inventory_items",
+        "stock_movements",
+        "purchase_orders",
+        "purchase_order_items",
         "approvals",
         "budget_items",
         "documents",
-        "expenses", "expense_categories",
-        "labor_entries", "labor_contractors", "labor_attendance",
-        "quality_checklists", "quality_checklist_items", "quality_inspections",
-        "vendor_bills", "vendor_bill_items",
+        "expenses",
+        "expense_categories",
+        "labor_entries",
+        "labor_contractors",
+        "labor_attendance",
+        "quality_checklists",
+        "quality_checklist_items",
+        "quality_inspections",
+        "vendor_bills",
+        "vendor_bill_items",
         "usage_logs",
         "notifications",
         "password_reset_tokens",

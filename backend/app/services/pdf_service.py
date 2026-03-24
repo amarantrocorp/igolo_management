@@ -109,7 +109,9 @@ async def generate_po_pdf(po_id: UUID, org_id: UUID, db: AsyncSession) -> bytes:
     return _html_to_pdf(html)
 
 
-async def generate_invoice_pdf(invoice_id: UUID, org_id: UUID, db: AsyncSession) -> bytes:
+async def generate_invoice_pdf(
+    invoice_id: UUID, org_id: UUID, db: AsyncSession
+) -> bytes:
     """Generate a PDF for an invoice."""
     from app.models.invoice import Invoice
 

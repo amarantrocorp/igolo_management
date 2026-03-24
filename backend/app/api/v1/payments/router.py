@@ -31,17 +31,13 @@ router = APIRouter()
 async def create_payment_order(
     payload: CreateOrderRequest,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["CLIENT", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["CLIENT", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a Razorpay order. Returns the order_id and publishable key_id
     so the frontend can open the Razorpay checkout popup."""
 
     # Validate project exists within org
-    result = await db.execute(
-        select(Project).where(Project.id == payload.project_id)
-    )
+    result = await db.execute(select(Project).where(Project.id == payload.project_id))
     project = result.scalar_one_or_none()
     if not project or project.org_id != ctx.org_id:
         raise NotFoundException(detail=f"Project '{payload.project_id}' not found")
@@ -69,9 +65,7 @@ async def create_payment_order(
 async def verify_payment(
     payload: VerifyPaymentRequest,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(
-        role_required(["CLIENT", "MANAGER", "SUPER_ADMIN"])
-    ),
+    ctx: AuthContext = Depends(role_required(["CLIENT", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Verify Razorpay payment signature and, on success, record the
     transaction as CLEARED INFLOW and credit the project wallet."""

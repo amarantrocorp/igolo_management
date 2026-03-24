@@ -64,7 +64,9 @@ async def create_lead(data: LeadCreate, org_id: UUID, db: AsyncSession) -> Lead:
             action_url=f"/dashboard/sales/leads/{lead.id}",
             email_template="new_lead.html",
             email_data={
-                "recipient_name": lead.assigned_to.full_name if lead.assigned_to else "Team",
+                "recipient_name": (
+                    lead.assigned_to.full_name if lead.assigned_to else "Team"
+                ),
                 "lead_name": lead.name,
                 "lead_phone": lead.contact_number,
                 "lead_source": lead.source,
@@ -85,7 +87,11 @@ async def get_leads(
     assigned_to_filter: Optional[UUID] = None,
 ) -> List[Lead]:
     """Retrieve a paginated list of leads with optional status and assignee filters."""
-    query = select(Lead).options(selectinload(Lead.assigned_to)).where(Lead.org_id == org_id)
+    query = (
+        select(Lead)
+        .options(selectinload(Lead.assigned_to))
+        .where(Lead.org_id == org_id)
+    )
 
     if status_filter:
         query = query.where(Lead.status == status_filter)
@@ -110,7 +116,9 @@ async def get_lead(lead_id: UUID, org_id: UUID, db: AsyncSession) -> Lead:
     return lead
 
 
-async def update_lead(lead_id: UUID, data: LeadUpdate, org_id: UUID, db: AsyncSession) -> Lead:
+async def update_lead(
+    lead_id: UUID, data: LeadUpdate, org_id: UUID, db: AsyncSession
+) -> Lead:
     """Update lead fields. Only non-None fields from the update schema are applied."""
     lead = await get_lead(lead_id, org_id, db)
 
@@ -124,7 +132,9 @@ async def update_lead(lead_id: UUID, data: LeadUpdate, org_id: UUID, db: AsyncSe
     return lead
 
 
-async def convert_lead_to_client(lead_id: UUID, org_id: UUID, db: AsyncSession) -> Client:
+async def convert_lead_to_client(
+    lead_id: UUID, org_id: UUID, db: AsyncSession
+) -> Client:
     """Convert a lead to a client.
 
     Steps:

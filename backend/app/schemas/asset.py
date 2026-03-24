@@ -83,7 +83,9 @@ class AssetUsageLogResponse(BaseModel):
             for f in ("assigned_date", "returned_date", "created_at"):
                 if d.get(f):
                     d[f] = str(d[f])
-            if d.get("condition_on_return") and hasattr(d["condition_on_return"], "value"):
+            if d.get("condition_on_return") and hasattr(
+                d["condition_on_return"], "value"
+            ):
                 d["condition_on_return"] = d["condition_on_return"].value
             return d
         return data

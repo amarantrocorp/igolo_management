@@ -45,7 +45,9 @@ class Organization(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "organizations"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    slug: Mapped[str] = mapped_column(
+        String(100), unique=True, index=True, nullable=False
+    )
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     gst_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -64,11 +66,17 @@ class Organization(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         server_default="TRIAL",
     )
-    max_users: Mapped[int] = mapped_column(Integer, default=3, nullable=False, server_default="3")
-    max_projects: Mapped[int] = mapped_column(Integer, default=2, nullable=False, server_default="2")
+    max_users: Mapped[int] = mapped_column(
+        Integer, default=3, nullable=False, server_default="3"
+    )
+    max_projects: Mapped[int] = mapped_column(
+        Integer, default=2, nullable=False, server_default="2"
+    )
 
     # Schema-per-tenant: the PostgreSQL schema name for this tenant's data
-    schema_name: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
+    schema_name: Mapped[str | None] = mapped_column(
+        String(100), unique=True, nullable=True
+    )
 
     # Relationships
     memberships: Mapped[List["OrgMembership"]] = relationship(
@@ -81,9 +89,7 @@ class Organization(Base, UUIDMixin, TimestampMixin):
 
 class OrgMembership(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "org_memberships"
-    __table_args__ = (
-        UniqueConstraint("user_id", "org_id", name="uq_user_org"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "org_id", name="uq_user_org"),)
 
     user_id: Mapped[_uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False

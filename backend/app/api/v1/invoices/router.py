@@ -34,7 +34,12 @@ async def list_invoices(
 ):
     """List invoices with optional filters."""
     return await invoice_service.list_invoices(
-        db, org_id=ctx.org_id, project_id=project_id, status=inv_status, skip=skip, limit=limit
+        db,
+        org_id=ctx.org_id,
+        project_id=project_id,
+        status=inv_status,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -96,5 +101,7 @@ async def download_invoice_pdf(
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=invoice-{invoice_id}.pdf"},
+        headers={
+            "Content-Disposition": f"attachment; filename=invoice-{invoice_id}.pdf"
+        },
     )

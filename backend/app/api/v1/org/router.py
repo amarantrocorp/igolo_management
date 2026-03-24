@@ -57,7 +57,9 @@ async def list_members(
     return await org_service.list_members(org_id=ctx.org_id, db=db)
 
 
-@router.post("/invite", response_model=OrgInviteResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/invite", response_model=OrgInviteResponse, status_code=status.HTTP_201_CREATED
+)
 async def invite_member(
     payload: OrgInviteRequest,
     ctx: AuthContext = Depends(_super_admin_only),

@@ -28,9 +28,7 @@ async def _get_request(
     result = await db.execute(
         select(MaterialRequest)
         .options(
-            selectinload(MaterialRequest.items).selectinload(
-                MaterialRequestItem.item
-            ),
+            selectinload(MaterialRequest.items).selectinload(MaterialRequestItem.item),
             selectinload(MaterialRequest.requested_by),
             selectinload(MaterialRequest.approved_by),
             selectinload(MaterialRequest.project),
@@ -97,9 +95,7 @@ async def get_material_requests(
     query = (
         select(MaterialRequest)
         .options(
-            selectinload(MaterialRequest.items).selectinload(
-                MaterialRequestItem.item
-            ),
+            selectinload(MaterialRequest.items).selectinload(MaterialRequestItem.item),
             selectinload(MaterialRequest.requested_by),
             selectinload(MaterialRequest.project),
         )
@@ -137,9 +133,7 @@ async def approve_material_request(
         )
 
     # Build lookup of approved quantities by item_id
-    approved_lookup = {
-        item.item_id: item.quantity_approved for item in approval.items
-    }
+    approved_lookup = {item.item_id: item.quantity_approved for item in approval.items}
 
     all_full = True
     any_approved = False
@@ -225,9 +219,7 @@ async def fulfill_material_request(
         MaterialRequestStatus.APPROVED,
         MaterialRequestStatus.PARTIALLY_APPROVED,
     ):
-        raise BadRequestException(
-            detail="Only approved requests can be fulfilled"
-        )
+        raise BadRequestException(detail="Only approved requests can be fulfilled")
 
     for mr_item in mr.items:
         qty = mr_item.quantity_approved

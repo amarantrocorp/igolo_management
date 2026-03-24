@@ -59,47 +59,43 @@ MIGRATION_ORDER: list[str] = [
     "labor_teams",
     "assets",
     "approval_rules",
-
     # ── Tier 1: Depend on Tier 0 ──
-    "lead_activities",        # FK -> leads
-    "clients",                # FK -> leads
-    "quotations",             # FK -> leads
-    "vendor_items",           # FK -> vendors, items
-    "workers",                # FK -> labor_teams
-    "notifications",          # FK -> users (control plane, always present)
+    "lead_activities",  # FK -> leads
+    "clients",  # FK -> leads
+    "quotations",  # FK -> leads
+    "vendor_items",  # FK -> vendors, items
+    "workers",  # FK -> labor_teams
+    "notifications",  # FK -> users (control plane, always present)
     "password_reset_tokens",  # FK -> users
-
     # ── Tier 2: Depend on Tier 1 ──
-    "quote_rooms",            # FK -> quotations
-    "projects",               # FK -> clients, quotations
-    "purchase_orders",        # FK -> vendors, (projects nullable)
-
+    "quote_rooms",  # FK -> quotations
+    "projects",  # FK -> clients, quotations
+    "purchase_orders",  # FK -> vendors, (projects nullable)
     # ── Tier 3: Depend on Tier 2 ──
-    "quote_items",            # FK -> quote_rooms, (items nullable)
-    "po_items",               # FK -> purchase_orders, items
-    "sprints",                # FK -> projects
-    "project_wallets",        # FK -> projects (PK = project_id)
-    "variation_orders",       # FK -> projects, (sprints nullable)
-    "daily_logs",             # FK -> projects, sprints
-    "transactions",           # FK -> projects, (purchase_orders, attendance_logs, variation_orders nullable)
-    "invoices",               # FK -> projects
-    "material_requests",      # FK -> projects, (sprints nullable)
-    "budget_line_items",      # FK -> projects
-    "work_orders",            # FK -> projects, (vendors, labor_teams, sprints nullable)
-    "inspections",            # FK -> projects, sprints
-    "vendor_bills",           # FK -> vendors, (purchase_orders nullable)
-    "asset_usage_logs",       # FK -> assets, projects
-    "project_documents",      # FK -> projects
-    "stock_transactions",     # FK -> items
-    "attendance_logs",        # FK -> projects, sprints, labor_teams
-
+    "quote_items",  # FK -> quote_rooms, (items nullable)
+    "po_items",  # FK -> purchase_orders, items
+    "sprints",  # FK -> projects
+    "project_wallets",  # FK -> projects (PK = project_id)
+    "variation_orders",  # FK -> projects, (sprints nullable)
+    "daily_logs",  # FK -> projects, sprints
+    "transactions",  # FK -> projects, (purchase_orders, attendance_logs, variation_orders nullable)
+    "invoices",  # FK -> projects
+    "material_requests",  # FK -> projects, (sprints nullable)
+    "budget_line_items",  # FK -> projects
+    "work_orders",  # FK -> projects, (vendors, labor_teams, sprints nullable)
+    "inspections",  # FK -> projects, sprints
+    "vendor_bills",  # FK -> vendors, (purchase_orders nullable)
+    "asset_usage_logs",  # FK -> assets, projects
+    "project_documents",  # FK -> projects
+    "stock_transactions",  # FK -> items
+    "attendance_logs",  # FK -> projects, sprints, labor_teams
     # ── Tier 4: Depend on Tier 3 ──
-    "invoice_items",          # FK -> invoices, (sprints nullable)
-    "material_request_items", # FK -> material_requests, items
-    "ra_bills",               # FK -> work_orders
-    "inspection_items",       # FK -> inspections
-    "snag_items",             # FK -> projects, (sprints, inspections nullable)
-    "approval_logs",          # FK -> (users, generic entity_id)
+    "invoice_items",  # FK -> invoices, (sprints nullable)
+    "material_request_items",  # FK -> material_requests, items
+    "ra_bills",  # FK -> work_orders
+    "inspection_items",  # FK -> inspections
+    "snag_items",  # FK -> projects, (sprints, inspections nullable)
+    "approval_logs",  # FK -> (users, generic entity_id)
 ]
 
 # Tables that do NOT have an org_id column (WhatsApp logs use TenantMixin? No.)
@@ -110,6 +106,7 @@ MIGRATION_ORDER: list[str] = [
 @dataclass
 class MigrationStats:
     """Accumulates per-org migration statistics."""
+
     org_name: str
     schema_name: str
     table_counts: dict[str, int] = field(default_factory=dict)
@@ -125,7 +122,9 @@ class MigrationStats:
         return sum(self.skipped_tables.values())
 
 
-async def table_exists_in_schema(conn: AsyncConnection, schema: str, table: str) -> bool:
+async def table_exists_in_schema(
+    conn: AsyncConnection, schema: str, table: str
+) -> bool:
     """Check if a table exists in the given schema."""
     result = await conn.execute(
         text(
@@ -142,7 +141,9 @@ async def table_exists_in_public(conn: AsyncConnection, table: str) -> bool:
     return await table_exists_in_schema(conn, "public", table)
 
 
-async def count_rows(conn: AsyncConnection, schema: str, table: str, org_id: uuid.UUID | None = None) -> int:
+async def count_rows(
+    conn: AsyncConnection, schema: str, table: str, org_id: uuid.UUID | None = None
+) -> int:
     """Count rows in a table, optionally filtered by org_id."""
     if org_id is not None:
         result = await conn.execute(
@@ -156,7 +157,9 @@ async def count_rows(conn: AsyncConnection, schema: str, table: str, org_id: uui
     return result.scalar() or 0
 
 
-async def get_table_columns(conn: AsyncConnection, schema: str, table: str) -> list[str]:
+async def get_table_columns(
+    conn: AsyncConnection, schema: str, table: str
+) -> list[str]:
     """Get column names for a table in a given schema."""
     result = await conn.execute(
         text(
@@ -187,7 +190,9 @@ async def migrate_table(
 
     # Check if the table exists in the tenant schema
     if not await table_exists_in_schema(conn, schema, table):
-        logger.warning(f"    {table}: does not exist in tenant schema '{schema}', skipping")
+        logger.warning(
+            f"    {table}: does not exist in tenant schema '{schema}', skipping"
+        )
         return 0
 
     # Check public table has org_id column (it should, but be safe)
@@ -210,7 +215,9 @@ async def migrate_table(
         existing_count = await count_rows(conn, schema, table)
 
     if existing_count > 0:
-        logger.info(f"    {table}: already has {existing_count} rows in tenant schema, skipping")
+        logger.info(
+            f"    {table}: already has {existing_count} rows in tenant schema, skipping"
+        )
         return -existing_count  # Negative signals "skipped"
 
     if dry_run:
@@ -257,22 +264,39 @@ async def provision_tables_if_needed(schema_name: str, engine) -> None:
 
     # The TENANT_TABLES set from the provisioner
     TENANT_TABLES = {
-        "projects", "project_sprints", "project_rooms",
-        "leads", "lead_activities",
-        "quotations", "quotation_items",
-        "invoices", "invoice_items",
-        "material_requests", "material_request_items",
-        "work_orders", "work_order_items",
-        "vendors", "vendor_categories",
+        "projects",
+        "project_sprints",
+        "project_rooms",
+        "leads",
+        "lead_activities",
+        "quotations",
+        "quotation_items",
+        "invoices",
+        "invoice_items",
+        "material_requests",
+        "material_request_items",
+        "work_orders",
+        "work_order_items",
+        "vendors",
+        "vendor_categories",
         "assets",
-        "inventory_items", "stock_movements", "purchase_orders", "purchase_order_items",
+        "inventory_items",
+        "stock_movements",
+        "purchase_orders",
+        "purchase_order_items",
         "approvals",
         "budget_items",
         "documents",
-        "expenses", "expense_categories",
-        "labor_entries", "labor_contractors", "labor_attendance",
-        "quality_checklists", "quality_checklist_items", "quality_inspections",
-        "vendor_bills", "vendor_bill_items",
+        "expenses",
+        "expense_categories",
+        "labor_entries",
+        "labor_contractors",
+        "labor_attendance",
+        "quality_checklists",
+        "quality_checklist_items",
+        "quality_inspections",
+        "vendor_bills",
+        "vendor_bill_items",
         "usage_logs",
         "notifications",
         "password_reset_tokens",
@@ -283,21 +307,43 @@ async def provision_tables_if_needed(schema_name: str, engine) -> None:
     # might not list (due to naming mismatches). We create ALL tables that
     # use TenantMixin so the migration has somewhere to write.
     ACTUAL_TENANT_TABLES = {
-        "leads", "lead_activities", "clients",
-        "quotations", "quote_rooms", "quote_items",
-        "items", "vendors", "vendor_items",
-        "purchase_orders", "po_items", "stock_transactions",
-        "projects", "sprints", "variation_orders", "daily_logs",
-        "project_wallets", "transactions",
-        "labor_teams", "workers", "attendance_logs",
-        "notifications", "password_reset_tokens",
-        "material_requests", "material_request_items",
-        "inspections", "inspection_items", "snag_items",
+        "leads",
+        "lead_activities",
+        "clients",
+        "quotations",
+        "quote_rooms",
+        "quote_items",
+        "items",
+        "vendors",
+        "vendor_items",
+        "purchase_orders",
+        "po_items",
+        "stock_transactions",
+        "projects",
+        "sprints",
+        "variation_orders",
+        "daily_logs",
+        "project_wallets",
+        "transactions",
+        "labor_teams",
+        "workers",
+        "attendance_logs",
+        "notifications",
+        "password_reset_tokens",
+        "material_requests",
+        "material_request_items",
+        "inspections",
+        "inspection_items",
+        "snag_items",
         "budget_line_items",
-        "invoices", "invoice_items",
-        "approval_rules", "approval_logs",
-        "work_orders", "ra_bills",
-        "assets", "asset_usage_logs",
+        "invoices",
+        "invoice_items",
+        "approval_rules",
+        "approval_logs",
+        "work_orders",
+        "ra_bills",
+        "assets",
+        "asset_usage_logs",
         "project_documents",
         "vendor_bills",
     }
@@ -318,7 +364,9 @@ async def provision_tables_if_needed(schema_name: str, engine) -> None:
     logger.info(f"  Tables provisioned in schema '{schema_name}'")
 
 
-async def get_organizations(conn: AsyncConnection, org_id: uuid.UUID | None = None) -> list[dict]:
+async def get_organizations(
+    conn: AsyncConnection, org_id: uuid.UUID | None = None
+) -> list[dict]:
     """Fetch organizations that have a schema_name set."""
     if org_id:
         result = await conn.execute(
@@ -418,8 +466,10 @@ def print_report(all_stats: list[MigrationStats], dry_run: bool) -> None:
         grand_total_errors += errors
 
     print(f"{'=' * 60}")
-    print(f"  Grand Total: {grand_total_migrated} rows migrated, "
-          f"{grand_total_skipped} rows skipped, {grand_total_errors} errors")
+    print(
+        f"  Grand Total: {grand_total_migrated} rows migrated, "
+        f"{grand_total_skipped} rows skipped, {grand_total_errors} errors"
+    )
     print(f"{'=' * 60}\n")
 
 
@@ -470,9 +520,7 @@ async def main(dry_run: bool = False, org_id: uuid.UUID | None = None) -> None:
                         else:
                             await nested.commit()
                     except Exception as e:
-                        logger.error(
-                            f"Fatal error migrating org '{org['name']}': {e}"
-                        )
+                        logger.error(f"Fatal error migrating org '{org['name']}': {e}")
                         all_stats.append(
                             MigrationStats(
                                 org_name=org["name"],
