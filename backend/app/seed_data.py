@@ -605,7 +605,7 @@ async def seed_clients(db, leads, users):
     client_users = {email: u for email, u in users.items() if email in client_emails}
 
     clients = []
-    converted_leads = [l for l in leads if l.status == LeadStatus.CONVERTED]
+    converted_leads = [lead for lead in leads if lead.status == LeadStatus.CONVERTED]
 
     addresses = [
         "Flat 402, Prestige Lakeside, Whitefield, Bangalore 560066",

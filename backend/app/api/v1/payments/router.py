@@ -4,15 +4,13 @@ POST /payments/create-order  — Create a Razorpay order for the frontend checko
 POST /payments/verify        — Verify a completed Razorpay payment and credit the project wallet.
 """
 
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
+from app.core.security import AuthContext, get_tenant_session, role_required
 from app.models.project import Project
 from app.schemas.payment import (
     CreateOrderRequest,

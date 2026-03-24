@@ -65,7 +65,6 @@ async def export_payroll_csv(
     date_to: Optional[date] = None,
 ) -> str:
     """Generate CSV of attendance/payroll records."""
-    from datetime import datetime, time, timedelta
     from sqlalchemy.orm import selectinload
 
     query = (

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import UUID
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.db.session import get_db
+from app.models.user import User, UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/token")
@@ -57,9 +58,9 @@ def decode_token(token: str) -> dict:
 @dataclass
 class AuthContext:
     """Holds the authenticated user, active org, role, and tenant schema."""
-    user: "User"  # type: ignore[name-defined]
+    user: User
     org_id: UUID
-    role: "UserRole"  # type: ignore[name-defined]
+    role: UserRole
     schema_name: Optional[str] = None
 
 
@@ -68,8 +69,6 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the raw User object (no org context). Used only by auth endpoints."""
-    from app.models.user import User
-
     payload = decode_token(token)
     user_id: str = payload.get("sub")
     token_type: str = payload.get("type")

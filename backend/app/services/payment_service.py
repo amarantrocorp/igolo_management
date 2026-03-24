@@ -155,7 +155,7 @@ async def process_successful_payment(
             type=NotificationType.PAYMENT_RECEIVED,
             title="Payment Received via Razorpay",
             body=f"Rs. {amount} received for project via Razorpay (Ref: {razorpay_payment_id}).",
-            action_url=f"/dashboard/admin/finance",
+            action_url="/dashboard/admin/finance",
         )
     except Exception:
         pass  # Non-critical: don't fail payment on notification error

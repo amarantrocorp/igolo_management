@@ -52,7 +52,6 @@ def _format_inr(value) -> str:
 async def generate_quote_pdf(quote_id: UUID, org_id: UUID, db: AsyncSession) -> bytes:
     """Generate a PDF for a quotation."""
     from app.models.quotation import Quotation, QuoteRoom
-    from app.models.crm import Lead
 
     result = await db.execute(
         select(Quotation)

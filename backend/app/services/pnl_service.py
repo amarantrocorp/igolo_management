@@ -6,7 +6,7 @@ No new models -- computed from existing Transaction, ProjectWallet, and Variatio
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException

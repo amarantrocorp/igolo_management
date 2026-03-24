@@ -116,7 +116,7 @@ async def create_transaction(
         type=NotificationType.APPROVAL_REQ,
         title="Transaction Pending Verification",
         body=f"{data.category.value} of Rs. {data.amount} ({data.source.value}) needs verification.",
-        action_url=f"/dashboard/admin/finance",
+        action_url="/dashboard/admin/finance",
         email_template="transaction_pending.html",
         email_data={
             "project_name": f"Project {str(data.project_id)[:8]}",

@@ -3,7 +3,7 @@ from datetime import date
 from typing import List
 from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 

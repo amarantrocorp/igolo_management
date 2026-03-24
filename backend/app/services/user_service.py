@@ -83,7 +83,7 @@ async def get_users(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 
     result = await db.execute(
         select(User)
         .join(OrgMembership)
-        .where(OrgMembership.org_id == org_id, OrgMembership.is_active == True)
+        .where(OrgMembership.org_id == org_id, OrgMembership.is_active is True)
         .order_by(User.created_at.desc())
         .offset(skip)
         .limit(limit)

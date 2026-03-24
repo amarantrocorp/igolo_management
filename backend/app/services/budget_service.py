@@ -201,5 +201,5 @@ async def check_variance_alerts(
             type=NotificationType.ALERT,
             title="Budget Variance Alert",
             body=f"Budget exceeded >10% in: {categories} for project.",
-            action_url=f"/dashboard/projects",
+            action_url="/dashboard/projects",
         )

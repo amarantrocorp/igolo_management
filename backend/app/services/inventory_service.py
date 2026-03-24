@@ -368,7 +368,7 @@ async def receive_purchase_order(
         action_url="/dashboard/admin/inventory",
         email_template="generic_notification.html",
         email_data={
-            "title": f"Purchase Order Received",
+            "title": "Purchase Order Received",
             "body": f"PO #{str(po.id)[:8]} worth Rs. {po.total_amount} has been received and processed.",
             "action_url": "/dashboard/admin/inventory",
         },

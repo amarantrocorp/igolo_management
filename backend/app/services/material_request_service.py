@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
@@ -8,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.models.inventory import Item
 from app.models.material_request import (
     MaterialRequest,
     MaterialRequestItem,
@@ -81,7 +79,7 @@ async def create_material_request(
         type=NotificationType.APPROVAL_REQ,
         title="New Material Request",
         body=f"A material indent with {len(data.items)} items requires approval.",
-        action_url=f"/dashboard/admin/material-requests",
+        action_url="/dashboard/admin/material-requests",
     )
 
     return await _get_request(mr.id, org_id, db)
@@ -181,7 +179,7 @@ async def approve_material_request(
         type=NotificationType.INFO,
         title="Material Request Approved",
         body=f"Your material request has been {mr.status.value.lower().replace('_', ' ')}.",
-        action_url=f"/dashboard/admin/material-requests",
+        action_url="/dashboard/admin/material-requests",
     )
 
     return await _get_request(request_id, org_id, db)
@@ -208,7 +206,7 @@ async def reject_material_request(
         type=NotificationType.ALERT,
         title="Material Request Rejected",
         body="Your material request has been rejected.",
-        action_url=f"/dashboard/admin/material-requests",
+        action_url="/dashboard/admin/material-requests",
     )
 
     return await _get_request(request_id, org_id, db)

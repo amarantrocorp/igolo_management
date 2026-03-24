@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import uuid as _uuid
 from datetime import datetime
-from typing import Optional
-
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column

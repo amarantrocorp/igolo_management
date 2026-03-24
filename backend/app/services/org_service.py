@@ -1,6 +1,5 @@
 """Organization-level management service — scoped to a single org."""
 
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -13,11 +12,9 @@ from app.core.config import settings
 from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import (
     BadRequestException,
-    ForbiddenException,
     NotFoundException,
 )
 from app.core.security import (
-    AuthContext,
     create_access_token,
     create_refresh_token,
     get_password_hash,

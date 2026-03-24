@@ -1,7 +1,6 @@
 """Invoice Pydantic schemas."""
 
 from datetime import date
-from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
