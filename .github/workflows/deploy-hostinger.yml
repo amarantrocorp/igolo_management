@@ -104,7 +104,7 @@ jobs:
             # Create .env from template if missing
             if [ ! -f .env ]; then
               echo "Creating .env from template..."
-              cp infra/hostinger/.env.production .env
+              cp infra/hostinger/env.template .env
               echo "⚠️  EDIT .env with your production secrets before running again!"
               exit 1
             fi
