@@ -534,7 +534,7 @@ function UsageTab() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Usage Overview</CardTitle>
-          <CardDescription>Track your organization's resource consumption.</CardDescription>
+          <CardDescription>Track your organization&apos;s resource consumption.</CardDescription>
         </div>
         {nearLimit && (
           <Button variant="outline" onClick={() => router.push("/dashboard/billing")}>

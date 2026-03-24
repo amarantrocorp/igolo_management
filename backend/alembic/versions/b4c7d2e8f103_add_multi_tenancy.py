@@ -251,7 +251,8 @@ def upgrade() -> None:
 
     # ── 5. Insert default organization & backfill ────────────────────────
     #    We use raw SQL for the data migration part.
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO organizations (id, name, slug, is_active, plan_tier, created_at, updated_at)
         VALUES (
             'a0000000-0000-0000-0000-000000000001',
@@ -263,10 +264,12 @@ def upgrade() -> None:
             NOW()
         )
         ON CONFLICT DO NOTHING
-    """)
+    """
+    )
 
     # Create OrgMembership for every existing user, copying their role
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO org_memberships (id, user_id, org_id, role, is_default, is_active, created_at, updated_at)
         SELECT
             gen_random_uuid(),
@@ -280,7 +283,8 @@ def upgrade() -> None:
         FROM users u
         WHERE u.role IS NOT NULL
         ON CONFLICT DO NOTHING
-    """)
+    """
+    )
 
     # ── 6. Add org_id (NULLABLE) to all existing tenant tables ───────────
     _existing_tables = [
@@ -312,11 +316,13 @@ def upgrade() -> None:
 
     # Backfill org_id for all existing rows
     for tbl in _existing_tables:
-        op.execute(f"""
+        op.execute(
+            f"""
             UPDATE {tbl}
             SET org_id = 'a0000000-0000-0000-0000-000000000001'
             WHERE org_id IS NULL
-        """)
+        """
+        )
 
     # Make org_id NOT NULL and add FK + index
     for tbl in _existing_tables:

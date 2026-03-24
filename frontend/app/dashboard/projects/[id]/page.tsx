@@ -455,7 +455,6 @@ function SprintGanttChart({
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const CustomTooltipContent = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null
     const data = payload[0]?.payload as GanttDatum | undefined

@@ -60,7 +60,6 @@ interface BillingStatus {
 
 // Razorpay types declared in components/payments/razorpay-button.tsx
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare global {
   interface Window {
     Razorpay: any
