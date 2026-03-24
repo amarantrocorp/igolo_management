@@ -1,0 +1,8 @@
+# Prod Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: igolo-prod
+  labels:
+    environment: production
+    app: igolo

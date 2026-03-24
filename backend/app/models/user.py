@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import enum
+import uuid
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -53,3 +56,29 @@ class User(Base, UUIDMixin, TimestampMixin):
     memberships: Mapped[List["OrgMembership"]] = relationship(
         "OrgMembership", back_populates="user"
     )
+    password_reset_tokens: Mapped[List["PasswordResetToken"]] = relationship(
+        "PasswordResetToken", back_populates="user"
+    )
+
+
+class PasswordResetToken(Base, UUIDMixin):
+    __tablename__ = "password_reset_tokens"
+
+    user_id: Mapped["uuid.UUID"] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    token: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="password_reset_tokens")

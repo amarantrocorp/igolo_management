@@ -17,5 +17,5 @@ async def upload_file(
     **Categories:** items, leads, projects, attendance, finance, avatars,
     quotes, purchase-orders, daily-logs, variation-orders.
     """
-    url = await upload_service.upload_file(file, category)
+    url = await upload_service.upload_file(file, category, org_id=str(ctx.org_id))
     return {"url": url}

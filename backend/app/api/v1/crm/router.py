@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import AuthContext, role_required
@@ -16,6 +16,7 @@ from app.schemas.crm import (
     LeadUpdate,
 )
 from app.services import crm_service
+from app.services.whatsapp_service import notify_lead_assigned
 
 router = APIRouter()
 
@@ -23,6 +24,7 @@ router = APIRouter()
 @router.post("/leads", response_model=LeadResponse, status_code=status.HTTP_201_CREATED)
 async def create_lead(
     payload: LeadCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
@@ -32,6 +34,16 @@ async def create_lead(
     if payload.assigned_to_id is None:
         payload.assigned_to_id = ctx.user.id
     lead = await crm_service.create_lead(data=payload, org_id=ctx.org_id, db=db)
+
+    # Fire-and-forget WhatsApp notification to the assigned person
+    if lead.contact_number and lead.assigned_to:
+        background_tasks.add_task(
+            notify_lead_assigned,
+            lead.contact_number,
+            lead.name,
+            lead.assigned_to.full_name,
+        )
+
     return lead
 
 

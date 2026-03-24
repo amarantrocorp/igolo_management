@@ -1,0 +1,78 @@
+# Ollama Deployment - Local LLM for dev environment (llava:13b)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  labels:
+    app: ollama
+    component: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+        component: ai
+    spec:
+      # Init container to pull the llava:13b model on startup
+      initContainers:
+        - name: model-pull
+          image: ollama/ollama:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Start ollama server in background, pull model, then stop
+              ollama serve &
+              sleep 5
+              ollama pull llava:13b
+              kill %1
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: 4Gi
+            limits:
+              cpu: "4000m"
+              memory: 8Gi
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+              protocol: TCP
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: 4Gi
+            limits:
+              cpu: "4000m"
+              memory: 8Gi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data

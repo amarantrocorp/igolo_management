@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.user import UserRole
 
@@ -29,3 +29,16 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     requires_org_selection: bool = False
     organizations: Optional[List[OrgOption]] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str

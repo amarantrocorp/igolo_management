@@ -1,3 +1,5 @@
+import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -5,12 +7,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.core.config import settings
+from app.core.email import send_email_fire_and_forget
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_password_hash,
+)
 from app.models.organization import OrgMembership
-from app.models.user import User
-from app.schemas.auth import LoginResponse, OrgOption, Token
+from app.models.user import PasswordResetToken, User
+from app.schemas.auth import ForgotPasswordResponse, LoginResponse, OrgOption, Token
 from app.services.user_service import (
     authenticate_user as _authenticate_user,
+    get_user_by_email,
     get_user_by_id,
 )
 
@@ -158,3 +168,83 @@ async def refresh_tokens(refresh_token_str: str, db: AsyncSession) -> Token:
     access_token = create_access_token(data=token_data)
     new_refresh_token = create_refresh_token(data=token_data)
     return Token(access_token=access_token, refresh_token=new_refresh_token)
+
+
+async def request_password_reset(email: str, db: AsyncSession) -> ForgotPasswordResponse:
+    """Generate a password reset token and send email.
+
+    Always returns a success message regardless of whether the email exists,
+    to prevent user enumeration.
+    """
+    user = await get_user_by_email(email, db)
+
+    if user and user.is_active:
+        # Generate a secure token
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token=token,
+            expires_at=expires_at,
+        )
+        db.add(reset_token)
+        await db.commit()
+
+        # Build the reset link
+        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+        # Send email (fire-and-forget, won't block)
+        send_email_fire_and_forget(
+            subject="Reset Your Password - IntDesign ERP",
+            email_to=user.email,
+            template_name="password_reset.html",
+            template_data={
+                "subject": "Reset Your Password",
+                "user_name": user.full_name,
+                "reset_link": reset_link,
+            },
+        )
+
+    return ForgotPasswordResponse(
+        message="If an account exists with this email, you will receive a password reset link."
+    )
+
+
+async def reset_password(token: str, new_password: str, db: AsyncSession) -> ForgotPasswordResponse:
+    """Validate the reset token and update the user's password."""
+    result = await db.execute(
+        select(PasswordResetToken).where(PasswordResetToken.token == token)
+    )
+    reset_token = result.scalar_one_or_none()
+
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link.",
+        )
+
+    if reset_token.used:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This reset link has already been used.",
+        )
+
+    if reset_token.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This reset link has expired. Please request a new one.",
+        )
+
+    # Fetch the user and update password
+    user = await get_user_by_id(reset_token.user_id, db)
+    user.hashed_password = get_password_hash(new_password)
+
+    # Mark token as used
+    reset_token.used = True
+
+    db.add(user)
+    db.add(reset_token)
+    await db.commit()
+
+    return ForgotPasswordResponse(message="Your password has been reset successfully.")

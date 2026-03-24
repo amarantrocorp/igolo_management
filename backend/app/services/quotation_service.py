@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.crm import Lead, LeadStatus
@@ -14,6 +15,7 @@ from app.models.user import UserRole
 from app.models.project import Project
 from app.models.quotation import QuoteItem, QuoteRoom, QuoteStatus, Quotation
 from app.schemas.quotation import QuotationCreate
+from app.services.whatsapp_service import notify_quote_sent
 
 
 async def create_quotation(
@@ -197,6 +199,16 @@ async def finalize_quotation(quote_id: UUID, org_id: UUID, db: AsyncSession) -> 
             email_to=quotation.lead.email,
             template_name="quotation_sent.html",
             template_data=_build_quote_email_data(quotation),
+        )
+
+    # WhatsApp notification to client (fire-and-forget, errors are logged)
+    if quotation.lead and quotation.lead.contact_number:
+        quote_link = f"{settings.FRONTEND_URL}/dashboard/sales/quotes/{quotation.id}"
+        await notify_quote_sent(
+            phone=quotation.lead.contact_number,
+            client_name=quotation.lead.name,
+            quote_amount=_format_inr(quotation.total_amount),
+            quote_link=quote_link,
         )
 
     return quotation

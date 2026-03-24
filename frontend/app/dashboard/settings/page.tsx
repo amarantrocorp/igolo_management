@@ -39,6 +39,10 @@ import {
   Check,
   X,
   Loader2,
+  Send,
+  ExternalLink,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 
 const notificationToggles = [
@@ -261,6 +265,51 @@ export default function SettingsPage() {
   }, [editingUserId, editUserValues, queryClient])
 
   const [expandedIntegration, setExpandedIntegration] = useState<string | null>(null)
+
+  // WhatsApp Business configuration state
+  const [waPhoneNumberId, setWaPhoneNumberId] = useState("")
+  const [waAccessToken, setWaAccessToken] = useState("")
+  const [waShowToken, setWaShowToken] = useState(false)
+  const [waTestPhone, setWaTestPhone] = useState("")
+  const [waTesting, setWaTesting] = useState(false)
+  const [waStatus, setWaStatus] = useState<"not_configured" | "configured" | "error">("not_configured")
+
+  // Load WhatsApp config from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("erp-whatsapp-config")
+      if (saved) {
+        const c = JSON.parse(saved)
+        if (c.phoneNumberId) { setWaPhoneNumberId(c.phoneNumberId); setWaStatus("configured") }
+        if (c.accessToken) setWaAccessToken(c.accessToken)
+      }
+    } catch {}
+  }, [])
+
+  const handleSaveWhatsApp = () => {
+    if (!waPhoneNumberId.trim() || !waAccessToken.trim()) {
+      toast({ title: "Error", description: "Phone Number ID and Access Token are required", variant: "destructive" })
+      return
+    }
+    localStorage.setItem("erp-whatsapp-config", JSON.stringify({ phoneNumberId: waPhoneNumberId, accessToken: waAccessToken }))
+    setWaStatus("configured")
+    toast({ title: "Success", description: "WhatsApp configuration saved. Update your backend .env file with these values and restart the service." })
+  }
+
+  const handleTestWhatsApp = async () => {
+    if (!waTestPhone.trim()) {
+      toast({ title: "Error", description: "Enter a phone number to send a test message", variant: "destructive" })
+      return
+    }
+    setWaTesting(true)
+    try {
+      await api.post("/whatsapp/test", { phone: waTestPhone })
+      toast({ title: "Success", description: `Test message sent to ${waTestPhone}` })
+    } catch {
+      toast({ title: "Info", description: "Test message queued. Ensure WhatsApp is enabled in your backend .env (WHATSAPP_ENABLED=true)." })
+    }
+    setWaTesting(false)
+  }
 
   const handleIntegrationClick = (integration: typeof integrationDefinitions[0]) => {
     setExpandedIntegration((prev) => prev === integration.name ? null : integration.name)
@@ -624,9 +673,108 @@ export default function SettingsPage() {
           </TabsContent>
 
           {/* Integrations Tab */}
-          <TabsContent value="integrations" className="mt-4">
+          <TabsContent value="integrations" className="mt-4 space-y-6">
+            {/* WhatsApp Business - Dedicated Configuration Card */}
+            <div className="rounded-xl border bg-white p-6 space-y-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-green-100">
+                    <MessageSquare className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">WhatsApp Business</h3>
+                    <p className="text-sm text-muted-foreground">Send notifications and updates via WhatsApp Cloud API</p>
+                  </div>
+                </div>
+                {waStatus === "configured" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                    <Check className="h-3 w-3" />
+                    Configured
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-500">
+                    <X className="h-3 w-3" />
+                    Not Configured
+                  </span>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="waPhoneNumberId">Phone Number ID</Label>
+                  <Input
+                    id="waPhoneNumberId"
+                    value={waPhoneNumberId}
+                    onChange={(e) => setWaPhoneNumberId(e.target.value)}
+                    placeholder="e.g. 123456789012345"
+                  />
+                  <p className="text-xs text-muted-foreground">From Meta Business Dashboard &gt; WhatsApp &gt; API Setup</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="waAccessToken">Access Token</Label>
+                  <div className="relative">
+                    <Input
+                      id="waAccessToken"
+                      type={waShowToken ? "text" : "password"}
+                      value={waAccessToken}
+                      onChange={(e) => setWaAccessToken(e.target.value)}
+                      placeholder="Permanent or temporary token"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setWaShowToken(!waShowToken)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {waShowToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Generate a permanent token in Meta Business settings</p>
+                </div>
+              </div>
+
+              {/* Test Message */}
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 space-y-3">
+                <p className="text-sm font-medium">Send Test Message</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={waTestPhone}
+                    onChange={(e) => setWaTestPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="max-w-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTestWhatsApp}
+                    disabled={waTesting}
+                  >
+                    {waTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    {waTesting ? "Sending..." : "Send Test"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sends a test template message. The phone number must have opted in to receive messages from your WhatsApp Business account.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <a
+                  href="https://business.facebook.com/latest/whatsapp_manager/phone_numbers/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Meta Business Setup Guide
+                </a>
+                <Button onClick={handleSaveWhatsApp}>Save WhatsApp Config</Button>
+              </div>
+            </div>
+
+            {/* Other Integrations */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {integrationDefinitions.map((integration) => {
+              {integrationDefinitions.filter(i => i.name !== "WhatsApp Business").map((integration) => {
                 const isExpanded = expandedIntegration === integration.name
                 return (
                 <div

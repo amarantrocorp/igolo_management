@@ -60,8 +60,21 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
 
+    # Redis
+    REDIS_URL: str = "redis://redis:6379/0"
+
+    # Razorpay
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
     # Sentry
     SENTRY_DSN: str = ""
+
+    # WhatsApp Business API (Meta Cloud API)
+    WHATSAPP_API_URL: str = "https://graph.facebook.com/v18.0"
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    WHATSAPP_ENABLED: bool = False
 
     # Standard Project Sprints Configuration
     DEFAULT_SPRINTS: list = [

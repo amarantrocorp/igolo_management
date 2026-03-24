@@ -1,0 +1,53 @@
+# Floorplan AI Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: igolo-floorplan-ai
+  labels:
+    app: igolo-floorplan-ai
+    component: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: igolo-floorplan-ai
+  template:
+    metadata:
+      labels:
+        app: igolo-floorplan-ai
+        component: ai
+    spec:
+      containers:
+        - name: floorplan-ai
+          image: ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/igolo-floorplan-ai:latest
+          ports:
+            - containerPort: 8001
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: igolo-config
+            - secretRef:
+                name: igolo-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2000m"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3

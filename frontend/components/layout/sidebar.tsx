@@ -183,6 +183,18 @@ const navSections: NavSection[] = [
         icon: Settings,
         roles: ["SUPER_ADMIN"],
       },
+      {
+        title: "Org Settings",
+        href: "/dashboard/org-settings",
+        icon: UserCog,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Billing",
+        href: "/dashboard/billing",
+        icon: CreditCard,
+        roles: ["SUPER_ADMIN"],
+      },
     ],
   },
   {

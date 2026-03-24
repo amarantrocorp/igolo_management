@@ -1,0 +1,70 @@
+# ALB Ingress - AWS Load Balancer Controller
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: igolo-ingress
+  labels:
+    app: igolo
+  annotations:
+    # AWS ALB Ingress Controller annotations
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Replace with actual ACM certificate ARN
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:ACCOUNT_ID:certificate/CERTIFICATE_ID
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/group.name: igolo
+spec:
+  rules:
+    - host: PLACEHOLDER_HOST
+      http:
+        paths:
+          # Backend API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          # Swagger/OpenAPI docs
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          # File uploads served by backend
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          # AI service routes
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-floorplan-ai
+                port:
+                  number: 8001
+          # Frontend catch-all (must be last)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-frontend
+                port:
+                  number: 3000

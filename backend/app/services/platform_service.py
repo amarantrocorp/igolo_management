@@ -134,14 +134,109 @@ async def list_members(
 
 async def get_platform_stats(db: AsyncSession) -> dict:
     """Get cross-tenant platform statistics."""
+    from app.models.organization import PlanTier, SubscriptionStatus
+
     org_count = await db.execute(select(func.count(Organization.id)))
     user_count = await db.execute(select(func.count(User.id)))
     active_project_count = await db.execute(
         select(func.count(Project.id)).where(Project.status == "IN_PROGRESS")
     )
 
+    # Subscription-based stats
+    active_trials = await db.execute(
+        select(func.count(Organization.id)).where(
+            Organization.subscription_status == SubscriptionStatus.TRIAL
+        )
+    )
+    paying_orgs = await db.execute(
+        select(func.count(Organization.id)).where(
+            Organization.subscription_status == SubscriptionStatus.ACTIVE
+        )
+    )
+    suspended_count = await db.execute(
+        select(func.count(Organization.id)).where(
+            Organization.subscription_status == SubscriptionStatus.SUSPENDED
+        )
+    )
+    cancelled_count = await db.execute(
+        select(func.count(Organization.id)).where(
+            Organization.subscription_status == SubscriptionStatus.CANCELLED
+        )
+    )
+
+    # MRR calculation based on plan tiers
+    plan_prices = {
+        PlanTier.FREE: 0,
+        PlanTier.STARTER: 2999,
+        PlanTier.PRO: 7999,
+        PlanTier.ENTERPRISE: 19999,
+    }
+    active_orgs_result = await db.execute(
+        select(Organization.plan_tier).where(
+            Organization.subscription_status == SubscriptionStatus.ACTIVE
+        )
+    )
+    mrr = sum(
+        plan_prices.get(row[0], 0) for row in active_orgs_result.all()
+    )
+
+    total_orgs = org_count.scalar() or 0
+    active_paying = paying_orgs.scalar() or 0
+    total_trials = active_trials.scalar() or 0
+    total_cancelled = cancelled_count.scalar() or 0
+
+    # Trial conversion rate: active / (active + cancelled)
+    conversion_denominator = active_paying + total_cancelled
+    trial_conversion_rate = (
+        round(active_paying / conversion_denominator * 100, 1)
+        if conversion_denominator > 0
+        else 0.0
+    )
+
     return {
-        "total_organizations": org_count.scalar() or 0,
+        "total_organizations": total_orgs,
         "total_users": user_count.scalar() or 0,
         "active_projects": active_project_count.scalar() or 0,
+        "active_trials": total_trials,
+        "paying_customers": active_paying,
+        "suspended_count": suspended_count.scalar() or 0,
+        "mrr": mrr,
+        "trial_conversion_rate": trial_conversion_rate,
     }
+
+
+async def suspend_organization(org_id: UUID, db: AsyncSession) -> Organization:
+    """Suspend an organization."""
+    from app.models.organization import SubscriptionStatus
+
+    org = await get_organization(org_id, db)
+    org.subscription_status = SubscriptionStatus.SUSPENDED
+    org.is_active = False
+    await db.commit()
+    await db.refresh(org)
+    return org
+
+
+async def activate_organization(org_id: UUID, db: AsyncSession) -> Organization:
+    """Activate a suspended organization."""
+    from app.models.organization import SubscriptionStatus
+
+    org = await get_organization(org_id, db)
+    org.subscription_status = SubscriptionStatus.ACTIVE
+    org.is_active = True
+    await db.commit()
+    await db.refresh(org)
+    return org
+
+
+async def change_plan(
+    org_id: UUID, plan_tier: str, db: AsyncSession
+) -> Organization:
+    """Override an organization's plan tier."""
+    from app.models.organization import PlanTier
+
+    org = await get_organization(org_id, db)
+    org.plan_tier = PlanTier(plan_tier)
+    await db.commit()
+    await db.refresh(org)
+    return org

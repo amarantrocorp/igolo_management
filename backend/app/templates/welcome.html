@@ -1,0 +1,30 @@
+{% extends "email_base.html" %}
+{% block content %}
+<p>Hi {{ name }},</p>
+
+<p>Welcome to <strong>IntDesign ERP</strong>! Your workspace <strong>&ldquo;{{ company }}&rdquo;</strong> is ready and your <strong>{{ trial_days }}-day free trial</strong> has started.</p>
+
+<p>You now have access to everything you need to manage your interior design projects from lead to handover.</p>
+
+<a href="{{ dashboard_url }}" class="button">Go to Dashboard</a>
+
+<div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px;">
+    <p style="margin: 0 0 12px 0; font-weight: bold; color: #1e293b;">Quick Start Tips</p>
+    <table cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+            <td style="padding: 8px 0; vertical-align: top; width: 30px; color: #2563eb; font-weight: bold;">1.</td>
+            <td style="padding: 8px 0; color: #475569;"><strong>Add your first lead</strong> &mdash; Start tracking potential clients in the CRM.</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0; vertical-align: top; width: 30px; color: #2563eb; font-weight: bold;">2.</td>
+            <td style="padding: 8px 0; color: #475569;"><strong>Create a quotation</strong> &mdash; Build professional room-by-room quotes.</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0; vertical-align: top; width: 30px; color: #2563eb; font-weight: bold;">3.</td>
+            <td style="padding: 8px 0; color: #475569;"><strong>Invite your team</strong> &mdash; Add sales reps, managers, and supervisors.</td>
+        </tr>
+    </table>
+</div>
+
+<p style="margin-top: 20px; font-size: 13px; color: #64748b;">If you have any questions, just reply to this email &mdash; we&rsquo;re here to help you get started.</p>
+{% endblock %}

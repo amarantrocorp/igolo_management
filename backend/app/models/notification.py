@@ -37,3 +37,16 @@ class Notification(Base, UUIDMixin, TimestampMixin, TenantMixin):
 
     # Relationships
     recipient: Mapped["User"] = relationship("User", back_populates="notifications")
+
+
+class WhatsAppLog(Base, UUIDMixin, TimestampMixin):
+    """Immutable log of every WhatsApp message sent via the Meta Cloud API."""
+
+    __tablename__ = "whatsapp_logs"
+
+    phone: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    template_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="sent"
+    )  # "sent", "failed", "delivered"
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

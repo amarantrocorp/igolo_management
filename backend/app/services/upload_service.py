@@ -86,19 +86,24 @@ def _generate_filename(file: UploadFile) -> str:
     return f"{uuid.uuid4()}{ext}"
 
 
-async def upload_file(file: UploadFile, category: str) -> str:
+async def upload_file(file: UploadFile, category: str, org_id: str | None = None) -> str:
     """Upload a file and return its URL.
 
     Uses S3 in production, local filesystem otherwise.
+    When org_id is provided, files are stored under an org-scoped path
+    for multi-tenant data isolation.
     """
     validate_category(category)
     await validate_file(file, category)
 
     filename = _generate_filename(file)
 
-    if settings.ENVIRONMENT == "production":
-        return await _upload_to_s3(file, category, filename)
-    return await _upload_to_local(file, category, filename)
+    # Build org-scoped prefix: {org_id}/{category} or just {category}
+    prefix = f"{org_id}/{category}" if org_id else category
+
+    if settings.ENVIRONMENT != "local":
+        return await _upload_to_s3(file, prefix, filename)
+    return await _upload_to_local(file, prefix, filename)
 
 
 async def _upload_to_s3(file: UploadFile, category: str, filename: str) -> str:

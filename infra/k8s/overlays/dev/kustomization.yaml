@@ -1,0 +1,32 @@
+# Dev Environment Overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: igolo-dev
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - external-secret.yaml
+  - ollama/deployment.yaml
+  - ollama/service.yaml
+  - ollama/pvc.yaml
+  - redis/deployment.yaml
+  - redis/service.yaml
+
+patches:
+  - path: ingress-patch.yaml
+  - path: hpa-patch.yaml
+
+configMapGenerator:
+  - name: igolo-config
+    literals:
+      - ENVIRONMENT=development
+      - AI_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llava:13b
+      - CORS_ORIGINS=https://dev.igolo.in
+      - S3_BUCKET_NAME=igolo-dev-uploads
+      - S3_REGION=ap-south-1
+      - REDIS_URL=redis://redis:6379/0
+      - NEXT_PUBLIC_API_URL=https://dev.igolo.in/api/v1

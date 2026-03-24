@@ -1,0 +1,16 @@
+# Floorplan AI Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: igolo-floorplan-ai
+  labels:
+    app: igolo-floorplan-ai
+    component: ai
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8001
+      targetPort: 8001
+      protocol: TCP
+  selector:
+    app: igolo-floorplan-ai

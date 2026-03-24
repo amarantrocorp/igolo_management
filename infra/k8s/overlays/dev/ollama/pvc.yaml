@@ -1,0 +1,15 @@
+# Persistent Volume Claim for Ollama model storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-data
+  labels:
+    app: ollama
+    component: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 20Gi

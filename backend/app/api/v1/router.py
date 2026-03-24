@@ -17,6 +17,9 @@ from app.api.v1.approvals.router import router as approvals_router
 from app.api.v1.work_orders.router import router as work_orders_router
 from app.api.v1.assets.router import router as assets_router
 from app.api.v1.vendor_bills.router import router as vendor_bills_router
+from app.api.v1.payments.router import router as payments_router
+from app.api.v1.billing.router import router as billing_router
+from app.api.v1.org.router import router as org_router
 from app.api.v1.platform.router import router as platform_router
 
 api_router = APIRouter()
@@ -46,4 +49,7 @@ api_router.include_router(approvals_router, prefix="/approvals", tags=["Approval
 api_router.include_router(work_orders_router, prefix="/work-orders", tags=["Work Orders"])
 api_router.include_router(assets_router, prefix="/assets", tags=["Assets"])
 api_router.include_router(vendor_bills_router, prefix="/vendor-bills", tags=["Vendor Bills"])
+api_router.include_router(payments_router, prefix="/payments", tags=["Payments"])
+api_router.include_router(billing_router, prefix="/billing", tags=["Billing"])
+api_router.include_router(org_router, prefix="/org", tags=["Organization"])
 api_router.include_router(platform_router, prefix="/platform", tags=["Platform Admin"])

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { ArrowLeft, Loader2, Mail } from "lucide-react"
+import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,10 +40,12 @@ export default function ForgotPasswordPage() {
     },
   })
 
-  const onSubmit = async (_data: ForgotPasswordFormValues) => {
-    // Placeholder: In production, this would call the API
-    // await api.post("/auth/forgot-password", { email: data.email })
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  const onSubmit = async (data: ForgotPasswordFormValues) => {
+    try {
+      await api.post("/auth/forgot-password", { email: data.email })
+    } catch {
+      // Silently handle errors — always show success to prevent user enumeration
+    }
     setSubmitted(true)
   }
 
@@ -64,7 +67,7 @@ export default function ForgotPasswordPage() {
         <CardContent>
           <p className="text-center text-sm text-muted-foreground">
             If you don&apos;t see the email, check your spam folder. The link
-            will expire in 24 hours.
+            will expire in 30 minutes.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

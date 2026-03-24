@@ -1,0 +1,8 @@
+# Dev Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: igolo-dev
+  labels:
+    environment: development
+    app: igolo

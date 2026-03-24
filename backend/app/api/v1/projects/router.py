@@ -24,6 +24,7 @@ from app.schemas.project import (
     WalletResponse,
 )
 from app.schemas.document import DocumentCreate
+from app.core.plan_limits import enforce_project_limit
 from app.services import inventory_service, pnl_service, project_service
 
 router = APIRouter()
@@ -50,6 +51,7 @@ async def convert_quote_to_project(
     2. Create a Project record linked to the client and quotation.
     3. Auto-generate the 6 standard sprints with calculated dates.
     4. Create an initial ProjectWallet."""
+    await enforce_project_limit(ctx.org_id, db)
     # Ensure the payload's quotation_id matches the path parameter
     payload.quotation_id = quote_id
     project = await project_service.convert_quote_to_project(

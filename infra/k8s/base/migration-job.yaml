@@ -1,0 +1,33 @@
+# Database Migration Job - Runs Alembic migrations
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: igolo-db-migration
+  labels:
+    app: igolo-backend
+    component: migration
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: igolo-backend
+        component: migration
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migration
+          image: ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/igolo-backend:latest
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: igolo-config
+            - secretRef:
+                name: igolo-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

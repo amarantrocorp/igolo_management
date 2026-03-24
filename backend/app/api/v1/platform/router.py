@@ -5,6 +5,8 @@ from app.core.exceptions import ForbiddenException
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from pydantic import BaseModel
+
 from app.schemas.organization import (
     OrgMembershipCreate,
     OrganizationCreate,
@@ -128,5 +130,48 @@ async def get_platform_stats(
     admin: User = Depends(_require_platform_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get platform-wide statistics."""
+    """Get platform-wide statistics including MRR, trials, churn."""
     return await platform_service.get_platform_stats(db=db)
+
+
+@router.post("/organizations/{org_id}/suspend", response_model=OrganizationResponse)
+async def suspend_organization(
+    org_id: str,
+    admin: User = Depends(_require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Suspend an organization (deactivates access)."""
+    from uuid import UUID
+
+    return await platform_service.suspend_organization(org_id=UUID(org_id), db=db)
+
+
+@router.post("/organizations/{org_id}/activate", response_model=OrganizationResponse)
+async def activate_organization(
+    org_id: str,
+    admin: User = Depends(_require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Activate a suspended organization."""
+    from uuid import UUID
+
+    return await platform_service.activate_organization(org_id=UUID(org_id), db=db)
+
+
+class PlanChangePayload(BaseModel):
+    plan_tier: str
+
+
+@router.patch("/organizations/{org_id}/plan", response_model=OrganizationResponse)
+async def change_organization_plan(
+    org_id: str,
+    payload: PlanChangePayload,
+    admin: User = Depends(_require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Override an organization's plan tier."""
+    from uuid import UUID
+
+    return await platform_service.change_plan(
+        org_id=UUID(org_id), plan_tier=payload.plan_tier, db=db
+    )

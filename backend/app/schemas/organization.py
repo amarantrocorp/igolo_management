@@ -36,6 +36,10 @@ class OrganizationResponse(BaseModel):
     gst_number: Optional[str] = None
     is_active: bool
     plan_tier: PlanTier
+    subscription_status: Optional[str] = None
+    trial_expires_at: Optional[datetime] = None
+    max_users: int = 3
+    max_projects: int = 2
     created_at: datetime
 
     model_config = {"from_attributes": True}

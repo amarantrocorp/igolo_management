@@ -1,0 +1,205 @@
+name: Deploy — Dev
+
+on:
+  push:
+    branches: [develop]
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_BACKEND: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/igolo-backend
+  ECR_FRONTEND: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/igolo-frontend
+  ECR_FLOORPLAN_AI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/igolo-floorplan-ai
+  NAMESPACE: igolo-dev
+  EKS_CLUSTER: igolo-dev
+
+jobs:
+  # ── Stage 1: Lint & Test ──────────────────────────────────────────
+  lint-and-test-backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Check formatting with black
+        run: black --check .
+
+      - name: Run tests
+        env:
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: test_db
+          SECRET_KEY: test-secret-key-for-ci
+        run: pytest -v
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+
+  # ── Stage 2: Build & Push Docker Images ───────────────────────────
+  build-and-push:
+    needs: [lint-and-test-backend, lint-frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        run: |
+          docker build -t $ECR_BACKEND:${{ github.sha }} \
+                        -t $ECR_BACKEND:dev-latest \
+                        ./backend
+          docker push $ECR_BACKEND:${{ github.sha }}
+          docker push $ECR_BACKEND:dev-latest
+
+      - name: Build & push frontend image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=https://dev.igolo.in/api/v1 \
+            --build-arg NEXT_PUBLIC_FLOORPLAN_AI_URL=https://dev.igolo.in/ai \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_KEY }} \
+            -t $ECR_FRONTEND:${{ github.sha }} \
+            -t $ECR_FRONTEND:dev-latest \
+            ./frontend
+          docker push $ECR_FRONTEND:${{ github.sha }}
+          docker push $ECR_FRONTEND:dev-latest
+
+      - name: Build & push floorplan-ai image
+        run: |
+          docker build -t $ECR_FLOORPLAN_AI:${{ github.sha }} \
+                        -t $ECR_FLOORPLAN_AI:dev-latest \
+                        ./floorplan-ai
+          docker push $ECR_FLOORPLAN_AI:${{ github.sha }}
+          docker push $ECR_FLOORPLAN_AI:dev-latest
+
+  # ── Stage 3: Deploy to Dev EKS ────────────────────────────────────
+  deploy:
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Configure kubectl
+        run: aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
+
+      - name: Run database migration
+        run: |
+          kubectl delete job igolo-migration -n $NAMESPACE --ignore-not-found=true
+          kubectl apply -f infra/k8s/base/migration-job.yaml -n $NAMESPACE
+          kubectl wait --for=condition=complete job/igolo-migration -n $NAMESPACE --timeout=120s
+
+      - name: Apply kustomize manifests
+        run: kubectl apply -k infra/k8s/overlays/dev/
+
+      - name: Set image tags
+        run: |
+          kubectl set image deployment/igolo-backend \
+            backend=$ECR_BACKEND:${{ github.sha }} -n $NAMESPACE
+          kubectl set image deployment/igolo-frontend \
+            frontend=$ECR_FRONTEND:${{ github.sha }} -n $NAMESPACE
+          kubectl set image deployment/igolo-floorplan-ai \
+            floorplan-ai=$ECR_FLOORPLAN_AI:${{ github.sha }} -n $NAMESPACE
+
+      - name: Verify rollout — backend
+        run: kubectl rollout status deployment/igolo-backend -n $NAMESPACE --timeout=180s
+
+      - name: Verify rollout — frontend
+        run: kubectl rollout status deployment/igolo-frontend -n $NAMESPACE --timeout=180s
+
+      - name: Verify rollout — floorplan-ai
+        run: kubectl rollout status deployment/igolo-floorplan-ai -n $NAMESPACE --timeout=180s
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment failed — initiating rollback"
+          kubectl rollout undo deployment/igolo-backend -n $NAMESPACE || true
+          kubectl rollout undo deployment/igolo-frontend -n $NAMESPACE || true
+          kubectl rollout undo deployment/igolo-floorplan-ai -n $NAMESPACE || true

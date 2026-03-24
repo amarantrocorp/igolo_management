@@ -1,0 +1,15 @@
+# Base Kustomization for Igolo Interior Design ERP
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - backend/hpa.yaml
+  - backend/serviceaccount.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - floorplan-ai/deployment.yaml
+  - floorplan-ai/service.yaml
+  - ingress.yaml
+  - migration-job.yaml

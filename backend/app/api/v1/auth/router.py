@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -8,15 +9,34 @@ from app.core.security import get_auth_context, get_current_user, AuthContext
 from app.db.session import get_db
 from app.models.organization import OrgMembership
 from app.models.user import User
-from app.schemas.auth import LoginResponse, Token, TokenRefresh
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginResponse,
+    ResetPasswordRequest,
+    Token,
+    TokenRefresh,
+)
 from app.schemas.organization import OrgSwitchRequest
 from app.schemas.user import UserWithOrgResponse, OrgMembershipBrief
-from app.services import auth_service
+from app.schemas.org import (
+    AcceptInviteRequest,
+    AcceptInviteResponse,
+    InviteInfoResponse,
+)
+from app.services import auth_service, org_service
+from app.api.v1.auth.register import router as register_router
 
 router = APIRouter()
+router.include_router(register_router)
 
 
-@router.post("/token", response_model=LoginResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/token",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(RateLimiter(times=5, seconds=60))],
+)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
@@ -111,4 +131,60 @@ async def get_current_user_profile(
         active_org_id=ctx.org_id,
         role_in_org=ctx.role,
         organizations=org_briefs,
+    )
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset link. Always returns success to prevent user enumeration."""
+    return await auth_service.request_password_reset(
+        email=payload.email,
+        db=db,
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password using a valid reset token."""
+    return await auth_service.reset_password(
+        token=payload.token,
+        new_password=payload.new_password,
+        db=db,
+    )
+
+
+@router.get("/invite-info", response_model=InviteInfoResponse, status_code=status.HTTP_200_OK)
+async def get_invite_info(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return info about an invitation (org name, role, etc.) for the accept-invite page."""
+    return await org_service.get_invite_info(token=token, db=db)
+
+
+@router.post("/accept-invite", response_model=AcceptInviteResponse, status_code=status.HTTP_200_OK)
+async def accept_invite(
+    payload: AcceptInviteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Accept an invitation. Creates user if needed, adds org membership, returns tokens."""
+    return await org_service.accept_invite(
+        token=payload.token,
+        full_name=payload.full_name,
+        password=payload.password,
+        db=db,
     )

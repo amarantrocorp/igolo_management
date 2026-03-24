@@ -1,0 +1,56 @@
+# Strategic merge patch - Dev ingress host and certificate
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: igolo-ingress
+  annotations:
+    # Replace with actual dev ACM certificate ARN
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:ACCOUNT_ID:certificate/DEV_CERTIFICATE_ID
+spec:
+  rules:
+    - host: dev.igolo.in
+      http:
+        paths:
+          # Backend API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-backend
+                port:
+                  number: 8000
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-floorplan-ai
+                port:
+                  number: 8001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: igolo-frontend
+                port:
+                  number: 3000

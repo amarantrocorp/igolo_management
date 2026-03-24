@@ -1,0 +1,8 @@
+# Strategic merge patch - Dev HPA with lower scaling limits
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: igolo-backend-hpa
+spec:
+  minReplicas: 1
+  maxReplicas: 3

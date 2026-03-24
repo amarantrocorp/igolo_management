@@ -36,6 +36,8 @@ export interface AuthTokens {
 
 export type PlanTier = "FREE" | "STARTER" | "PRO" | "ENTERPRISE"
 
+export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "SUSPENDED"
+
 export interface Organization {
   id: string
   name: string
@@ -45,6 +47,10 @@ export interface Organization {
   gst_number?: string
   is_active: boolean
   plan_tier: PlanTier
+  subscription_status?: SubscriptionStatus
+  trial_expires_at?: string
+  max_users?: number
+  max_projects?: number
   created_at: string
 }
 

@@ -1,0 +1,51 @@
+# Frontend Deployment - Next.js application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: igolo-frontend
+  labels:
+    app: igolo-frontend
+    component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: igolo-frontend
+  template:
+    metadata:
+      labels:
+        app: igolo-frontend
+        component: web
+    spec:
+      containers:
+        - name: frontend
+          image: ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/igolo-frontend:latest
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: igolo-config
+          resources:
+            requests:
+              cpu: 128m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3

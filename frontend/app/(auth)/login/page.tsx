@@ -41,7 +41,7 @@ function getRoleDefaultRoute(role: string): string {
     case "SUPERVISOR":
       return "/dashboard/projects"
     case "CLIENT":
-      return "/dashboard/client-portal"
+      return "/client-portal"
     default:
       return "/dashboard"
   }
@@ -263,6 +263,21 @@ export default function LoginPage() {
           >
             Forgot your password?
           </Link>
+          <Link
+            href="/client-login"
+            className="text-sm text-muted-foreground hover:text-primary"
+          >
+            Are you a client? Login to Client Portal &rarr;
+          </Link>
+          <p className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/register"
+              className="text-primary font-medium hover:underline"
+            >
+              Start your free 14-day trial
+            </Link>
+          </p>
         </CardFooter>
       </form>
     </Card>

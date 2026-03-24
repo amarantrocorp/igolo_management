@@ -1,5 +1,6 @@
-from app.models.user import User
-from app.models.organization import Organization, OrgMembership
+from app.models.user import User, PasswordResetToken
+from app.models.organization import Organization, OrgMembership, OrgInvitation
+from app.models.usage import OrgUsage
 from app.models.crm import Lead, Client, LeadActivity
 from app.models.quotation import Quotation, QuoteRoom, QuoteItem
 from app.models.inventory import (
@@ -13,7 +14,7 @@ from app.models.inventory import (
 from app.models.project import Project, Sprint, VariationOrder, DailyLog
 from app.models.finance import ProjectWallet, Transaction
 from app.models.labor import LaborTeam, Worker, AttendanceLog
-from app.models.notification import Notification
+from app.models.notification import Notification, WhatsAppLog
 from app.models.material_request import MaterialRequest, MaterialRequestItem
 from app.models.quality import Inspection, InspectionItem, SnagItem
 from app.models.budget import BudgetLineItem
@@ -26,8 +27,11 @@ from app.models.vendor_bill import VendorBill
 
 __all__ = [
     "User",
+    "PasswordResetToken",
     "Organization",
     "OrgMembership",
+    "OrgInvitation",
+    "OrgUsage",
     "Lead",
     "Client",
     "LeadActivity",
@@ -50,6 +54,7 @@ __all__ = [
     "Worker",
     "AttendanceLog",
     "Notification",
+    "WhatsAppLog",
     "MaterialRequest",
     "MaterialRequestItem",
     "Inspection",

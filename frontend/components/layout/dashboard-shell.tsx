@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/layout/sidebar"
 import Header from "@/components/layout/header"
+import TrialBanner from "@/components/layout/trial-banner"
 import { useAuthStore } from "@/store/auth-store"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -37,6 +38,7 @@ export default function DashboardShell({
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
+        <TrialBanner />
         <Header />
         <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
           {children}

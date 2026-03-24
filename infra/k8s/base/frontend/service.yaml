@@ -1,0 +1,16 @@
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: igolo-frontend
+  labels:
+    app: igolo-frontend
+    component: web
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: igolo-frontend

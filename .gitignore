@@ -38,3 +38,11 @@ coverage.xml
 
 # Logs
 *.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!terraform.tfvars
+.terraform.lock.hcl

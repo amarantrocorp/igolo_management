@@ -10,6 +10,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_FLOORPLAN_AI_URL
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 RUN npm run build
 
 FROM base AS runner
@@ -21,6 +24,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
 EXPOSE 3000
 ENV PORT 3000
 CMD ["node", "server.js"]

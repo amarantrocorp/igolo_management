@@ -14,11 +14,14 @@ from app.models.notification import NotificationType
 from app.models.organization import OrgMembership
 from app.models.user import User, UserRole
 from app.schemas.crm import LeadActivityCreate, LeadCreate, LeadUpdate
+from app.core.plan_limits import enforce_lead_limit
 from app.services.notification_service import create_notification
 
 
 async def create_lead(data: LeadCreate, org_id: UUID, db: AsyncSession) -> Lead:
     """Create a new lead in the CRM pipeline."""
+    await enforce_lead_limit(org_id, db)
+
     lead = Lead(
         name=data.name,
         contact_number=data.contact_number,
