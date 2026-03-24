@@ -40,6 +40,7 @@ class OrganizationResponse(BaseModel):
     trial_expires_at: Optional[datetime] = None
     max_users: int = 3
     max_projects: int = 2
+    schema_name: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

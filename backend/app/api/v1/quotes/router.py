@@ -4,8 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AuthContext, role_required
-from app.db.session import get_db
+from app.core.security import AuthContext, get_tenant_session, role_required
 from app.models.quotation import QuoteStatus
 from app.schemas.quotation import (
     QuotationCreate,
@@ -20,7 +19,7 @@ router = APIRouter()
 @router.post("", response_model=QuotationResponse, status_code=status.HTTP_201_CREATED)
 async def create_quotation(
     payload: QuotationCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new quotation in DRAFT status with nested rooms and items."""
@@ -36,7 +35,7 @@ async def list_quotations(
     status_filter: Optional[QuoteStatus] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -57,7 +56,7 @@ async def list_quotations(
 )
 async def get_quotation(
     quote_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -74,7 +73,7 @@ async def get_quotation(
 )
 async def finalize_quotation(
     quote_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Finalize a DRAFT quotation, freezing it as a versioned snapshot.
@@ -91,7 +90,7 @@ async def finalize_quotation(
 async def update_quotation_status(
     quote_id: UUID,
     payload: QuotationUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Update the status of a quotation (e.g., SENT, APPROVED, REJECTED).
@@ -115,7 +114,7 @@ async def update_quotation_status(
 @router.get("/{quote_id}/pdf", status_code=status.HTTP_200_OK)
 async def download_quote_pdf(
     quote_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Download quotation as PDF."""
@@ -136,7 +135,7 @@ async def download_quote_pdf(
 @router.post("/{quote_id}/send", status_code=status.HTTP_200_OK)
 async def send_quote_to_client(
     quote_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
     """Send quotation PDF to the client via email. Finalizes if still DRAFT."""

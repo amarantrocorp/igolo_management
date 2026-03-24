@@ -5,8 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_auth_context, role_required, AuthContext
-from app.db.session import get_db
+from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
 from app.models.inventory import POStatus
 from app.schemas.inventory import (
     ItemCreate,
@@ -34,7 +33,7 @@ router = APIRouter()
 @router.post("/items", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
 async def create_item(
     payload: ItemCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new inventory item."""
@@ -49,7 +48,7 @@ async def list_items(
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List inventory items with optional filters for category, low stock, and search."""
@@ -70,7 +69,7 @@ async def list_items(
 )
 async def get_item(
     item_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single inventory item by ID."""
@@ -84,7 +83,7 @@ async def get_item(
 async def update_item(
     item_id: UUID,
     payload: ItemUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing inventory item."""
@@ -102,7 +101,7 @@ async def update_item(
 )
 async def create_vendor(
     payload: VendorCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new vendor."""
@@ -116,7 +115,7 @@ async def create_vendor(
 async def list_vendors(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List vendors."""
@@ -131,7 +130,7 @@ async def list_vendors(
 )
 async def get_vendor(
     vendor_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single vendor by ID."""
@@ -147,7 +146,7 @@ async def get_vendor(
 async def update_vendor(
     vendor_id: UUID,
     payload: VendorUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing vendor."""
@@ -169,7 +168,7 @@ async def update_vendor(
 )
 async def create_purchase_order(
     payload: PurchaseOrderCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new Purchase Order (PO). If is_project_specific is True,
@@ -191,7 +190,7 @@ async def list_purchase_orders(
     po_status: Optional[str] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List Purchase Orders with optional vendor, project, and status filters."""
@@ -221,7 +220,7 @@ async def list_purchase_orders(
 )
 async def receive_purchase_order(
     po_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Mark a PO as received (GRN). For general stock, increases Item.current_stock
@@ -251,7 +250,7 @@ class StockIssuePayload(BaseModel):
 async def issue_stock_to_project(
     item_id: UUID,
     payload: StockIssuePayload,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])
     ),
@@ -284,7 +283,7 @@ async def issue_stock_to_project(
 async def add_supplier_to_item(
     item_id: UUID,
     payload: VendorItemCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Link a vendor as a supplier for an inventory item."""
@@ -301,7 +300,7 @@ async def add_supplier_to_item(
 )
 async def list_item_suppliers(
     item_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List all vendors that supply a given item."""
@@ -315,7 +314,7 @@ async def list_item_suppliers(
 async def remove_supplier_from_item(
     item_id: UUID,
     vendor_item_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Remove a vendor-item link."""
@@ -337,7 +336,7 @@ async def remove_supplier_from_item(
 async def get_item_stock_history(
     item_id: UUID,
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Get recent stock transactions for an inventory item."""
@@ -354,7 +353,7 @@ async def get_item_stock_history(
 @router.get("/vendors/{vendor_id}/performance", status_code=status.HTTP_200_OK)
 async def get_vendor_performance(
     vendor_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get performance metrics for a vendor (total spend, delivery rate, order breakdown)."""
@@ -366,7 +365,7 @@ async def get_vendor_performance(
 @router.get("/purchase-orders/{po_id}/pdf", status_code=status.HTTP_200_OK)
 async def download_po_pdf(
     po_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Download purchase order as PDF."""

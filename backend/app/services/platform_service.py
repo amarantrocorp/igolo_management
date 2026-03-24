@@ -15,7 +15,9 @@ from app.models.user import User
 async def create_organization(
     data: dict, db: AsyncSession
 ) -> Organization:
-    """Create a new organization (platform admin only)."""
+    """Create a new organization and provision its tenant schema."""
+    from app.services.tenant_provisioner import slugify_schema_name, create_tenant_schema, provision_tenant_tables
+
     # Check slug uniqueness
     existing = await db.execute(
         select(Organization).where(Organization.slug == data["slug"])
@@ -23,10 +25,24 @@ async def create_organization(
     if existing.scalar_one_or_none():
         raise BadRequestException(detail=f"Slug '{data['slug']}' is already in use")
 
+    # Generate schema name from slug
+    schema_name = slugify_schema_name(data["slug"])
+    data["schema_name"] = schema_name
+
     org = Organization(**data)
     db.add(org)
     await db.commit()
     await db.refresh(org)
+
+    # Provision the tenant schema and tables
+    try:
+        await create_tenant_schema(schema_name, db)
+        await provision_tenant_tables(schema_name)
+    except Exception as e:
+        # Log but don't fail org creation — schema can be provisioned later
+        import logging
+        logging.getLogger(__name__).error(f"Failed to provision schema '{schema_name}': {e}")
+
     return org
 
 

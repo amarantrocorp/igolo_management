@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
 
+    # Multi-tenancy
+    BASE_DOMAIN: str = "localhost"
+    USE_SUBDOMAINS: bool = False  # Set True in production for subdomain routing
+
     # File Uploads
     UPLOAD_MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10 MB
     UPLOAD_MAX_DOC_SIZE: int = 25 * 1024 * 1024  # 25 MB

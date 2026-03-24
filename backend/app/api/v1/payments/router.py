@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.core.security import AuthContext, get_auth_context, role_required
-from app.db.session import get_db
+from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
 from app.models.project import Project
 from app.schemas.payment import (
     CreateOrderRequest,
@@ -33,7 +32,7 @@ router = APIRouter()
 )
 async def create_payment_order(
     payload: CreateOrderRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["CLIENT", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -71,7 +70,7 @@ async def create_payment_order(
 )
 async def verify_payment(
     payload: VerifyPaymentRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["CLIENT", "MANAGER", "SUPER_ADMIN"])
     ),

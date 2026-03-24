@@ -5,8 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_auth_context, role_required, AuthContext
-from app.db.session import get_db
+from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
 from app.models.labor import AttendanceStatus
 from app.schemas.labor import (
     AttendanceLogCreate,
@@ -33,7 +32,7 @@ router = APIRouter()
 )
 async def create_labor_team(
     payload: LaborTeamCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create a new labor team."""
@@ -49,7 +48,7 @@ async def create_labor_team(
 async def list_labor_teams(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List labor teams with pagination."""
@@ -64,7 +63,7 @@ async def list_labor_teams(
 )
 async def get_labor_team(
     team_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single labor team with its workers."""
@@ -80,7 +79,7 @@ async def get_labor_team(
 async def update_labor_team(
     team_id: UUID,
     payload: LaborTeamUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update an existing labor team."""
@@ -103,7 +102,7 @@ async def update_labor_team(
 async def add_worker(
     team_id: UUID,
     payload: WorkerCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Add a worker to a labor team."""
@@ -125,7 +124,7 @@ async def add_worker(
 )
 async def log_attendance(
     payload: AttendanceLogCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -153,7 +152,7 @@ async def list_attendance(
     date_to: Optional[date] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -189,7 +188,7 @@ async def get_payroll_summary(
     project_id: Optional[UUID] = Query(None),
     week_start: date = Query(...),
     week_end: date = Query(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get weekly payroll summary grouped by team. Optionally filter by project
@@ -214,7 +213,7 @@ async def approve_payroll(
     team_id: UUID = Query(...),
     week_start: date = Query(...),
     week_end: date = Query(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Approve and pay a weekly payroll batch for a specific team on a project.
@@ -241,7 +240,7 @@ async def approve_payroll(
 @router.get("/teams/{team_id}/productivity", status_code=status.HTTP_200_OK)
 async def get_team_productivity(
     team_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get productivity metrics for a labor team."""

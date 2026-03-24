@@ -3,8 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_auth_context, AuthContext
-from app.db.session import get_db
+from app.core.security import AuthContext, get_auth_context, get_tenant_session
 from app.schemas.notification import NotificationResponse
 from app.services import notification_service
 
@@ -20,7 +19,7 @@ async def list_notifications(
     unread_only: bool = Query(False),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List the current user's notifications."""
@@ -39,7 +38,7 @@ async def list_notifications(
     status_code=status.HTTP_200_OK,
 )
 async def unread_count(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Return the count of unread notifications for the current user."""
@@ -55,7 +54,7 @@ async def unread_count(
 )
 async def mark_notification_read(
     notification_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Mark a single notification as read."""
@@ -70,7 +69,7 @@ async def mark_notification_read(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def mark_all_notifications_read(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Mark all notifications as read for the current user."""

@@ -38,6 +38,7 @@ interface RegisterApiResponse {
   token_type: string
   user_id: string
   org_id: string
+  org_slug: string
   message: string
 }
 
@@ -111,7 +112,13 @@ export default function RegisterPage() {
         user.organizations,
       )
 
-      router.push("/register/onboarding")
+      // In production with subdomains, redirect to the tenant's subdomain
+      const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN
+      if (baseDomain && baseDomain !== "localhost" && data.org_slug) {
+        window.location.href = `https://${data.org_slug}.${baseDomain}/dashboard`
+      } else {
+        router.push("/register/onboarding")
+      }
     },
   })
 

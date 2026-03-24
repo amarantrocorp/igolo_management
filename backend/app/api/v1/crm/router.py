@@ -4,8 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import AuthContext, role_required
-from app.db.session import get_db
+from app.core.security import AuthContext, get_tenant_session, role_required
 from app.models.crm import LeadStatus
 from app.schemas.crm import (
     ClientResponse,
@@ -25,7 +24,7 @@ router = APIRouter()
 async def create_lead(
     payload: LeadCreate,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -53,7 +52,7 @@ async def list_leads(
     assigned_to: Optional[UUID] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -75,7 +74,7 @@ async def list_leads(
 )
 async def get_lead(
     lead_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -91,7 +90,7 @@ async def get_lead(
 async def update_lead(
     lead_id: UUID,
     payload: LeadUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -108,7 +107,7 @@ async def update_lead(
 )
 async def convert_lead_to_client(
     lead_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Convert a qualified lead into a client. Creates a User account with CLIENT role
@@ -125,7 +124,7 @@ async def convert_lead_to_client(
 async def create_lead_activity(
     lead_id: UUID,
     payload: LeadActivityCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -148,7 +147,7 @@ async def create_lead_activity(
 )
 async def list_lead_activities(
     lead_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
     ),

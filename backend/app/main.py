@@ -63,6 +63,11 @@ from app.core.trial_middleware import TrialEnforcementMiddleware  # noqa: E402
 
 app.add_middleware(TrialEnforcementMiddleware)
 
+# Tenant schema resolution middleware
+from app.core.tenant_middleware import TenantMiddleware  # noqa: E402
+
+app.add_middleware(TenantMiddleware)
+
 # Sentry (optional)
 if settings.SENTRY_DSN:
     import sentry_sdk

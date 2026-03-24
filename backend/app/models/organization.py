@@ -67,6 +67,9 @@ class Organization(Base, UUIDMixin, TimestampMixin):
     max_users: Mapped[int] = mapped_column(Integer, default=3, nullable=False, server_default="3")
     max_projects: Mapped[int] = mapped_column(Integer, default=2, nullable=False, server_default="2")
 
+    # Schema-per-tenant: the PostgreSQL schema name for this tenant's data
+    schema_name: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
+
     # Relationships
     memberships: Mapped[List["OrgMembership"]] = relationship(
         "OrgMembership", back_populates="organization", cascade="all, delete-orphan"

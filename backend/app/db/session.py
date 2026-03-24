@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from app.core.config import settings
 
@@ -21,4 +22,21 @@ async def get_db() -> AsyncSession:
         try:
             yield session
         finally:
+            await session.close()
+
+
+async def get_tenant_db(schema_name: str) -> AsyncSession:
+    """Yield a session with search_path set to the given tenant schema.
+
+    This ensures all queries in the session only interact with
+    data in the tenant's isolated schema.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            await session.execute(
+                text(f'SET search_path TO "{schema_name}", public')
+            )
+            yield session
+        finally:
+            await session.execute(text("SET search_path TO public"))
             await session.close()

@@ -4,8 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_auth_context, role_required, AuthContext
-from app.db.session import get_db
+from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
 from app.models.project import ProjectStatus
 from app.schemas.inventory import ProjectMaterialsResponse
 from app.schemas.project import (
@@ -43,7 +42,7 @@ router = APIRouter()
 async def convert_quote_to_project(
     quote_id: UUID,
     payload: ProjectConvert,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Convert an APPROVED quotation into a live project. This will:
@@ -65,7 +64,7 @@ async def list_projects(
     status_filter: Optional[ProjectStatus] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List projects with optional filters for status."""
@@ -86,7 +85,7 @@ async def list_projects(
 )
 async def get_project(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Retrieve a single project with its sprints."""
@@ -104,7 +103,7 @@ async def get_project(
 async def patch_project(
     project_id: UUID,
     payload: ProjectUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Partial update project details."""
@@ -122,7 +121,7 @@ async def patch_project(
 async def update_project(
     project_id: UUID,
     payload: ProjectUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update project details (status, manager, supervisor, site address)."""
@@ -146,7 +145,7 @@ async def update_sprint(
     project_id: UUID,
     sprint_id: UUID,
     payload: SprintUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a sprint (status, end_date, notes). If end_date is changed,
@@ -170,7 +169,7 @@ async def update_sprint(
 async def create_daily_log(
     project_id: UUID,
     payload: DailyLogCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])
     ),
@@ -194,7 +193,7 @@ async def list_daily_logs(
     visible_to_client: Optional[bool] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List daily progress logs for a project with optional sprint filter."""
@@ -224,7 +223,7 @@ async def list_variation_orders(
     project_id: UUID,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List variation orders for a project."""
@@ -242,7 +241,7 @@ async def list_variation_orders(
 async def create_variation_order(
     project_id: UUID,
     payload: VariationOrderCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Create a new Variation Order (VO) for a project. VOs handle changes
@@ -263,7 +262,7 @@ async def update_variation_order(
     project_id: UUID,
     vo_id: UUID,
     payload: VariationOrderUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a Variation Order (approve, reject, or link to a sprint).
@@ -286,7 +285,7 @@ async def update_variation_order(
 )
 async def get_project_materials(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["MANAGER", "SUPERVISOR", "SUPER_ADMIN"])
     ),
@@ -309,7 +308,7 @@ async def get_project_materials(
 )
 async def get_project_financial_health(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Retrieve the financial health (wallet) of a project."""
@@ -327,7 +326,7 @@ async def get_project_financial_health(
 async def create_transaction(
     project_id: UUID,
     payload: TransactionCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Record a new financial transaction (money in/out)."""
@@ -350,7 +349,7 @@ async def list_transactions(
     project_id: UUID,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """List financial transactions for a project."""
@@ -371,7 +370,7 @@ async def list_transactions(
 )
 async def get_project_pnl(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get project P&L (Profit & Loss) statement."""
@@ -392,7 +391,7 @@ async def get_project_pnl(
 async def create_document(
     project_id: UUID,
     data: DocumentCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Upload/register a document for a project."""
@@ -407,7 +406,7 @@ async def create_document(
 async def list_documents(
     project_id: UUID,
     category: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List all documents for a project."""
@@ -423,7 +422,7 @@ async def list_documents(
 async def delete_document(
     project_id: UUID,
     doc_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Delete a project document."""

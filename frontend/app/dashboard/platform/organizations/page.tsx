@@ -911,7 +911,15 @@ function OrgMembersSection({ orgId, orgName }: { orgId: string; orgName: string 
     queryKey: ["platform", "org-members", orgId],
     queryFn: async () => {
       const { data } = await api.get(`/platform/organizations/${orgId}/members`)
-      return data
+      // Normalize: backend may return nested ORM objects or flat dicts
+      return data.map((m: any) => ({
+        user_id: m.user_id || m.user?.id || m.id,
+        full_name: m.full_name || m.user?.full_name || "",
+        email: m.email || m.user?.email || "",
+        role: m.role || "",
+        is_active: m.is_active ?? true,
+        joined_at: m.joined_at || m.created_at || "",
+      }))
     },
   })
 

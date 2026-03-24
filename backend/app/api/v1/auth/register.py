@@ -1,5 +1,7 @@
 """Self-service organization registration."""
+import logging
 import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,8 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.email import send_email_fire_and_forget
 from app.core.security import create_access_token, create_refresh_token, get_password_hash
 from app.db.session import get_db
-from app.models.organization import Organization, OrgMembership
+from app.models.organization import Organization, OrgMembership, SubscriptionStatus
 from app.models.user import User, UserRole
+from app.services.tenant_provisioner import slugify_schema_name, create_tenant_schema, provision_tenant_tables
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Registration"])
 
@@ -30,6 +35,7 @@ class RegisterResponse(BaseModel):
     token_type: str = "bearer"
     user_id: str
     org_id: str
+    org_slug: str
     message: str
 
 
@@ -41,7 +47,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if existing:
         raise HTTPException(400, "An account with this email already exists. Please login.")
 
-    # 2. Create organization
+    # 2. Create organization with trial + schema
     slug = (
         data.company_name.lower()
         .replace(" ", "-")
@@ -49,11 +55,17 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         + "-"
         + secrets.token_hex(4)
     )
+    schema_name = slugify_schema_name(slug)
+    trial_end = datetime.now(timezone.utc) + timedelta(days=14)
+
     org = Organization(
         id=uuid4(),
         name=data.company_name,
         slug=slug,
         is_active=True,
+        schema_name=schema_name,
+        subscription_status=SubscriptionStatus.TRIAL,
+        trial_expires_at=trial_end,
     )
     db.add(org)
 
@@ -82,22 +94,33 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
 
-    # 5. Generate tokens
+    # 5. Provision the tenant schema (async, non-blocking on failure)
+    try:
+        await create_tenant_schema(schema_name, db)
+        await provision_tenant_tables(schema_name)
+        logger.info(f"Tenant schema '{schema_name}' provisioned for new org '{slug}'")
+    except Exception as e:
+        logger.error(f"Failed to provision schema '{schema_name}': {e}")
+
+    # 6. Generate tokens
     token_data = {"sub": str(user.id), "org_id": str(org.id)}
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
 
-    # 6. Send welcome email (fire and forget)
+    # 7. Send welcome email (fire and forget)
+    from app.core.config import settings
+    dashboard_url = f"http://{slug}.{settings.BASE_DOMAIN}/dashboard" if settings.USE_SUBDOMAINS else f"{settings.FRONTEND_URL}/dashboard"
+
     send_email_fire_and_forget(
         subject=f"Welcome to IntDesignERP, {data.full_name}!",
         email_to=data.email,
         template_name="welcome.html",
         template_data={
-            "subject": f"Welcome to IntDesignERP!",
+            "subject": "Welcome to IntDesignERP!",
             "name": data.full_name,
             "company": data.company_name,
             "trial_days": 14,
-            "dashboard_url": "http://localhost:3000/dashboard",
+            "dashboard_url": dashboard_url,
         },
     )
 
@@ -106,5 +129,6 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         refresh_token=refresh_token,
         user_id=str(user.id),
         org_id=str(org.id),
+        org_slug=slug,
         message="Welcome! Your 14-day free trial has started.",
     )

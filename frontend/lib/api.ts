@@ -8,13 +8,29 @@ const api = axios.create({
   },
 })
 
-// Request Interceptor: Attach Bearer token from Zustand store
+// Request Interceptor: Attach Bearer token and X-Tenant-ID header
 api.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // Inject X-Tenant-ID from subdomain (for schema-per-tenant routing)
+    // Only when subdomains are enabled (production); skip on localhost dev
+    const useSubdomains = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true"
+    if (useSubdomains && typeof window !== "undefined") {
+      const hostname = window.location.hostname
+      const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "localhost"
+      // Extract subdomain: "acme.site.com" → "acme"
+      if (hostname !== baseDomain && hostname.endsWith(`.${baseDomain}`)) {
+        const subdomain = hostname.replace(`.${baseDomain}`, "")
+        if (subdomain && subdomain !== "www") {
+          config.headers["X-Tenant-ID"] = subdomain
+        }
+      }
+    }
+
     return config
   },
   (error) => {

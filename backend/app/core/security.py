@@ -1,9 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -56,10 +56,11 @@ def decode_token(token: str) -> dict:
 
 @dataclass
 class AuthContext:
-    """Holds the authenticated user, active org, and role within that org."""
+    """Holds the authenticated user, active org, role, and tenant schema."""
     user: "User"  # type: ignore[name-defined]
     org_id: UUID
     role: "UserRole"  # type: ignore[name-defined]
+    schema_name: Optional[str] = None
 
 
 async def get_current_user(
@@ -90,9 +91,10 @@ async def get_current_user(
 async def get_auth_context(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ) -> AuthContext:
-    """Return AuthContext with user, active org_id, and role within that org."""
-    from app.models.organization import OrgMembership
+    """Return AuthContext with user, active org_id, role, and tenant schema."""
+    from app.models.organization import OrgMembership, Organization
     from app.models.user import User, UserRole
 
     payload = decode_token(token)
@@ -115,9 +117,23 @@ async def get_auth_context(
     if not user.is_active:
         raise UnauthorizedException(detail="User account is deactivated")
 
+    # Resolve tenant schema — try request.state first (set by TenantMiddleware)
+    schema_name = None
+    if request and hasattr(request.state, 'tenant_schema'):
+        schema_name = request.state.tenant_schema
+
+    # Fallback: look up schema_name from the Organization record
+    if not schema_name:
+        org_result = await db.execute(
+            select(Organization.schema_name).where(Organization.id == org_id)
+        )
+        org_row = org_result.one_or_none()
+        if org_row:
+            schema_name = org_row[0]
+
     # Platform admins bypass membership check
     if user.is_platform_admin:
-        return AuthContext(user=user, org_id=org_id, role=UserRole.SUPER_ADMIN)
+        return AuthContext(user=user, org_id=org_id, role=UserRole.SUPER_ADMIN, schema_name=schema_name)
 
     # Verify org membership
     mem_result = await db.execute(
@@ -131,7 +147,7 @@ async def get_auth_context(
     if not membership:
         raise ForbiddenException(detail="You do not belong to this organization")
 
-    return AuthContext(user=user, org_id=org_id, role=membership.role)
+    return AuthContext(user=user, org_id=org_id, role=membership.role, schema_name=schema_name)
 
 
 def role_required(allowed_roles: List[str]):
@@ -142,8 +158,9 @@ def role_required(allowed_roles: List[str]):
     async def dependency(
         token: str = Depends(oauth2_scheme),
         db: AsyncSession = Depends(get_db),
+        request: Request = None,
     ) -> AuthContext:
-        ctx = await get_auth_context(token=token, db=db)
+        ctx = await get_auth_context(token=token, db=db, request=request)
         # Platform admins pass all role checks
         if ctx.user.is_platform_admin:
             return ctx
@@ -152,3 +169,29 @@ def role_required(allowed_roles: List[str]):
         return ctx
 
     return dependency
+
+
+async def get_tenant_session(
+    request: Request,
+) -> AsyncSession:
+    """FastAPI dependency: yields a DB session scoped to the tenant's schema.
+
+    Uses the schema_name resolved by TenantMiddleware (stored on request.state).
+    Falls back to the public schema if no tenant context is available.
+    """
+    from app.db.session import AsyncSessionLocal
+    from sqlalchemy import text
+
+    schema_name = getattr(request.state, 'tenant_schema', None)
+
+    async with AsyncSessionLocal() as session:
+        try:
+            if schema_name:
+                await session.execute(
+                    text(f'SET search_path TO "{schema_name}", public')
+                )
+            yield session
+        finally:
+            if schema_name:
+                await session.execute(text("SET search_path TO public"))
+            await session.close()

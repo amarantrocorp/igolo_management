@@ -5,8 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_auth_context, role_required, AuthContext
-from app.db.session import get_db
+from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
 from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
 from app.schemas.budget import (
     BudgetLineItemCreate,
@@ -36,7 +35,7 @@ router = APIRouter()
 )
 async def get_financial_health(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get the financial health summary for a project including balance,
@@ -54,7 +53,7 @@ async def get_financial_health(
 )
 async def get_project_wallet(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Get the current state of a project's wallet."""
@@ -73,7 +72,7 @@ async def get_transaction_summary(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     project_id: Optional[UUID] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get aggregated summary totals (inflow, outflow, pending) with optional
@@ -94,7 +93,7 @@ async def get_transaction_aggregation(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     project_id: Optional[UUID] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get inflow/outflow totals bucketed by day, week, or month."""
@@ -113,7 +112,7 @@ async def get_source_breakdown(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     project_id: Optional[UUID] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get inflow/outflow totals grouped by transaction source."""
@@ -131,7 +130,7 @@ async def get_source_breakdown(
 async def get_project_breakdown(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Get inflow/outflow totals grouped by project, sorted by outflow descending."""
@@ -155,7 +154,7 @@ async def list_transactions(
     date_to: Optional[date] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List all transactions across all projects with optional filters."""
@@ -181,7 +180,7 @@ async def list_transactions(
 )
 async def record_transaction(
     payload: TransactionCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["SUPER_ADMIN", "MANAGER", "SALES", "SUPERVISOR"])
     ),
@@ -201,7 +200,7 @@ async def record_transaction(
 )
 async def verify_transaction(
     txn_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Verify a pending transaction by marking it as CLEARED. When a PENDING
@@ -225,7 +224,7 @@ async def list_project_transactions(
     txn_status: Optional[TransactionStatus] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List all transactions for a project with optional filters."""
@@ -255,7 +254,7 @@ async def list_project_transactions(
 async def create_budget_line_items(
     project_id: UUID,
     items: list[BudgetLineItemCreate],
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Create budget line items for a project."""
@@ -269,7 +268,7 @@ async def create_budget_line_items(
 )
 async def get_budget_line_items(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Get all budget line items for a project."""
@@ -285,7 +284,7 @@ async def update_budget_line_item(
     project_id: UUID,
     item_id: UUID,
     data: BudgetLineItemUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Update a budget line item."""
@@ -299,7 +298,7 @@ async def update_budget_line_item(
 async def delete_budget_line_item(
     project_id: UUID,
     item_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Delete a budget line item."""
@@ -313,7 +312,7 @@ async def delete_budget_line_item(
 )
 async def get_budget_vs_actual(
     project_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """Get budget vs actual variance report for a project."""
@@ -330,7 +329,7 @@ async def export_transactions(
     project_id: Optional[UUID] = Query(None),
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Export transactions as CSV."""
@@ -354,7 +353,7 @@ async def export_transactions(
 async def export_payroll(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Export payroll/attendance as CSV."""
@@ -376,7 +375,7 @@ async def export_payroll(
 
 @router.get("/export/inventory", status_code=status.HTTP_200_OK)
 async def export_inventory(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Export inventory as CSV."""
@@ -398,7 +397,7 @@ async def export_inventory(
 @router.get("/export/cash-flow", status_code=status.HTTP_200_OK)
 async def export_cash_flow(
     project_id: Optional[UUID] = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
 ):
     """Export monthly cash flow report as CSV."""
