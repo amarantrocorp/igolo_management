@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Sparkles } from "lucide-react"
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
 const quickLinks = [
   { label: "Home", href: "/" },
@@ -9,7 +9,7 @@ const quickLinks = [
   { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
   { label: "Login", href: "/login" },
-]
+];
 
 const productLinks = [
   { label: "CRM & Pipeline", href: "/features" },
@@ -17,13 +17,13 @@ const productLinks = [
   { label: "Project Execution", href: "/features" },
   { label: "Financial Controls", href: "/features" },
   { label: "Client Portal", href: "/features" },
-]
+];
 
 const socialLinks = [
   { label: "Instagram", href: "#" },
   { label: "Pinterest", href: "#" },
   { label: "LinkedIn", href: "#" },
-]
+];
 
 export function MarketingFooter() {
   return (
@@ -107,13 +107,19 @@ export function MarketingFooter() {
               <li>WeWork Galaxy, Residency Road</li>
               <li>Bangalore 560025, India</li>
               <li>
-                <a href="tel:+918045678900" className="transition-colors hover:text-gold">
+                <a
+                  href="tel:+918045678900"
+                  className="transition-colors hover:text-gold"
+                >
                   +91 80 4567 8900
                 </a>
               </li>
               <li>
-                <a href="mailto:hello@igolo.in" className="transition-colors hover:text-gold">
-                  hello@igolo.in
+                <a
+                  href="mailto:hello@igolohomes.com"
+                  className="transition-colors hover:text-gold"
+                >
+                  hello@igolohomes.com
                 </a>
               </li>
               <li className="pt-2 text-white/25">
@@ -128,14 +134,19 @@ export function MarketingFooter() {
       <div className="border-t border-white/5">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-6 sm:flex-row">
           <p className="text-xs text-white/25">
-            &copy; {new Date().getFullYear()} Igolo Interior. All rights reserved.
+            &copy; {new Date().getFullYear()} Igolo Interior. All rights
+            reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-white/20">
-            <Link href="/pricing" className="hover:text-gold transition-colors">Privacy Policy</Link>
-            <Link href="/pricing" className="hover:text-gold transition-colors">Terms of Service</Link>
+            <Link href="/pricing" className="hover:text-gold transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/pricing" className="hover:text-gold transition-colors">
+              Terms of Service
+            </Link>
           </div>
         </div>
       </div>
     </footer>
-  )
+  );
 }

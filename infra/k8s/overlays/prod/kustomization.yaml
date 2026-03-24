@@ -20,8 +20,8 @@ configMapGenerator:
     literals:
       - ENVIRONMENT=production
       - AI_PROVIDER=gemini
-      - CORS_ORIGINS=https://app.igolo.in
+      - CORS_ORIGINS=https://app.igolohomes.com
       - S3_BUCKET_NAME=igolo-prod-uploads
       - S3_REGION=ap-south-1
       - REDIS_URL=redis://redis:6379/0
-      - NEXT_PUBLIC_API_URL=https://app.igolo.in/api/v1
+      - NEXT_PUBLIC_API_URL=https://app.igolohomes.com/api/v1

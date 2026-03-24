@@ -134,8 +134,8 @@ jobs:
       - name: Build & push frontend image
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL=https://app.igolo.in/api/v1 \
-            --build-arg NEXT_PUBLIC_FLOORPLAN_AI_URL=https://app.igolo.in/ai \
+            --build-arg NEXT_PUBLIC_API_URL=https://app.igolohomes.com/api/v1 \
+            --build-arg NEXT_PUBLIC_FLOORPLAN_AI_URL=https://app.igolohomes.com/ai \
             --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_KEY }} \
             -t $ECR_FRONTEND:${{ github.sha }} \
             -t $ECR_FRONTEND:prod-latest \

@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -12,13 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,8 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Settings,
   ShieldAlert,
@@ -41,7 +36,7 @@ import {
   Trash2,
   Download,
   Check,
-} from "lucide-react"
+} from "lucide-react";
 
 // Plan limits mirroring the backend spec
 const PLAN_LIMITS = [
@@ -88,7 +83,7 @@ const PLAN_LIMITS = [
       "White-label",
     ],
   },
-]
+];
 
 const EMAIL_TEMPLATES = [
   {
@@ -121,47 +116,47 @@ const EMAIL_TEMPLATES = [
     status: "Active",
     description: "Sent 3 days before trial expiration",
   },
-]
+];
 
-const LS_KEY = "igolo_platform_settings"
+const LS_KEY = "igolo_platform_settings";
 
 interface PlatformSettings {
-  platformName: string
-  supportEmail: string
-  trialDuration: number
+  platformName: string;
+  supportEmail: string;
+  trialDuration: number;
 }
 
 const DEFAULT_SETTINGS: PlatformSettings = {
   platformName: "Igolo Interior",
-  supportEmail: "support@igolo.in",
+  supportEmail: "support@igolohomes.com",
   trialDuration: 14,
-}
+};
 
 export default function PlatformSettingsPage() {
-  const { toast } = useToast()
-  const [settings, setSettings] = useState<PlatformSettings>(DEFAULT_SETTINGS)
-  const [saved, setSaved] = useState(false)
+  const { toast } = useToast();
+  const [settings, setSettings] = useState<PlatformSettings>(DEFAULT_SETTINGS);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(LS_KEY)
+      const stored = localStorage.getItem(LS_KEY);
       if (stored) {
-        setSettings(JSON.parse(stored))
+        setSettings(JSON.parse(stored));
       }
     } catch {
       // ignore parse errors
     }
-  }, [])
+  }, []);
 
   const handleSave = () => {
-    localStorage.setItem(LS_KEY, JSON.stringify(settings))
-    setSaved(true)
+    localStorage.setItem(LS_KEY, JSON.stringify(settings));
+    setSaved(true);
     toast({
       title: "Settings saved",
       description: "Platform settings have been saved to local storage.",
-    })
-    setTimeout(() => setSaved(false), 2000)
-  }
+    });
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -198,9 +193,7 @@ export default function PlatformSettingsPage() {
         {/* Tab 1: Platform Info */}
         <TabsContent value="platform-info">
           <div className="rounded-xl border bg-white p-6">
-            <h2 className="mb-6 text-lg font-semibold">
-              Platform Information
-            </h2>
+            <h2 className="mb-6 text-lg font-semibold">Platform Information</h2>
             <div className="max-w-lg space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="platformName">Platform Name</Label>
@@ -228,7 +221,7 @@ export default function PlatformSettingsPage() {
                       supportEmail: e.target.value,
                     }))
                   }
-                  placeholder="support@igolo.in"
+                  placeholder="support@igolohomes.com"
                 />
               </div>
               <div className="space-y-2">
@@ -382,7 +375,9 @@ export default function PlatformSettingsPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Purge Inactive Organizations</AlertDialogTitle>
+                <AlertDialogTitle>
+                  Purge Inactive Organizations
+                </AlertDialogTitle>
                 <AlertDialogDescription>
                   This will permanently remove all organizations that have been
                   inactive for more than 90 days. This action cannot be undone.
@@ -422,5 +417,5 @@ export default function PlatformSettingsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

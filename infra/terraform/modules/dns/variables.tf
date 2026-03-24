@@ -1,5 +1,5 @@
 variable "domain_name" {
-  description = "Root domain name (e.g. igolo.in)"
+  description = "Root domain name (e.g. igolohomes.com)"
   type        = string
 }
 

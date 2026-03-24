@@ -8,7 +8,7 @@ metadata:
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:ACCOUNT_ID:certificate/DEV_CERTIFICATE_ID
 spec:
   rules:
-    - host: dev.igolo.in
+    - host: dev.igolohomes.com
       http:
         paths:
           # Backend API routes

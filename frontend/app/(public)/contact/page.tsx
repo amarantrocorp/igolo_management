@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import Link from "next/link"
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
   Mail,
   Phone,
@@ -13,7 +13,7 @@ import {
   ChevronDown,
   Send,
   ArrowRight,
-} from "lucide-react"
+} from "lucide-react";
 
 const helpOptions = [
   "General Inquiry",
@@ -21,7 +21,7 @@ const helpOptions = [
   "Enterprise Plan",
   "Technical Support",
   "Partnership",
-]
+];
 
 const faqs = [
   {
@@ -44,7 +44,7 @@ const faqs = [
     q: "Do you offer on-premise deployment?",
     a: "Yes, our Enterprise plan includes the option for on-premise or private cloud deployment with dedicated support and custom SLAs.",
   },
-]
+];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -53,18 +53,18 @@ const fadeUp = {
     y: 0,
     transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" as const },
   }),
-}
+};
 
 const inputClasses =
-  "w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#CBB282] focus:ring-1 focus:ring-[#CBB282]/50 transition-colors"
+  "w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#CBB282] focus:ring-1 focus:ring-[#CBB282]/50 transition-colors";
 
 export default function ContactPage() {
-  const [submitted, setSubmitted] = useState(false)
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [submitted, setSubmitted] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSubmitted(true)
+    e.preventDefault();
+    setSubmitted(true);
   }
 
   return (
@@ -258,10 +258,10 @@ export default function ContactPage() {
                     <div>
                       <p className="text-sm text-gray-400">Email</p>
                       <a
-                        href="mailto:hello@igolo.in"
+                        href="mailto:hello@igolohomes.com"
                         className="text-white hover:text-[#CBB282] transition-colors"
                       >
-                        hello@igolo.in
+                        hello@igolohomes.com
                       </a>
                     </div>
                   </div>
@@ -336,7 +336,7 @@ export default function ContactPage() {
                   support?
                 </p>
                 <a
-                  href="mailto:enterprise@igolo.in"
+                  href="mailto:enterprise@igolohomes.com"
                   className="inline-flex items-center gap-2 rounded-lg border border-[#CBB282] px-5 py-2.5 text-sm font-semibold text-[#CBB282] hover:bg-[#CBB282]/10 transition-colors"
                 >
                   Talk to Enterprise Sales
@@ -441,5 +441,5 @@ export default function ContactPage() {
         </div>
       </section>
     </div>
-  )
+  );
 }

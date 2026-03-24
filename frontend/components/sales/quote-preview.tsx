@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import type { Lead } from "@/types"
-import type { QuoteRoomForm } from "@/types/quote"
-import { calcItemTotal, calcRoomTotal, formatINR } from "@/types/quote"
-import { FileText } from "lucide-react"
+import type { Lead } from "@/types";
+import type { QuoteRoomForm } from "@/types/quote";
+import { calcItemTotal, calcRoomTotal, formatINR } from "@/types/quote";
+import { FileText } from "lucide-react";
 
 interface QuotePreviewProps {
-  leadId: string
-  validUntil: string
-  rooms: QuoteRoomForm[]
-  leads: Lead[]
-  notes?: string
+  leadId: string;
+  validUntil: string;
+  rooms: QuoteRoomForm[];
+  leads: Lead[];
+  notes?: string;
   // Optional overrides when showing a saved quote (view page)
-  clientName?: string
-  clientPhone?: string
-  quoteNumber?: string
-  quoteDate?: string
-  version?: number
+  clientName?: string;
+  clientPhone?: string;
+  quoteNumber?: string;
+  quoteDate?: string;
+  version?: number;
 }
 
 export default function QuotePreview({
@@ -31,21 +31,23 @@ export default function QuotePreview({
   quoteDate,
   version,
 }: QuotePreviewProps) {
-  const lead = leads.find((l) => l.id === leadId)
-  const resolvedName = clientName || lead?.name || "—"
-  const resolvedPhone = clientPhone || lead?.contact_number
-  const grandTotal = rooms.reduce((sum, r) => sum + calcRoomTotal(r), 0)
+  const lead = leads.find((l) => l.id === leadId);
+  const resolvedName = clientName || lead?.name || "—";
+  const resolvedPhone = clientPhone || lead?.contact_number;
+  const grandTotal = rooms.reduce((sum, r) => sum + calcRoomTotal(r), 0);
   const hasContent = rooms.some(
-    (r) => r.name.trim() || r.items.some((i) => i.description.trim())
-  )
-  const today = quoteDate || new Date().toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
+    (r) => r.name.trim() || r.items.some((i) => i.description.trim()),
+  );
+  const today =
+    quoteDate ||
+    new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
 
   // Numbering helper for items across all rooms
-  let globalItemIndex = 0
+  let globalItemIndex = 0;
 
   return (
     <div id="quote-preview-printable" className="quote-preview-paper">
@@ -93,9 +95,7 @@ export default function QuotePreview({
           </div>
           <div>
             <span className="quote-meta-label">Quote No.</span>
-            <span className="quote-meta-value">
-              {quoteNumber || "DRAFT"}
-            </span>
+            <span className="quote-meta-value">{quoteNumber || "DRAFT"}</span>
             {version != null && (
               <span className="quote-meta-sub">Version {version}</span>
             )}
@@ -118,11 +118,11 @@ export default function QuotePreview({
           <>
             {/* Room-wise breakdown */}
             {rooms.map((room, ri) => {
-              const roomTotal = calcRoomTotal(room)
+              const roomTotal = calcRoomTotal(room);
               const roomHasContent =
                 room.name.trim() ||
-                room.items.some((i) => i.description.trim())
-              if (!roomHasContent) return null
+                room.items.some((i) => i.description.trim());
+              if (!roomHasContent) return null;
 
               return (
                 <div key={room.id} className="quote-room-section">
@@ -153,9 +153,9 @@ export default function QuotePreview({
                     <tbody>
                       {room.items.map((item) => {
                         if (!item.description.trim() && !item.unit_price)
-                          return null
-                        globalItemIndex++
-                        const total = calcItemTotal(item)
+                          return null;
+                        globalItemIndex++;
+                        const total = calcItemTotal(item);
                         return (
                           <tr
                             key={item.id}
@@ -184,7 +184,7 @@ export default function QuotePreview({
                               {formatINR(total)}
                             </td>
                           </tr>
-                        )
+                        );
                       })}
                     </tbody>
                     <tfoot>
@@ -202,7 +202,7 @@ export default function QuotePreview({
                     </tfoot>
                   </table>
                 </div>
-              )
+              );
             })}
 
             {/* ── Grand Total ── */}
@@ -227,12 +227,8 @@ export default function QuotePreview({
             <div className="quote-terms">
               <h4 className="quote-terms-title">Terms & Conditions</h4>
               <ol className="quote-terms-list">
-                <li>
-                  This quotation is valid for the period mentioned above.
-                </li>
-                <li>
-                  50% advance payment is required to confirm the order.
-                </li>
+                <li>This quotation is valid for the period mentioned above.</li>
+                <li>50% advance payment is required to confirm the order.</li>
                 <li>
                   Prices are inclusive of material and labor unless stated
                   otherwise.
@@ -255,12 +251,12 @@ export default function QuotePreview({
       <div className="quote-footer">
         <div className="quote-footer-left">
           <span>Igolo Interior Design Studio</span>
-          <span>contact@igolo.in</span>
+          <span>contact@igolohomes.com</span>
         </div>
         <div className="quote-footer-right">
           <span>Confidential</span>
         </div>
       </div>
     </div>
-  )
+  );
 }

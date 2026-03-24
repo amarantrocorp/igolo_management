@@ -31,8 +31,8 @@ db_username            = "igolo_admin"
 
 # ── S3 ────────────────────────────────────────────────────────────────────────
 s3_bucket_name       = "igolo-dev-uploads"
-s3_cors_origins      = ["https://dev.igolo.in"]
+s3_cors_origins      = ["https://dev.igolohomes.com"]
 s3_enable_versioning = false
 
 # ── DNS ───────────────────────────────────────────────────────────────────────
-domain_name = "igolo.in"
+domain_name = "igolohomes.com"
