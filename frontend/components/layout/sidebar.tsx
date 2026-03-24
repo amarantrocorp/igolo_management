@@ -38,6 +38,7 @@ import {
   BarChart3,
   Bell,
   Settings,
+  TrendingUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -220,9 +221,33 @@ const platformSection: NavSection = {
   label: "Platform",
   items: [
     {
+      title: "Dashboard",
+      href: "/dashboard/platform",
+      icon: LayoutDashboard,
+      roles: ["SUPER_ADMIN"],
+    },
+    {
       title: "Organizations",
       href: "/dashboard/platform/organizations",
       icon: Shield,
+      roles: ["SUPER_ADMIN"],
+    },
+    {
+      title: "All Users",
+      href: "/dashboard/platform/users",
+      icon: Users,
+      roles: ["SUPER_ADMIN"],
+    },
+    {
+      title: "Revenue",
+      href: "/dashboard/platform/revenue",
+      icon: TrendingUp,
+      roles: ["SUPER_ADMIN"],
+    },
+    {
+      title: "Settings",
+      href: "/dashboard/platform/settings",
+      icon: Settings,
       roles: ["SUPER_ADMIN"],
     },
   ],
@@ -238,7 +263,7 @@ export default function Sidebar() {
   const effectiveRole = roleInOrg ?? user.role
 
   const allSections = user.is_platform_admin
-    ? [...navSections, platformSection]
+    ? [platformSection]
     : navSections
 
   const filteredSections = allSections

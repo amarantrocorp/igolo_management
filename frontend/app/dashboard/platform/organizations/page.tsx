@@ -74,8 +74,10 @@ import {
   Clock,
   CreditCard,
   AlertTriangle,
+  Mail,
+  UserPlus,
 } from "lucide-react"
-import type { Organization, PlanTier, SubscriptionStatus } from "@/types"
+import type { Organization, PlanTier, SubscriptionStatus, UserRole } from "@/types"
 
 interface PlatformStats {
   total_organizations: number
@@ -86,6 +88,15 @@ interface PlatformStats {
   suspended_count: number
   mrr: number
   trial_conversion_rate: number
+}
+
+interface OrgMember {
+  user_id: string
+  full_name: string
+  email: string
+  role: string
+  is_active: boolean
+  joined_at: string
 }
 
 const statusColors: Record<string, string> = {
@@ -111,12 +122,16 @@ export default function PlatformOrganizationsPage() {
   const [filterPlan, setFilterPlan] = useState<string>("ALL")
   const [filterStatus, setFilterStatus] = useState<string>("ALL")
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
+  const [inviteOpen, setInviteOpen] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState<string>("SUPER_ADMIN")
   const [newOrg, setNewOrg] = useState({
     name: "",
     slug: "",
     address: "",
     gst_number: "",
     plan_tier: "FREE" as PlanTier,
+    admin_email: "",
   })
 
   const { data: stats } = useQuery<PlatformStats>({
@@ -137,18 +152,62 @@ export default function PlatformOrganizationsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (payload: typeof newOrg) => {
-      const { data } = await api.post("/platform/organizations", payload)
+      const { admin_email, ...orgPayload } = payload
+      const { data } = await api.post("/platform/organizations", orgPayload)
+      // If admin email provided, send invitation
+      if (admin_email) {
+        try {
+          await api.post(`/platform/organizations/${data.id}/invite`, {
+            email: admin_email,
+            role: "SUPER_ADMIN",
+          })
+        } catch (inviteErr: any) {
+          toast({
+            title: "Org created but invitation failed",
+            description: inviteErr.response?.data?.detail || "Could not send invitation",
+            variant: "destructive",
+          })
+        }
+      }
       return data
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["platform"] })
       setCreateOpen(false)
-      setNewOrg({ name: "", slug: "", address: "", gst_number: "", plan_tier: "FREE" })
-      toast({ title: "Organization created successfully" })
+      setNewOrg({ name: "", slug: "", address: "", gst_number: "", plan_tier: "FREE", admin_email: "" })
+      toast({
+        title: variables.admin_email
+          ? "Organization created & admin invited"
+          : "Organization created successfully",
+      })
     },
     onError: (err: any) => {
       toast({
         title: "Failed to create organization",
+        description: err.response?.data?.detail || "Unknown error",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const inviteMutation = useMutation({
+    mutationFn: async ({ orgId, email, role }: { orgId: string; email: string; role: string }) => {
+      const { data } = await api.post(`/platform/organizations/${orgId}/invite`, {
+        email,
+        role,
+      })
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform"] })
+      setInviteOpen(null)
+      setInviteEmail("")
+      setInviteRole("SUPER_ADMIN")
+      toast({ title: "Invitation sent successfully" })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Failed to send invitation",
         description: err.response?.data?.detail || "Unknown error",
         variant: "destructive",
       })
@@ -234,6 +293,7 @@ export default function PlatformOrganizationsPage() {
       ...newOrg,
       address: newOrg.address || undefined,
       gst_number: newOrg.gst_number || undefined,
+      admin_email: newOrg.admin_email || undefined,
     }
     createMutation.mutate(payload as typeof newOrg)
   }
@@ -341,6 +401,21 @@ export default function PlatformOrganizationsPage() {
                   }
                   placeholder="Optional"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin_email">Admin Email (optional)</Label>
+                <Input
+                  id="admin_email"
+                  type="email"
+                  value={newOrg.admin_email}
+                  onChange={(e) =>
+                    setNewOrg((prev) => ({ ...prev, admin_email: e.target.value }))
+                  }
+                  placeholder="admin@company.com — will receive an invitation"
+                />
+                <p className="text-xs text-muted-foreground">
+                  If provided, this person will be invited as the org&apos;s SUPER_ADMIN.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="plan">Plan Tier</Label>
@@ -793,6 +868,9 @@ export default function PlatformOrganizationsPage() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* Members Section */}
+                            <OrgMembersSection orgId={org.id} orgName={org.name} />
                           </TableCell>
                         </TableRow>
                       )}
@@ -816,6 +894,215 @@ export default function PlatformOrganizationsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ── Members Sub-Component ──
+
+function OrgMembersSection({ orgId, orgName }: { orgId: string; orgName: string }) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState("SUPER_ADMIN")
+
+  const { data: members = [], isLoading } = useQuery<OrgMember[]>({
+    queryKey: ["platform", "org-members", orgId],
+    queryFn: async () => {
+      const { data } = await api.get(`/platform/organizations/${orgId}/members`)
+      return data
+    },
+  })
+
+  const inviteMutation = useMutation({
+    mutationFn: async ({ email, role }: { email: string; role: string }) => {
+      const { data } = await api.post(`/platform/organizations/${orgId}/invite`, {
+        email,
+        role,
+      })
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform", "org-members", orgId] })
+      setInviteOpen(false)
+      setInviteEmail("")
+      setInviteRole("SUPER_ADMIN")
+      toast({ title: "Invitation sent successfully" })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Failed to send invitation",
+        description: err.response?.data?.detail || "Unknown error",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await api.delete(`/platform/organizations/${orgId}/members/${userId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform", "org-members", orgId] })
+      toast({ title: "Member removed" })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Failed to remove member",
+        description: err.response?.data?.detail || "Unknown error",
+        variant: "destructive",
+      })
+    },
+  })
+
+  return (
+    <div className="mt-4 border-t pt-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <h4 className="text-sm font-semibold">
+            Members ({members.length})
+          </h4>
+        </div>
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" />
+              Invite Member
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Invite Member to {orgName}</DialogTitle>
+              <DialogDescription>
+                Send an invitation email. The recipient can register and join this organization.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="inv-email">Email Address</Label>
+                <Input
+                  id="inv-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="user@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="inv-role">Role</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                    <SelectItem value="MANAGER">Manager</SelectItem>
+                    <SelectItem value="BDE">BDE</SelectItem>
+                    <SelectItem value="SALES">Sales</SelectItem>
+                    <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  if (!inviteEmail) return
+                  inviteMutation.mutate({ email: inviteEmail, role: inviteRole })
+                }}
+                disabled={inviteMutation.isPending || !inviteEmail}
+              >
+                {inviteMutation.isPending ? "Sending..." : "Send Invitation"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-4">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : members.length === 0 ? (
+        <div className="flex flex-col items-center py-4 text-center">
+          <UserPlus className="mb-2 h-6 w-6 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">
+            No members yet. Invite someone to get started.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members
+                .filter((m) => m.is_active)
+                .map((member) => (
+                  <TableRow key={member.user_id}>
+                    <TableCell className="text-sm font-medium">
+                      {member.full_name}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {member.email}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {member.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(member.joined_at).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Remove <strong>{member.full_name}</strong> from this
+                              organization? They will lose access immediately.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => removeMutation.mutate(member.user_id)}
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   )
 }

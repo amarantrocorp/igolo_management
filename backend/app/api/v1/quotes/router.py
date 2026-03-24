@@ -94,7 +94,18 @@ async def update_quotation_status(
     db: AsyncSession = Depends(get_db),
     ctx: AuthContext = Depends(role_required(["SALES", "MANAGER", "SUPER_ADMIN"])),
 ):
-    """Update the status of a quotation (e.g., SENT, APPROVED, REJECTED)."""
+    """Update the status of a quotation (e.g., SENT, APPROVED, REJECTED).
+
+    SALES can only set status to SENT or DRAFT.
+    APPROVED/REJECTED require MANAGER or SUPER_ADMIN role.
+    """
+    restricted_statuses = {"APPROVED", "REJECTED", "ARCHIVED"}
+    if payload.status in restricted_statuses and ctx.role == "SALES":
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403,
+            detail=f"SALES role cannot set quotation status to {payload.status}. Only MANAGER or SUPER_ADMIN can approve/reject quotations.",
+        )
     quotation = await quotation_service.update_quotation_status(
         quote_id=quote_id, status=payload.status, org_id=ctx.org_id, db=db
     )

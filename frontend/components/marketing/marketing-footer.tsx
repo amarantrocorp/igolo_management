@@ -5,17 +5,18 @@ import { Sparkles } from "lucide-react"
 
 const quickLinks = [
   { label: "Home", href: "/" },
-  { label: "Services", href: "/services" },
-  { label: "Portfolio", href: "/portfolio" },
-  { label: "About", href: "/about" },
+  { label: "Features", href: "/features" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
+  { label: "Login", href: "/login" },
 ]
 
-const serviceLinks = [
-  { label: "Interior Design", href: "/services" },
-  { label: "Architecture", href: "/services" },
-  { label: "3D Visualization", href: "/services" },
-  { label: "Renovation", href: "/services" },
+const productLinks = [
+  { label: "CRM & Pipeline", href: "/features" },
+  { label: "Quotation Builder", href: "/features" },
+  { label: "Project Execution", href: "/features" },
+  { label: "Financial Controls", href: "/features" },
+  { label: "Client Portal", href: "/features" },
 ]
 
 const socialLinks = [
@@ -41,9 +42,9 @@ export function MarketingFooter() {
               </span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-white/40">
-              Transforming spaces into extraordinary experiences since 2010.
-              Premium interior design, architecture, and 3D visualization
-              services across India.
+              The complete operating system for interior design companies.
+              Manage leads, quotations, projects, finances, and client
+              communication — all in one platform.
             </p>
             <div className="mt-6 flex gap-4">
               {socialLinks.map((link) => (
@@ -78,13 +79,13 @@ export function MarketingFooter() {
             </ul>
           </div>
 
-          {/* Services */}
+          {/* Product */}
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gold/80">
-              Services
+              Product
             </h3>
             <ul className="mt-4 space-y-3">
-              {serviceLinks.map((link) => (
+              {productLinks.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
@@ -103,19 +104,20 @@ export function MarketingFooter() {
               Contact
             </h3>
             <ul className="mt-4 space-y-3 text-sm text-white/40">
-              <li>Bangalore, Karnataka, India</li>
+              <li>WeWork Galaxy, Residency Road</li>
+              <li>Bangalore 560025, India</li>
               <li>
-                <a href="tel:+919876543210" className="transition-colors hover:text-gold">
-                  +91 98765 43210
+                <a href="tel:+918045678900" className="transition-colors hover:text-gold">
+                  +91 80 4567 8900
                 </a>
               </li>
               <li>
-                <a href="mailto:hello@igolointerior.com" className="transition-colors hover:text-gold">
-                  hello@igolointerior.com
+                <a href="mailto:hello@igolo.in" className="transition-colors hover:text-gold">
+                  hello@igolo.in
                 </a>
               </li>
               <li className="pt-2 text-white/25">
-                Mon - Sat: 10:00 AM - 7:00 PM
+                Mon - Sat: 9:00 AM - 6:00 PM IST
               </li>
             </ul>
           </div>
@@ -128,9 +130,9 @@ export function MarketingFooter() {
           <p className="text-xs text-white/25">
             &copy; {new Date().getFullYear()} Igolo Interior. All rights reserved.
           </p>
-          <div className="flex items-center gap-1.5 text-xs text-white/20">
-            <span>Powered by</span>
-            <span className="text-gold/50">Remotion</span>
+          <div className="flex items-center gap-4 text-xs text-white/20">
+            <Link href="/pricing" className="hover:text-gold transition-colors">Privacy Policy</Link>
+            <Link href="/pricing" className="hover:text-gold transition-colors">Terms of Service</Link>
           </div>
         </div>
       </div>

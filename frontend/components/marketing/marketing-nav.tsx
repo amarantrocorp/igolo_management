@@ -8,9 +8,8 @@ import { Sparkles, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const navLinks = [
-  { label: "Services", href: "/services" },
-  { label: "Portfolio", href: "/portfolio" },
-  { label: "About", href: "/about" },
+  { label: "Features", href: "/features" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
 ]
 
@@ -66,9 +65,15 @@ export function MarketingNav() {
                 </Link>
               )
             })}
-            <Link href="/login">
+            <Link
+              href="/login"
+              className="text-sm text-white/60 transition-colors hover:text-gold"
+            >
+              Login
+            </Link>
+            <Link href="/register">
               <Button size="sm" className="bg-gold text-gold-foreground hover:bg-gold/90">
-                Client Portal
+                Start Free Trial
               </Button>
             </Link>
           </div>
@@ -136,9 +141,16 @@ export function MarketingNav() {
                   transition={{ delay: navLinks.length * 0.05 }}
                   className="mt-4"
                 >
-                  <Link href="/login" onClick={() => setMobileOpen(false)}>
-                    <Button className="w-full bg-gold text-gold-foreground hover:bg-gold/90">
-                      Client Portal
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-lg px-4 py-3 text-lg font-medium text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link href="/register" onClick={() => setMobileOpen(false)}>
+                    <Button className="w-full bg-gold text-gold-foreground hover:bg-gold/90 mt-2">
+                      Start Free Trial
                     </Button>
                   </Link>
                 </motion.div>

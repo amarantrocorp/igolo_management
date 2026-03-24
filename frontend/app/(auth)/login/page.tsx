@@ -30,7 +30,10 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
-function getRoleDefaultRoute(role: string): string {
+function getRoleDefaultRoute(role: string, isPlatformAdmin?: boolean): string {
+  if (isPlatformAdmin) {
+    return "/dashboard/platform"
+  }
   switch (role) {
     case "SUPER_ADMIN":
     case "MANAGER":
@@ -104,7 +107,7 @@ export default function LoginPage() {
         user.role_in_org,
         user.organizations,
       )
-      const route = getRoleDefaultRoute(user.role_in_org)
+      const route = getRoleDefaultRoute(user.role_in_org, user.is_platform_admin)
       router.push(route)
     },
   })
@@ -133,7 +136,7 @@ export default function LoginPage() {
         user.organizations,
       )
       setPendingOrgSelection(null)
-      const route = getRoleDefaultRoute(user.role_in_org)
+      const route = getRoleDefaultRoute(user.role_in_org, user.is_platform_admin)
       router.push(route)
     },
   })

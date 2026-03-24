@@ -30,122 +30,104 @@ import { Button } from "@/components/ui/button"
 
 const services = [
   {
-    title: "Interior Design",
-    description: "Complete end-to-end design solutions from concept to execution, tailored to your lifestyle.",
+    title: "Smart CRM & Pipeline",
+    description: "Capture leads from any source, track them through a visual Kanban pipeline, and convert qualified prospects into projects automatically.",
     icon: <Paintbrush className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
   },
   {
-    title: "Architecture",
-    description: "Spatial planning and structural design that maximizes functionality with stunning flow.",
+    title: "AI-Powered Quotations",
+    description: "Build room-by-room quotations with auto-calculated pricing, version history, and professional PDF generation. AI analyzes floor plans to auto-populate rooms.",
     icon: <Building2 className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
   },
   {
-    title: "3D Visualization",
-    description: "Photo-realistic 3D renders that bring your dream space to life before construction begins.",
+    title: "Sprint-Based Execution",
+    description: "Six standardized project phases from Design to Handover. Gantt charts, daily site logs with photos, and automatic timeline cascading when delays occur.",
     icon: <Layers className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800&q=80",
   },
   {
-    title: "Space Planning",
-    description: "Optimized layouts that balance aesthetics with ergonomics, making every square foot count.",
+    title: "Financial Controls",
+    description: "Per-project wallets with spending locks, milestone billing, Razorpay integration for online payments, and real-time profitability tracking.",
     icon: <Ruler className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1554224154-22dec7ec8818?w=800&q=80",
   },
   {
-    title: "Renovation",
-    description: "Transform existing spaces with modern upgrades, from kitchen remodels to complete makeovers.",
+    title: "Inventory & Procurement",
+    description: "Track materials across warehouses, create purchase orders for vendors, manage goods receiving, and auto-update pricing from bills.",
     icon: <Home className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80",
   },
   {
-    title: "Consultation",
-    description: "Expert guidance on materials, color palettes, lighting, and furnishings to elevate your space.",
+    title: "Client Portal",
+    description: "Give clients their own login to track project progress, view sprints, make payments online, and access documents — all branded to your company.",
     icon: <MessageSquare className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=800&q=80",
+    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",
   },
 ]
 
 const stats = [
-  { value: 200, suffix: "+", label: "Projects Delivered" },
+  { value: 500, suffix: "+", label: "Companies Onboarded" },
+  { value: 15000, suffix: "+", label: "Projects Managed" },
   { value: 98, suffix: "%", label: "Client Satisfaction" },
-  { value: 15, suffix: "+", label: "Years Experience" },
-  { value: 50, suffix: "+", label: "Design Awards" },
+  { value: 50, suffix: "Cr+", label: "Revenue Tracked" },
 ]
 
 const portfolio = [
   {
-    before: "https://images.unsplash.com/photo-1564078516393-cf04bd96e2d8?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80",
-    title: "Modern Living Room",
-    category: "Residential",
+    before: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80",
+    after: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+    title: "Lead Pipeline Dashboard",
+    category: "CRM",
   },
   {
-    before: "https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80",
-    title: "Luxury Kitchen",
-    category: "Kitchen Design",
+    before: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
+    after: "https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800&q=80",
+    title: "Quotation Builder",
+    category: "Sales",
   },
   {
-    before: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=800&q=80",
-    title: "Master Bedroom",
-    category: "Bedroom",
-  },
-  {
-    before: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1600607687644-aac4c3eac7f4?w=800&q=80",
-    title: "Executive Office",
-    category: "Commercial",
-  },
-  {
-    before: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?w=800&q=80",
-    title: "Minimalist Dining",
-    category: "Dining Room",
-  },
-  {
-    before: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",
-    title: "Spa Bathroom",
-    category: "Bathroom",
+    before: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80",
+    after: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80",
+    title: "Project Execution",
+    category: "Operations",
   },
 ]
 
 const testimonials = [
   {
-    quote: "Igolo Interior transformed our 3BHK into something straight out of a magazine. The attention to detail was extraordinary.",
+    quote: "We reduced our quotation time from 3 days to 30 minutes. The auto-pricing engine is a game changer.",
     name: "Priya Sharma",
-    title: "Homeowner, Whitefield",
+    title: "Founder, DesignCraft Interiors, Bangalore",
   },
   {
-    quote: "Professional, on-time, and within budget. They managed everything from design to final handover flawlessly.",
-    name: "Rajesh Kumar",
-    title: "Villa Owner, HSR Layout",
-  },
-  {
-    quote: "The 3D renders they showed us were almost identical to the final result. Truly impressive craftsmanship.",
-    name: "Anita Desai",
-    title: "Apartment Owner, Koramangala",
-  },
-  {
-    quote: "Our office space went from dull to dynamic. Employee satisfaction has visibly improved since the redesign.",
+    quote: "The financial controls saved us from bleeding money. We can see exactly where every rupee goes across all our projects.",
     name: "Vikram Mehta",
-    title: "CEO, TechStart Solutions",
+    title: "CEO, Urban Nest Studios, Mumbai",
   },
   {
-    quote: "They understood our vision perfectly and added their own creative touches that elevated the entire project.",
-    name: "Sneha Reddy",
-    title: "Homeowner, Indiranagar",
+    quote: "Our clients love the portal. They can track progress, see photos, and pay online. No more WhatsApp chaos.",
+    name: "Anita Desai",
+    title: "Director, Livespace Interiors, Delhi",
+  },
+  {
+    quote: "Managing 12 concurrent projects was impossible before. The sprint system and Gantt charts changed everything.",
+    name: "Rajesh Kumar",
+    title: "Operations Head, HomeStyle Co, Pune",
+  },
+  {
+    quote: "The AI floor plan analysis is incredible. Upload a blueprint and the system creates a complete quotation in minutes.",
+    name: "Meera Joshi",
+    title: "Lead Designer, Artisan Interiors, Hyderabad",
   },
 ]
 
 const processSteps = [
-  { phase: "Design & Planning", desc: "We start with your vision — understanding your lifestyle, preferences, and dreams for the space." },
-  { phase: "Technical Drawing", desc: "Every detail measured, every angle calculated. Our blueprints leave nothing to chance." },
-  { phase: "Material Selection", desc: "Premium choices, curated for you. From Italian marble to Japanese hardware — only the finest." },
-  { phase: "Execution & Handover", desc: "Bringing it all to life with precision craftsmanship and meticulous project management." },
+  { phase: "Capture & Qualify", desc: "Leads flow in from your website, ads, and referrals. The CRM auto-assigns and tracks every interaction." },
+  { phase: "Quote & Convert", desc: "Build detailed room-by-room quotations with live pricing. Send professional PDFs and convert leads to projects." },
+  { phase: "Execute & Track", desc: "Six standardized sprints guide your team from civil work to handover. Daily logs, Gantt charts, and spending locks keep everything on track." },
+  { phase: "Handover & Grow", desc: "Deliver projects on time, collect final payments through the client portal, and use analytics to grow your business." },
 ]
 
 // ════════════════════════════════════════
@@ -170,12 +152,12 @@ function HeroSection() {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-sm text-gold backdrop-blur-sm">
               <Sparkles className="h-3.5 w-3.5" />
-              Premium Interior Design
+              Built for Interior Design Companies
             </div>
           </motion.div>
 
           <TextGenerateEffect
-            words="Crafting Spaces That Inspire Living"
+            words="The Operating System for Interior Design Companies"
             className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
           />
 
@@ -185,8 +167,8 @@ function HeroSection() {
             transition={{ duration: 0.6, delay: 0.8 }}
             className="mt-6 max-w-lg text-lg text-white/70"
           >
-            From concept to completion, we transform ordinary spaces into
-            extraordinary experiences. Every detail curated, every corner perfected.
+            From lead capture to project handover — manage quotations, sprints,
+            finances, inventory, and client communication in one powerful platform.
           </motion.p>
 
           <motion.div
@@ -195,21 +177,30 @@ function HeroSection() {
             transition={{ duration: 0.6, delay: 1.0 }}
             className="mt-10 flex flex-col gap-4 sm:flex-row"
           >
-            <Link href="/contact">
+            <Link href="/register">
               <Button
                 size="lg"
                 className="group bg-gold text-gold-foreground shadow-lg shadow-gold/20 hover:bg-gold/90 hover:shadow-gold/30"
               >
-                Start Your Project
+                Start Your Free Trial
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link href="/portfolio">
+            <Link href="#demo">
               <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                View Our Work
+                Watch Demo
               </Button>
             </Link>
           </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 1.2 }}
+            className="mt-4 text-sm text-white/40"
+          >
+            14-day free trial &bull; No credit card required &bull; Setup in 2 minutes
+          </motion.p>
         </div>
       </div>
 
@@ -287,10 +278,10 @@ function ServicesSection() {
           className="mb-16 text-center"
         >
           <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-            What We Create
+            Everything You Need
           </span>
           <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            Our Services
+            Platform Capabilities
           </h2>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
         </motion.div>
@@ -334,9 +325,9 @@ function ServicesSection() {
         </div>
 
         <div className="mt-12 text-center">
-          <Link href="/services">
+          <Link href="/register">
             <Button variant="outline" className="border-gold/30 text-gold hover:bg-gold/10">
-              View All Services
+              Explore All Features
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
@@ -433,14 +424,14 @@ function PortfolioSection() {
           className="mb-16 text-center"
         >
           <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-            Our Transformations
+            See It In Action
           </span>
           <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            Portfolio
+            Platform Screenshots
           </h2>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
           <p className="mt-4 text-white/50">
-            Hover over each project to reveal the transformation
+            Hover over each screen to explore the interface
           </p>
         </motion.div>
 
@@ -451,9 +442,9 @@ function PortfolioSection() {
         </div>
 
         <div className="mt-12 text-center">
-          <Link href="/portfolio">
+          <Link href="/register">
             <Button variant="outline" className="border-gold/30 text-gold hover:bg-gold/10">
-              View Full Portfolio
+              Try It Yourself
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
@@ -588,10 +579,10 @@ function TestimonialsSection() {
           className="mb-12 text-center"
         >
           <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-            Client Stories
+            Trusted by Industry Leaders
           </span>
           <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            What Our Clients Say
+            What Our Customers Say
           </h2>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
         </motion.div>
@@ -634,20 +625,25 @@ function CTASection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            Your Dream Space Awaits
+            Start Managing Your Interior Business Better
           </h2>
           <p className="mt-6 text-lg text-white/60">
-            Let us bring your vision to life. Schedule a consultation
-            and take the first step toward your dream interior.
+            Join hundreds of interior design companies already using our platform
+            to streamline operations and grow their business.
           </p>
-          <div className="mt-10">
-            <Link href="/contact">
+          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <Link href="/register">
               <Button
                 size="lg"
                 className="group bg-gold text-gold-foreground shadow-lg shadow-gold/25 hover:bg-gold/90 hover:shadow-gold/40"
               >
-                Get In Touch
+                Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </Link>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                Talk to Sales
               </Button>
             </Link>
           </div>

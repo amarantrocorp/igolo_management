@@ -134,6 +134,21 @@ async def get_platform_stats(
     return await platform_service.get_platform_stats(db=db)
 
 
+@router.delete(
+    "/organizations/{org_id}",
+    response_model=OrganizationResponse,
+)
+async def delete_organization(
+    org_id: str,
+    admin: User = Depends(_require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete an organization (deactivates and cancels subscription)."""
+    from uuid import UUID
+
+    return await platform_service.delete_organization(org_id=UUID(org_id), db=db)
+
+
 @router.post("/organizations/{org_id}/suspend", response_model=OrganizationResponse)
 async def suspend_organization(
     org_id: str,
@@ -175,3 +190,39 @@ async def change_organization_plan(
     return await platform_service.change_plan(
         org_id=UUID(org_id), plan_tier=payload.plan_tier, db=db
     )
+
+
+class PlatformInvitePayload(BaseModel):
+    email: str
+    role: str = "SUPER_ADMIN"
+
+
+@router.post(
+    "/organizations/{org_id}/invite",
+    status_code=status.HTTP_201_CREATED,
+)
+async def invite_to_organization(
+    org_id: str,
+    payload: PlatformInvitePayload,
+    admin: User = Depends(_require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Invite a user to any organization (platform admin). Sends invitation email."""
+    from uuid import UUID
+    from app.services import org_service
+
+    invitation = await org_service.invite_member(
+        org_id=UUID(org_id),
+        email=payload.email,
+        role=payload.role,
+        invited_by=admin.id,
+        db=db,
+    )
+    return {
+        "id": invitation.id,
+        "email": invitation.email,
+        "role": invitation.role,
+        "token": invitation.token,
+        "expires_at": invitation.expires_at,
+    }
+

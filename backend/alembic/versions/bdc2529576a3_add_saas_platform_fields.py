@@ -46,7 +46,10 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('org_id')
     )
     op.add_column('organizations', sa.Column('trial_expires_at', sa.DateTime(timezone=True), nullable=True))
-    op.add_column('organizations', sa.Column('subscription_status', sa.Enum('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED', name='subscriptionstatus'), server_default='TRIAL', nullable=False))
+    from sqlalchemy.dialects import postgresql
+    subscription_status_enum = postgresql.ENUM('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED', name='subscriptionstatus')
+    subscription_status_enum.create(op.get_bind(), checkfirst=True)
+    op.add_column('organizations', sa.Column('subscription_status', subscription_status_enum, server_default='TRIAL', nullable=False))
     op.add_column('organizations', sa.Column('max_users', sa.Integer(), server_default='3', nullable=False))
     op.add_column('organizations', sa.Column('max_projects', sa.Integer(), server_default='2', nullable=False))
     # ### end Alembic commands ###
@@ -57,6 +60,9 @@ def downgrade() -> None:
     op.drop_column('organizations', 'max_projects')
     op.drop_column('organizations', 'max_users')
     op.drop_column('organizations', 'subscription_status')
+    from sqlalchemy.dialects import postgresql
+    subscription_status_enum = postgresql.ENUM('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED', name='subscriptionstatus')
+    subscription_status_enum.drop(op.get_bind(), checkfirst=True)
     op.drop_column('organizations', 'trial_expires_at')
     op.drop_table('org_usage')
     op.drop_index(op.f('ix_org_invitations_token'), table_name='org_invitations')
