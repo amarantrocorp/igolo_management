@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
@@ -39,9 +41,14 @@ router.include_router(register_router)
 )
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
+    tenant_slug: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """OAuth2 password flow login. Returns access + refresh token pair with org context."""
+    """OAuth2 password flow login. Returns access + refresh token pair with org context.
+
+    If tenant_slug is provided (from subdomain login), the user must belong to that org.
+    If no tenant_slug (main domain login), only platform admins are allowed.
+    """
     if len(form_data.password) > 128:
         raise HTTPException(
             status_code=422, detail="Password too long (max 128 characters)"
@@ -50,6 +57,7 @@ async def login(
         email=form_data.username,
         password=form_data.password,
         db=db,
+        tenant_slug=tenant_slug,
     )
 
 

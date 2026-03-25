@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -26,9 +27,17 @@ from app.services.user_service import (
 
 
 async def authenticate_user(
-    email: str, password: str, db: AsyncSession
+    email: str,
+    password: str,
+    db: AsyncSession,
+    tenant_slug: Optional[str] = None,
 ) -> LoginResponse:
-    """Authenticate a user and return login response with org context."""
+    """Authenticate a user and return login response with org context.
+
+    If tenant_slug is provided (subdomain login), the user must belong to that org.
+    If tenant_slug is None (main domain login), only platform admins are allowed
+    unless the user belongs to exactly one org (convenience for small deployments).
+    """
     user = await _authenticate_user(email, password, db)
     if not user:
         raise HTTPException(
@@ -55,7 +64,56 @@ async def authenticate_user(
             detail="You are not a member of any organization",
         )
 
-    # Build org options
+    # ── Tenant-scoped login enforcement ──
+    if tenant_slug:
+        # Subdomain login — user MUST belong to this specific org
+        matching = [
+            m
+            for m in memberships
+            if m.organization.slug == tenant_slug and m.organization.is_active
+        ]
+        if not matching:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You are not a member of this organization. Please login at your own workspace.",
+            )
+        # Force-select this org, skip multi-org selection
+        forced_org = matching[0]
+        access_token = create_access_token(
+            data={"sub": str(user.id), "org_id": str(forced_org.org_id)}
+        )
+        refresh_token = create_refresh_token(
+            data={"sub": str(user.id), "org_id": str(forced_org.org_id)}
+        )
+        return LoginResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            requires_org_selection=False,
+            organizations=[
+                OrgOption(
+                    id=forced_org.org_id,
+                    name=forced_org.organization.name,
+                    slug=forced_org.organization.slug,
+                    role=forced_org.role,
+                )
+            ],
+        )
+
+    # Main domain login (no tenant_slug) — only platform admins allowed
+    if not user.is_platform_admin:
+        # Non-platform-admin on main domain: redirect hint
+        if memberships:
+            org_slug = memberships[0].organization.slug
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Please login at your workspace: {org_slug}",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not a member of any organization",
+        )
+
+    # Build org options (only reached by platform admins now)
     org_options = [
         OrgOption(
             id=m.org_id,

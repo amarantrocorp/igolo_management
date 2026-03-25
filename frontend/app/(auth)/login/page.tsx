@@ -59,6 +59,18 @@ export default function LoginPage() {
     organizations: OrgOption[]
   } | null>(null)
 
+  // Extract tenant slug from subdomain (e.g., "plyman" from "plyman.igolohomes.com")
+  const tenantSlug = (() => {
+    if (typeof window === "undefined") return null
+    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "localhost"
+    const hostname = window.location.hostname
+    if (hostname === baseDomain || hostname === `www.${baseDomain}` || hostname === "localhost") {
+      return null // Main domain — no tenant
+    }
+    const slug = hostname.replace(`.${baseDomain}`, "")
+    return slug || null
+  })()
+
   const {
     register,
     handleSubmit,
@@ -77,7 +89,8 @@ export default function LoginPage() {
       formData.append("username", data.email)
       formData.append("password", data.password)
 
-      const tokenResponse = await api.post<LoginResponse>("/auth/token", formData, {
+      const params = tenantSlug ? `?tenant_slug=${tenantSlug}` : ""
+      const tokenResponse = await api.post<LoginResponse>(`/auth/token${params}`, formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       })
 
@@ -196,10 +209,27 @@ export default function LoginPage() {
         <CardContent className="space-y-4">
           {loginMutation.isError && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {(loginMutation.error as Error)?.message ===
-              "Request failed with status code 401"
-                ? "Invalid email or password. Please try again."
-                : "An error occurred. Please try again later."}
+              {(() => {
+                const err = loginMutation.error as any
+                const status = err?.response?.status
+                const detail = err?.response?.data?.detail || ""
+                if (status === 401) return "Invalid email or password. Please try again."
+                if (status === 403 && detail.includes("workspace:")) {
+                  const slug = detail.split("workspace:")[1]?.trim()
+                  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || "igolohomes.com"
+                  return (
+                    <>
+                      This account belongs to a different workspace.{" "}
+                      <a href={`https://${slug}.${baseDomain}/login`} className="underline font-medium">
+                        Login at {slug}.{baseDomain}
+                      </a>
+                    </>
+                  )
+                }
+                if (status === 403) return detail || "You don't have access to this workspace."
+                if (status === 429) return "Too many login attempts. Please wait a minute."
+                return "An error occurred. Please try again later."
+              })()}
             </div>
           )}
 
