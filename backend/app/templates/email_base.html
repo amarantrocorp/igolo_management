@@ -1,27 +1,225 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{ subject }}</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f7; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; }
-        .header { background: #2563eb; color: white; padding: 20px 30px; }
-        .header h1 { margin: 0; font-size: 20px; }
-        .body { padding: 30px; color: #333; line-height: 1.6; }
-        .button { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 15px 0; }
-        .footer { padding: 20px 30px; background: #f8fafc; text-align: center; font-size: 12px; color: #94a3b8; }
+        /* Reset */
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; }
+
+        /* Base */
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #1a1a2e;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        /* Preheader (hidden preview text) */
+        .preheader {
+            display: none !important;
+            visibility: hidden;
+            mso-hide: all;
+            font-size: 1px;
+            line-height: 1px;
+            max-height: 0;
+            max-width: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+
+        /* Container */
+        .email-wrapper {
+            width: 100%;
+            background-color: #f8f9fa;
+            padding: 32px 16px;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Header */
+        .email-header {
+            background-color: #0B1120;
+            padding: 28px 40px 24px;
+            text-align: center;
+        }
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            line-height: 1;
+        }
+        .logo-igolo { color: #CBB282; }
+        .logo-interior { color: #ffffff; font-weight: 400; }
+        .header-divider {
+            display: block;
+            width: 60px;
+            height: 2px;
+            background: #CBB282;
+            margin: 16px auto 0;
+            border: none;
+        }
+
+        /* Body */
+        .email-body {
+            padding: 40px;
+            color: #1a1a2e;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            display: inline-block;
+            background-color: #CBB282;
+            color: #0B1120 !important;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.01em;
+            transition: background-color 0.2s;
+            mso-padding-alt: 0;
+        }
+        .btn-outline {
+            display: inline-block;
+            background-color: transparent;
+            color: #0B1120 !important;
+            padding: 12px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            border: 2px solid #0B1120;
+            letter-spacing: 0.01em;
+        }
+
+        /* Footer */
+        .email-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #e5e7eb;
+            padding: 32px 40px;
+            text-align: center;
+        }
+        .footer-brand {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .footer-tagline {
+            font-size: 12px;
+            color: #6b7280;
+            margin: 0 0 16px;
+        }
+        .footer-links {
+            margin: 16px 0;
+        }
+        .footer-links a {
+            display: inline-block;
+            margin: 0 8px;
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        .footer-divider {
+            display: block;
+            width: 40px;
+            height: 1px;
+            background: #d1d5db;
+            margin: 16px auto;
+            border: none;
+        }
+        .footer-legal {
+            font-size: 11px;
+            color: #9ca3af;
+            line-height: 1.6;
+        }
+        .footer-legal a {
+            color: #9ca3af;
+            text-decoration: underline;
+        }
+        .footer-powered {
+            font-size: 10px;
+            color: #d1d5db;
+            margin-top: 16px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 620px) {
+            .email-body { padding: 28px 24px !important; }
+            .email-header { padding: 24px 24px 20px !important; }
+            .email-footer { padding: 24px !important; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>{{ subject }}</h1>
-        </div>
-        <div class="body">
-            {% block content %}{% endblock %}
-        </div>
-        <div class="footer">
-            IntDesign ERP &mdash; Interior Design & Execution Management
+    <!-- Preheader text -->
+    <div class="preheader">{% block preheader %}{% endblock %}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+
+    <div class="email-wrapper">
+        <div class="email-container">
+
+            <!-- Header -->
+            <div class="email-header">
+                <div class="logo-text">
+                    <span class="logo-igolo">Igolo</span>&nbsp;<span class="logo-interior">Interior</span>
+                </div>
+                <hr class="header-divider">
+            </div>
+
+            <!-- Body -->
+            <div class="email-body">
+                {% block content %}{% endblock %}
+            </div>
+
+            <!-- Footer -->
+            <div class="email-footer">
+                <div class="footer-brand">Igolo Interior</div>
+                <p class="footer-tagline">Design Studio &amp; Execution</p>
+
+                <div class="footer-links">
+                    <a href="#">Website</a>
+                    <a href="#">Instagram</a>
+                    <a href="#">LinkedIn</a>
+                </div>
+
+                <hr class="footer-divider">
+
+                <div class="footer-legal">
+                    You received this email because you have an account with Igolo Interior.<br>
+                    <a href="#">Unsubscribe</a> &nbsp;&middot;&nbsp; <a href="#">Privacy Policy</a>
+                </div>
+
+                <div class="footer-powered">
+                    Powered by Igolo Interior Technologies
+                </div>
+            </div>
+
         </div>
     </div>
 </body>

@@ -1,12 +1,36 @@
 {% extends "email_base.html" %}
+
+{% block preheader %}{{ title }}{% endblock %}
+
 {% block content %}
-<p>Hi {{ recipient_name }},</p>
+<!-- Heading -->
+<h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0B1120; text-align: center; letter-spacing: -0.01em;">
+    {{ title }}
+</h1>
 
-<p><strong>{{ title }}</strong></p>
+<!-- Greeting -->
+<p style="margin: 0 0 24px; font-size: 15px; color: #6b7280; text-align: center;">
+    Hi {{ recipient_name }},
+</p>
 
-<p>{{ body }}</p>
+<!-- Body Content -->
+<div style="font-size: 15px; color: #1a1a2e; line-height: 1.7; margin-bottom: 28px;">
+    {{ body }}
+</div>
 
+<!-- CTA Button (conditional) -->
 {% if action_url %}
-<a href="{{ frontend_url }}{{ action_url }}" class="button">View Details</a>
+<div style="text-align: center; margin: 28px 0;">
+    <a href="{{ frontend_url }}{{ action_url }}" class="btn-primary" style="display: inline-block; background-color: #CBB282; color: #0B1120; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+        View Details &rarr;
+    </a>
+</div>
 {% endif %}
+
+<!-- Help Text -->
+<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <p style="margin: 0; font-size: 14px; color: #6b7280; text-align: center;">
+        If you have questions, reply to this email or contact your project manager.
+    </p>
+</div>
 {% endblock %}

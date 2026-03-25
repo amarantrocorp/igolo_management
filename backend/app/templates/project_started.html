@@ -1,18 +1,168 @@
 {% extends "email_base.html" %}
+
+{% block preheader %}Your project {{ project_name }} has officially started — track progress in real time!{% endblock %}
+
 {% block content %}
-<p>Hi {{ recipient_name }},</p>
+<!-- Rocket Icon -->
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="display: inline-block; width: 64px; height: 64px; line-height: 64px; border-radius: 50%; background: #f3f0eb; font-size: 28px; text-align: center;">
+        &#128640;
+    </div>
+</div>
 
-<p>A new project has been created and is ready for execution:</p>
+<!-- Heading -->
+<h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0B1120; text-align: center; letter-spacing: -0.01em;">
+    Your Project Has Started!
+</h1>
 
-<table style="width:100%; border-collapse:collapse; margin:15px 0;">
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Project</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ project_name }}</td></tr>
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Start Date</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ start_date }}</td></tr>
-    {% if expected_end_date %}
-    <tr><td style="padding:8px; color:#64748b;">Expected End</td><td style="padding:8px;">{{ expected_end_date }}</td></tr>
-    {% endif %}
-</table>
+<!-- Subheading -->
+<p style="margin: 0 0 28px; font-size: 15px; color: #6b7280; text-align: center;">
+    Hi {{ recipient_name }}, we are excited to begin work on your project.
+</p>
 
+<!-- Project Timeline Card -->
+<div style="background: #0B1120; border-radius: 10px; padding: 28px; margin: 0 0 28px;">
+    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #CBB282; font-weight: 600; margin-bottom: 20px; text-align: center;">
+        Project Timeline
+    </div>
+
+    <!-- Project Name -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px;">
+        <tr>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Project</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ffffff;">{{ project_name }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 0 0 14px;"></div>
+
+    <!-- Dates Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Start Date</div>
+                <div style="font-size: 15px; font-weight: 600; color: #ffffff;">{{ start_date }}</div>
+            </td>
+            {% if expected_end_date %}
+            <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Expected Completion</div>
+                <div style="font-size: 15px; font-weight: 600; color: #ffffff;">{{ expected_end_date }}</div>
+            </td>
+            {% endif %}
+        </tr>
+    </table>
+</div>
+
+<!-- 6-Phase Visual Timeline -->
+<div style="background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px 20px; margin: 0 0 28px;">
+    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 20px; text-align: center;">
+        Execution Phases
+    </div>
+
+    <!-- Phase 1 -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 12px;">
+        <tr>
+            <td style="width: 36px; vertical-align: middle;">
+                <div style="width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #CBB282; color: #0B1120; font-weight: 700; font-size: 12px; text-align: center;">1</div>
+            </td>
+            <td style="vertical-align: middle; padding-left: 8px;">
+                <div style="font-size: 14px; font-weight: 600; color: #0B1120;">&#9998; Design &amp; Approvals</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Connector -->
+    <div style="margin-left: 13px; width: 2px; height: 8px; background: #d1d5db;"></div>
+
+    <!-- Phase 2 -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 12px;">
+        <tr>
+            <td style="width: 36px; vertical-align: middle;">
+                <div style="width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280; font-weight: 700; font-size: 12px; text-align: center;">2</div>
+            </td>
+            <td style="vertical-align: middle; padding-left: 8px;">
+                <div style="font-size: 14px; font-weight: 500; color: #1a1a2e;">&#128296; Civil &amp; Demolition</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Connector -->
+    <div style="margin-left: 13px; width: 2px; height: 8px; background: #d1d5db;"></div>
+
+    <!-- Phase 3 -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 12px;">
+        <tr>
+            <td style="width: 36px; vertical-align: middle;">
+                <div style="width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280; font-weight: 700; font-size: 12px; text-align: center;">3</div>
+            </td>
+            <td style="vertical-align: middle; padding-left: 8px;">
+                <div style="font-size: 14px; font-weight: 500; color: #1a1a2e;">&#9889; MEP (Electrical &amp; Plumbing)</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Connector -->
+    <div style="margin-left: 13px; width: 2px; height: 8px; background: #d1d5db;"></div>
+
+    <!-- Phase 4 -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 12px;">
+        <tr>
+            <td style="width: 36px; vertical-align: middle;">
+                <div style="width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280; font-weight: 700; font-size: 12px; text-align: center;">4</div>
+            </td>
+            <td style="vertical-align: middle; padding-left: 8px;">
+                <div style="font-size: 14px; font-weight: 500; color: #1a1a2e;">&#128666; Woodwork &amp; Carpentry</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Connector -->
+    <div style="margin-left: 13px; width: 2px; height: 8px; background: #d1d5db;"></div>
+
+    <!-- Phase 5 -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 12px;">
+        <tr>
+            <td style="width: 36px; vertical-align: middle;">
+                <div style="width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280; font-weight: 700; font-size: 12px; text-align: center;">5</div>
+            </td>
+            <td style="vertical-align: middle; padding-left: 8px;">
+                <div style="font-size: 14px; font-weight: 500; color: #1a1a2e;">&#127912; Finishing &amp; Painting</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Connector -->
+    <div style="margin-left: 13px; width: 2px; height: 8px; background: #d1d5db;"></div>
+
+    <!-- Phase 6 -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 0;">
+        <tr>
+            <td style="width: 36px; vertical-align: middle;">
+                <div style="width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280; font-weight: 700; font-size: 12px; text-align: center;">6</div>
+            </td>
+            <td style="vertical-align: middle; padding-left: 8px;">
+                <div style="font-size: 14px; font-weight: 500; color: #1a1a2e;">&#128273; Handover &amp; Snag List</div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- CTA Button -->
 {% if action_url %}
-<a href="{{ frontend_url }}{{ action_url }}" class="button">View Project</a>
+<div style="text-align: center; margin: 28px 0;">
+    <a href="{{ frontend_url }}{{ action_url }}" class="btn-primary" style="display: inline-block; background-color: #CBB282; color: #0B1120; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+        Track Progress &rarr;
+    </a>
+</div>
 {% endif %}
+
+<!-- Help Text -->
+<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <p style="margin: 0; font-size: 14px; color: #6b7280; text-align: center;">
+        Your project manager will share regular updates throughout each phase.
+    </p>
+</div>
 {% endblock %}

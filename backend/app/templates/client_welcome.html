@@ -1,15 +1,84 @@
 {% extends "email_base.html" %}
+
+{% block preheader %}Your Igolo Interior project portal is ready — log in to track your project.{% endblock %}
+
 {% block content %}
-<p>Hi {{ client_name }},</p>
+<!-- Key Icon -->
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="display: inline-block; width: 64px; height: 64px; line-height: 64px; border-radius: 50%; background: #f3f0eb; font-size: 28px; text-align: center;">
+        &#128273;
+    </div>
+</div>
 
-<p>Welcome to <strong>IntDesign ERP</strong>! Your portal account has been created. You can now track your project progress, view documents, and manage payments online.</p>
+<!-- Heading -->
+<h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0B1120; text-align: center; letter-spacing: -0.01em;">
+    Welcome to Your Project Portal
+</h1>
 
-<table style="width:100%; border-collapse:collapse; margin:15px 0;">
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Email</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ email }}</td></tr>
-    <tr><td style="padding:8px; color:#64748b;">Password</td><td style="padding:8px; font-weight:600;">{{ password }}</td></tr>
-</table>
+<!-- Subheading -->
+<p style="margin: 0 0 28px; font-size: 15px; color: #6b7280; text-align: center;">
+    Hi {{ client_name }}, your account is ready. Track your project progress, view documents, and manage payments online.
+</p>
 
-<p style="color:#ef4444; font-size:13px;">Please change your password after your first login.</p>
+<!-- Credentials Card -->
+<div style="background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px 28px; margin: 0 0 24px;">
+    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 16px;">
+        Your Login Credentials
+    </div>
 
-<a href="{{ login_url }}" class="button">Login to Your Portal</a>
+    <!-- Email Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 12px;">
+        <tr>
+            <td style="width: 32px; vertical-align: middle;">
+                <div style="font-size: 16px; opacity: 0.6;">&#9993;</div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Email</div>
+                <div style="font-size: 15px; font-weight: 600; color: #0B1120;">{{ email }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: #e5e7eb; margin: 0 0 12px;"></div>
+
+    <!-- Password Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 0;">
+        <tr>
+            <td style="width: 32px; vertical-align: middle;">
+                <div style="font-size: 16px; opacity: 0.6;">&#128274;</div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Temporary Password</div>
+                <div style="font-size: 15px; font-weight: 600; color: #0B1120; font-family: monospace, monospace; letter-spacing: 0.05em;">{{ password }}</div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Warning Box -->
+<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 18px; margin: 0 0 28px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+            <td style="width: 28px; vertical-align: top; font-size: 16px;">&#9888;&#65039;</td>
+            <td style="vertical-align: middle; font-size: 13px; color: #92400e; font-weight: 500;">
+                Please change your password after your first login for security.
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- CTA Button -->
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ login_url }}" class="btn-primary" style="display: inline-block; background-color: #CBB282; color: #0B1120; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+        Login to Portal &rarr;
+    </a>
+</div>
+
+<!-- Note -->
+<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <p style="margin: 0; font-size: 14px; color: #6b7280; text-align: center;">
+        Your project manager will keep you updated on progress. Feel free to reply to this email with any questions.
+    </p>
+</div>
 {% endblock %}

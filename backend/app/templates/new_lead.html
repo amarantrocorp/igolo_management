@@ -1,19 +1,106 @@
 {% extends "email_base.html" %}
+
+{% block preheader %}A new lead has been assigned to you — reach out within 24 hours.{% endblock %}
+
 {% block content %}
-<p>Hi {{ recipient_name }},</p>
+<!-- User+ Icon -->
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="display: inline-block; width: 64px; height: 64px; line-height: 64px; border-radius: 50%; background: #f3f0eb; font-size: 28px; text-align: center;">
+        &#128100;
+    </div>
+</div>
 
-<p>A new lead has been assigned to you:</p>
+<!-- Heading -->
+<h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #0B1120; text-align: center; letter-spacing: -0.01em;">
+    New Lead Assigned to You
+</h1>
 
-<table style="width:100%; border-collapse:collapse; margin:15px 0;">
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Name</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ lead_name }}</td></tr>
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Phone</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ lead_phone }}</td></tr>
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Source</td><td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ lead_source }}</td></tr>
-    <tr><td style="padding:8px; color:#64748b;">Location</td><td style="padding:8px;">{{ lead_location }}</td></tr>
-</table>
+<!-- Subheading -->
+<p style="margin: 0 0 28px; font-size: 15px; color: #6b7280; text-align: center;">
+    Hi {{ recipient_name }}, you have a new lead to follow up on.
+</p>
 
+<!-- Lead Info Card -->
+<div style="background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px 28px; margin: 0 0 28px;">
+    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 16px;">
+        Lead Details
+    </div>
+
+    <!-- Name Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px;">
+        <tr>
+            <td style="width: 32px; vertical-align: middle;">
+                <div style="font-size: 15px; opacity: 0.5;">&#128100;</div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Name</div>
+                <div style="font-size: 15px; font-weight: 600; color: #0B1120;">{{ lead_name }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: #e5e7eb; margin: 0 0 14px;"></div>
+
+    <!-- Phone Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px;">
+        <tr>
+            <td style="width: 32px; vertical-align: middle;">
+                <div style="font-size: 15px; opacity: 0.5;">&#128222;</div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Phone</div>
+                <div style="font-size: 15px; font-weight: 600; color: #0B1120;">{{ lead_phone }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: #e5e7eb; margin: 0 0 14px;"></div>
+
+    <!-- Source Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px;">
+        <tr>
+            <td style="width: 32px; vertical-align: middle;">
+                <div style="font-size: 15px; opacity: 0.5;">&#127760;</div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Source</div>
+                <div style="font-size: 15px; font-weight: 500; color: #1a1a2e;">{{ lead_source }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: #e5e7eb; margin: 0 0 14px;"></div>
+
+    <!-- Location Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 0;">
+        <tr>
+            <td style="width: 32px; vertical-align: middle;">
+                <div style="font-size: 15px; opacity: 0.5;">&#128205;</div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Location</div>
+                <div style="font-size: 15px; font-weight: 500; color: #1a1a2e;">{{ lead_location }}</div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- CTA Button -->
 {% if action_url %}
-<a href="{{ frontend_url }}{{ action_url }}" class="button">View Lead</a>
+<div style="text-align: center; margin: 28px 0;">
+    <a href="{{ frontend_url }}{{ action_url }}" class="btn-primary" style="display: inline-block; background-color: #CBB282; color: #0B1120; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+        View Lead &rarr;
+    </a>
+</div>
 {% endif %}
 
-<p>Please reach out to this lead as soon as possible.</p>
+<!-- Urgency Note -->
+<div style="text-align: center; margin-top: 24px; padding: 14px 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+    <p style="margin: 0; font-size: 13px; color: #166534; font-weight: 500;">
+        &#9201; Please reach out within <strong>24 hours</strong> for the best conversion rate.
+    </p>
+</div>
 {% endblock %}

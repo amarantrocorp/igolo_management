@@ -1,20 +1,90 @@
 {% extends "email_base.html" %}
+
+{% block preheader %}Payment of &#8377;{{ amount }} received for {{ project_name }} — thank you!{% endblock %}
+
 {% block content %}
-<p>Hi {{ client_name }},</p>
+<!-- Checkmark Icon -->
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="display: inline-block; width: 64px; height: 64px; line-height: 64px; border-radius: 50%; background: #f0fdf4; font-size: 28px; text-align: center;">
+        &#9989;
+    </div>
+</div>
 
-<p>We have received and confirmed your payment. Thank you!</p>
+<!-- Heading -->
+<h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #16a34a; text-align: center; letter-spacing: -0.01em;">
+    Payment Received
+</h1>
 
-<table style="width:100%; border-collapse:collapse; margin:15px 0;">
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Project</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">{{ project_name }}</td></tr>
-    <tr><td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Amount</td><td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600; color:#16a34a;">&#8377; {{ amount }}</td></tr>
+<!-- Subheading -->
+<p style="margin: 0 0 28px; font-size: 15px; color: #6b7280; text-align: center;">
+    Hi {{ client_name }}, we have successfully received your payment.
+</p>
+
+<!-- Payment Details Card (receipt-style) -->
+<div style="background: #f8f9fa; border: 2px dashed #d1d5db; border-radius: 10px; padding: 28px; margin: 0 0 28px;">
+    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 20px; text-align: center;">
+        Payment Details
+    </div>
+
+    <!-- Project Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px;">
+        <tr>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Project</div>
+                <div style="font-size: 15px; font-weight: 600; color: #0B1120;">{{ project_name }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: #e5e7eb; margin: 0 0 14px;"></div>
+
+    <!-- Amount Row -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px;">
+        <tr>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Amount Paid</div>
+                <div style="font-size: 28px; font-weight: 700; color: #16a34a; line-height: 1.2;">&#8377;{{ amount }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Divider -->
+    <div style="height: 1px; background: #e5e7eb; margin: 0 0 14px;"></div>
+
+    <!-- Reference Row -->
     {% if reference_id %}
-    <tr><td style="padding:8px; color:#64748b;">Reference</td><td style="padding:8px;">{{ reference_id }}</td></tr>
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 0;">
+        <tr>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 1px;">Reference ID</div>
+                <div style="font-size: 14px; font-weight: 500; color: #1a1a2e; font-family: monospace;">{{ reference_id }}</div>
+            </td>
+        </tr>
+    </table>
     {% endif %}
-</table>
+</div>
 
+<!-- Confirmation Note -->
+<div style="text-align: center; margin-bottom: 28px; padding: 14px 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+    <p style="margin: 0; font-size: 13px; color: #166534; font-weight: 500;">
+        Your payment has been recorded and will be verified shortly.
+    </p>
+</div>
+
+<!-- CTA Button -->
 {% if action_url %}
-<a href="{{ frontend_url }}{{ action_url }}" class="button">View Project</a>
+<div style="text-align: center; margin: 28px 0;">
+    <a href="{{ frontend_url }}{{ action_url }}" class="btn-primary" style="display: inline-block; background-color: #CBB282; color: #0B1120; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+        View Project &rarr;
+    </a>
+</div>
 {% endif %}
 
-<p>This amount has been credited to your project wallet.</p>
+<!-- Help Text -->
+<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <p style="margin: 0; font-size: 14px; color: #6b7280; text-align: center;">
+        This amount has been credited to your project wallet. If you have questions, reply to this email.
+    </p>
+</div>
 {% endblock %}
