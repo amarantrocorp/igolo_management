@@ -175,9 +175,9 @@ async def finalize_quotation(
     """
     # Lock the quotation row to prevent concurrent finalization
     lock_result = await db.execute(
-        select(Quotation).where(
-            Quotation.id == quote_id, Quotation.org_id == org_id
-        ).with_for_update()
+        select(Quotation)
+        .where(Quotation.id == quote_id, Quotation.org_id == org_id)
+        .with_for_update()
     )
     locked_quote = lock_result.scalar_one_or_none()
     if not locked_quote:

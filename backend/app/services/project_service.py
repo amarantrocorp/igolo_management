@@ -51,9 +51,9 @@ async def convert_quote_to_project(
     """
     # Fetch and validate the quotation (lock row to prevent concurrent conversion)
     result = await db.execute(
-        select(Quotation).where(
-            Quotation.id == data.quotation_id, Quotation.org_id == org_id
-        ).with_for_update()
+        select(Quotation)
+        .where(Quotation.id == data.quotation_id, Quotation.org_id == org_id)
+        .with_for_update()
     )
     quotation = result.scalar_one_or_none()
     if not quotation:
@@ -349,9 +349,7 @@ async def update_sprint(
     effective_start = new_start_date if new_start_date else sprint.start_date
     effective_end = new_end_date if new_end_date else sprint.end_date
     if effective_end < effective_start:
-        raise BadRequestException(
-            detail="Sprint end date cannot be before start date"
-        )
+        raise BadRequestException(detail="Sprint end date cannot be before start date")
 
     # Check if end_date is being changed for the ripple effect
     if new_end_date and new_end_date != sprint.end_date:

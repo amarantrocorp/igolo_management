@@ -21,7 +21,7 @@ from app.services.notification_service import create_notification
 
 def strip_html(text: str) -> str:
     """Remove HTML tags from a string."""
-    return re.sub(r'<[^>]+>', '', text) if text else text
+    return re.sub(r"<[^>]+>", "", text) if text else text
 
 
 async def create_lead(data: LeadCreate, org_id: UUID, db: AsyncSession) -> Lead:
