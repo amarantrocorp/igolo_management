@@ -72,7 +72,9 @@ if _wildcard_origins:
     for o in _exact:
         _patterns.append(_re.escape(o))
     _cors_kwargs["allow_origin_regex"] = f"^({'|'.join(_patterns)})$"
-    _cors_kwargs.pop("allow_origins")  # Can't use both allow_origins and allow_origin_regex
+    _cors_kwargs.pop(
+        "allow_origins"
+    )  # Can't use both allow_origins and allow_origin_regex
 
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
