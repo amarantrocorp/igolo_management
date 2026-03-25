@@ -168,12 +168,12 @@ const docSections = [
 ]
 
 const quickLinks = [
-  { label: "Getting Started", href: "/docs/getting-started", icon: Rocket },
-  { label: "Quotation Builder", href: "/docs/quotation-design", icon: FileSpreadsheet },
-  { label: "Tips & Best Practices", href: "/docs/tips", icon: Code2 },
+  { label: "Getting Started", href: "/documentation/getting-started", icon: Rocket },
+  { label: "Quotation Builder", href: "/documentation/quotation-design", icon: FileSpreadsheet },
+  { label: "Tips & Best Practices", href: "/documentation/tips", icon: Code2 },
   {
     label: "Managing Your Team",
-    href: "/docs/managing-team",
+    href: "/documentation/managing-team",
     icon: Users,
   },
 ]
@@ -276,7 +276,7 @@ export default function DocsPage() {
             const Icon = section.icon
             return (
               <motion.div key={section.slug} variants={fadeInUp} custom={i}>
-                <Link href={`/docs/${section.slug}`} className="group block">
+                <Link href={`/documentation/${section.slug}`} className="group block">
                   <div className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:border-[#CBB282]/20 hover:bg-white/[0.04]">
                     {/* Gradient hover glow */}
                     <div

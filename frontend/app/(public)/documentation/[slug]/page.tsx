@@ -511,7 +511,7 @@ export default function DocPage({ params }: { params: { slug: string } }) {
   const possiblePaths = [
     path.join(process.cwd(), "..", "docs", entry.file),
     path.join(process.cwd(), "docs", entry.file),
-    path.join("/docs", entry.file),
+    path.join("/documentation", entry.file),
   ]
   const filePath = possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0]
 
@@ -562,7 +562,7 @@ export default function DocPage({ params }: { params: { slug: string } }) {
                 return (
                   <Link
                     key={s}
-                    href={`/docs/${s}`}
+                    href={`/documentation/${s}`}
                     className={`doc-nav-link ${isActive ? "doc-nav-link-active" : ""}`}
                   >
                     {e.title}
@@ -577,7 +577,7 @@ export default function DocPage({ params }: { params: { slug: string } }) {
         <main className="doc-main">
           {/* Breadcrumb */}
           <div className="doc-breadcrumb">
-            <Link href="/docs">Docs</Link>
+            <Link href="/documentation">Docs</Link>
             <span className="doc-breadcrumb-sep">/</span>
             <span>{entry.category}</span>
             <span className="doc-breadcrumb-sep">/</span>
@@ -598,13 +598,13 @@ export default function DocPage({ params }: { params: { slug: string } }) {
           <footer className="doc-footer">
             <div className="doc-footer-nav">
               {prevEntry && prevSlug ? (
-                <Link href={`/docs/${prevSlug}`} className="doc-footer-link">
+                <Link href={`/documentation/${prevSlug}`} className="doc-footer-link">
                   <span className="doc-footer-link-label"><ChevronIcon direction="left" /> Previous</span>
                   <span className="doc-footer-link-title">{prevEntry.title}</span>
                 </Link>
               ) : <div />}
               {nextEntry && nextSlug ? (
-                <Link href={`/docs/${nextSlug}`} className="doc-footer-link doc-footer-link-next">
+                <Link href={`/documentation/${nextSlug}`} className="doc-footer-link doc-footer-link-next">
                   <span className="doc-footer-link-label">Next <ChevronIcon direction="right" /></span>
                   <span className="doc-footer-link-title">{nextEntry.title}</span>
                 </Link>
