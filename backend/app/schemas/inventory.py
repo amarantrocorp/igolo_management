@@ -145,7 +145,7 @@ class VendorResponse(BaseModel):
 
 class POItemCreate(BaseModel):
     item_id: UUID
-    quantity: float
+    quantity: float = Field(..., ge=0.01)
     unit_price: Decimal
 
 

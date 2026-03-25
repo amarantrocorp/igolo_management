@@ -1,6 +1,7 @@
 """Self-service organization registration."""
 
 import logging
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -51,11 +52,18 @@ class RegisterResponse(BaseModel):
 @router.post("/register", response_model=RegisterResponse)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Register a new organization with owner account. Starts a 14-day free trial."""
+    # 0. Validate password complexity
+    if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$', data.password):
+        raise HTTPException(
+            status_code=422,
+            detail="Password must contain at least one uppercase letter, one lowercase letter, and one digit",
+        )
+
     # 1. Check email not taken
     existing = await db.scalar(select(User).where(User.email == data.email.lower()))
     if existing:
         raise HTTPException(
-            400, "An account with this email already exists. Please login."
+            400, "Unable to create account. Please try a different email or login to your existing account."
         )
 
     # 2. Create organization with trial + schema

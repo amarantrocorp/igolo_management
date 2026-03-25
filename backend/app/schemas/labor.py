@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.labor import (
     AttendanceStatus,
@@ -71,10 +71,22 @@ class AttendanceLogCreate(BaseModel):
     sprint_id: UUID
     team_id: UUID
     date: date
-    workers_present: int
-    total_hours: float = 8.0
+    workers_present: int = Field(..., ge=1, le=200)
+    total_hours: float = Field(default=8.0, ge=0.01, le=24)
     site_photo_url: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, v: date) -> date:
+        from datetime import timedelta
+
+        today = date.today()
+        if v > today:
+            raise ValueError("Attendance date cannot be in the future")
+        if v < today - timedelta(days=365):
+            raise ValueError("Attendance date cannot be more than 1 year in the past")
+        return v
 
 
 class AttendanceLogResponse(BaseModel):

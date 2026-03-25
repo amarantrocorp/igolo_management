@@ -23,10 +23,12 @@ async def create_notification(
     email_data: Optional[dict] = None,
 ) -> Notification:
     """Create an in-app notification and optionally send an email."""
+    # Truncate title to fit DB column limit (String(255))
+    safe_title = title[:255] if len(title) > 255 else title
     notification = Notification(
         recipient_id=recipient_id,
         type=type,
-        title=title,
+        title=safe_title,
         body=body,
         action_url=action_url,
         org_id=org_id,

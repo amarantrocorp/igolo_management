@@ -15,8 +15,8 @@ from app.schemas.user import UserBrief
 
 class LeadCreate(BaseModel):
     # Contact
-    name: str = Field(..., max_length=255)
-    contact_number: str = Field(..., max_length=50)
+    name: str = Field(..., min_length=2, max_length=255)
+    contact_number: str = Field(..., min_length=1, max_length=50)
     email: Optional[str] = Field(None, max_length=255)
     source: str = Field(..., max_length=255)
     location: Optional[str] = Field(None, max_length=500)

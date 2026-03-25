@@ -1,3 +1,4 @@
+import re
 from typing import List, Optional
 from uuid import UUID
 
@@ -18,9 +19,23 @@ from app.core.plan_limits import enforce_lead_limit
 from app.services.notification_service import create_notification
 
 
+def strip_html(text: str) -> str:
+    """Remove HTML tags from a string."""
+    return re.sub(r'<[^>]+>', '', text) if text else text
+
+
 async def create_lead(data: LeadCreate, org_id: UUID, db: AsyncSession) -> Lead:
     """Create a new lead in the CRM pipeline."""
     await enforce_lead_limit(org_id, db)
+
+    # Sanitize text fields
+    data.name = strip_html(data.name)
+    if data.notes:
+        data.notes = strip_html(data.notes)
+
+    # Normalize empty email to None
+    if data.email is not None and data.email.strip() == "":
+        data.email = None
 
     lead = Lead(
         name=data.name,
@@ -54,12 +69,14 @@ async def create_lead(data: LeadCreate, org_id: UUID, db: AsyncSession) -> Lead:
 
     # Notify the assigned BDE/Sales person
     if lead.assigned_to_id:
+        # Truncate name to prevent exceeding DB column limits (title is String(255))
+        notification_name = lead.name[:100] if len(lead.name) > 100 else lead.name
         await create_notification(
             db=db,
             recipient_id=lead.assigned_to_id,
             org_id=org_id,
             type=NotificationType.INFO,
-            title=f"New Lead: {lead.name}",
+            title=f"New Lead: {notification_name}",
             body=f"New lead from {lead.source} - {lead.contact_number}",
             action_url=f"/dashboard/sales/leads/{lead.id}",
             email_template="new_lead.html",
@@ -121,6 +138,32 @@ async def update_lead(
 ) -> Lead:
     """Update lead fields. Only non-None fields from the update schema are applied."""
     lead = await get_lead(lead_id, org_id, db)
+
+    # Normalize empty email to None
+    if data.email is not None and data.email.strip() == "":
+        data.email = None
+
+    # Validate assigned user belongs to the same organization and is active
+    if data.assigned_to_id is not None:
+        membership = await db.execute(
+            select(OrgMembership).where(
+                OrgMembership.user_id == data.assigned_to_id,
+                OrgMembership.org_id == org_id,
+                OrgMembership.is_active == True,
+            )
+        )
+        if not membership.scalar_one_or_none():
+            raise BadRequestException(
+                detail="Assigned user is not a member of this organization"
+            )
+
+        # Also verify the user account itself is active
+        user_result = await db.execute(
+            select(User).where(User.id == data.assigned_to_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user or not user.is_active:
+            raise BadRequestException(detail="Cannot assign lead to an inactive user")
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():

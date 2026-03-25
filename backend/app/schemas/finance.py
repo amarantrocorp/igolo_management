@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
 
@@ -12,7 +12,7 @@ class TransactionCreate(BaseModel):
     project_id: UUID
     category: TransactionCategory
     source: TransactionSource
-    amount: Decimal
+    amount: Decimal = Field(..., ge=0, le=9999999999)
     description: Optional[str] = None
     reference_id: Optional[str] = None
     related_po_id: Optional[UUID] = None

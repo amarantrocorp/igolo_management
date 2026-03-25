@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
@@ -42,6 +42,8 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     """OAuth2 password flow login. Returns access + refresh token pair with org context."""
+    if len(form_data.password) > 128:
+        raise HTTPException(status_code=422, detail="Password too long (max 128 characters)")
     return await auth_service.authenticate_user(
         email=form_data.username,
         password=form_data.password,

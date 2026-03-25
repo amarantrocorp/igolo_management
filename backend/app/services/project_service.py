@@ -49,11 +49,11 @@ async def convert_quote_to_project(
     3. Auto-generate the standard 6 sprints with sequential dates and dependencies.
     4. Create a ProjectWallet with total_agreed_value = quotation total_amount.
     """
-    # Fetch and validate the quotation
+    # Fetch and validate the quotation (lock row to prevent concurrent conversion)
     result = await db.execute(
         select(Quotation).where(
             Quotation.id == data.quotation_id, Quotation.org_id == org_id
-        )
+        ).with_for_update()
     )
     quotation = result.scalar_one_or_none()
     if not quotation:
@@ -64,6 +64,13 @@ async def convert_quote_to_project(
         raise BadRequestException(
             detail=f"Quotation must be APPROVED to convert. Current status: {quotation.status.value}"
         )
+
+    # Check if a project already exists for this quotation
+    existing = await db.execute(
+        select(Project).where(Project.accepted_quotation_id == quotation.id)
+    )
+    if existing.scalar_one_or_none():
+        raise BadRequestException(detail="A project already exists for this quotation")
 
     # Retrieve the client associated with this lead
     from app.models.crm import Client
@@ -112,6 +119,10 @@ async def convert_quote_to_project(
         org_id=org_id,
     )
     db.add(wallet)
+
+    # Mark quotation as ARCHIVED to prevent re-use
+    quotation.status = QuoteStatus.ARCHIVED
+    db.add(quotation)
 
     # Ensure the lead is marked as CONVERTED
     from app.models.crm import Lead, LeadStatus
@@ -289,6 +300,16 @@ async def update_project(
     """Update project fields. Only non-None fields are applied."""
     project = await get_project(project_id, org_id, db)
 
+    # Prevent marking project as COMPLETED if any sprints are incomplete
+    if data.status == ProjectStatus.COMPLETED:
+        incomplete_sprints = [
+            s for s in project.sprints if s.status != SprintStatus.COMPLETED
+        ]
+        if incomplete_sprints:
+            raise BadRequestException(
+                detail=f"Cannot complete project: {len(incomplete_sprints)} sprint(s) are not completed"
+            )
+
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(project, field, value)
@@ -314,8 +335,25 @@ async def update_sprint(
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # Check if end_date is being changed for the ripple effect
+    # Validate completion_percentage bounds
+    completion_pct = update_data.get("completion_percentage")
+    if completion_pct is not None:
+        if completion_pct < 0 or completion_pct > 100:
+            raise BadRequestException(
+                detail="Completion percentage must be between 0 and 100"
+            )
+
+    # Validate sprint date ordering
     new_end_date = update_data.get("end_date")
+    new_start_date = update_data.get("start_date")
+    effective_start = new_start_date if new_start_date else sprint.start_date
+    effective_end = new_end_date if new_end_date else sprint.end_date
+    if effective_end < effective_start:
+        raise BadRequestException(
+            detail="Sprint end date cannot be before start date"
+        )
+
+    # Check if end_date is being changed for the ripple effect
     if new_end_date and new_end_date != sprint.end_date:
         delay = new_end_date - sprint.end_date
         sprint.end_date = new_end_date

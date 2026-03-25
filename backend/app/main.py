@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.core.config import settings
 
@@ -57,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# GZip compression for responses >= 1KB
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Trial / subscription enforcement (applied after CORS)
 from app.core.trial_middleware import TrialEnforcementMiddleware  # noqa: E402

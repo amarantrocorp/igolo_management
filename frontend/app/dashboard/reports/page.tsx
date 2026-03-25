@@ -164,8 +164,8 @@ export default function ReportsPage() {
       })
       .map((p) => ({
         name: (p.name ?? `Project ${p.id?.slice(0, 8)}`).substring(0, 20),
-        received: p.wallet?.total_received ?? p.total_received ?? 0,
-        spent: p.wallet?.total_spent ?? p.total_spent ?? 0,
+        received: Number(p.wallet?.total_received ?? p.total_received ?? 0),
+        spent: Number(p.wallet?.total_spent ?? p.total_spent ?? 0),
       }))
       .filter((d) => d.received > 0 || d.spent > 0)
   }, [projects, startDate, endDate])

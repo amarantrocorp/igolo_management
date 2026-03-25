@@ -166,9 +166,12 @@ async def authenticate_user(
     email: str, password: str, db: AsyncSession
 ) -> Optional[User]:
     """Verify email and password. Returns the User on success, None on failure."""
+    email = email.strip().lower()
     user = await get_user_by_email(email, db)
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
+        return None
+    if not user.is_active:
         return None
     return user

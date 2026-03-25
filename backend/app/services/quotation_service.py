@@ -173,12 +173,23 @@ async def finalize_quotation(
     Only DRAFT quotations can be finalized. Once finalized, the status becomes SENT
     and the version number is locked.
     """
-    quotation = await get_quotation(quote_id, org_id, db)
+    # Lock the quotation row to prevent concurrent finalization
+    lock_result = await db.execute(
+        select(Quotation).where(
+            Quotation.id == quote_id, Quotation.org_id == org_id
+        ).with_for_update()
+    )
+    locked_quote = lock_result.scalar_one_or_none()
+    if not locked_quote:
+        raise NotFoundException(detail=f"Quotation with id '{quote_id}' not found")
 
-    if quotation.status != QuoteStatus.DRAFT:
+    if locked_quote.status != QuoteStatus.DRAFT:
         raise BadRequestException(
-            detail=f"Only DRAFT quotations can be finalized. Current status: {quotation.status.value}"
+            detail=f"Only DRAFT quotations can be finalized. Current status: {locked_quote.status.value}"
         )
+
+    # Now load the full quotation with relationships (row is already locked)
+    quotation = await get_quotation(quote_id, org_id, db)
 
     # Determine the next finalized version for this lead (among non-DRAFT quotes)
     result = await db.execute(

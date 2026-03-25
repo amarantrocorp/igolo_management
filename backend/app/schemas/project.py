@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
 from app.models.project import ProjectStatus, SprintStatus, VOStatus
@@ -98,7 +98,7 @@ class ProjectResponse(BaseModel):
 
 class VariationOrderCreate(BaseModel):
     description: str
-    additional_cost: Decimal
+    additional_cost: Decimal = Field(..., ge=0, le=9999999999)
     linked_sprint_id: Optional[UUID] = None
     supporting_doc_url: Optional[str] = None
 
@@ -125,7 +125,7 @@ class VariationOrderResponse(BaseModel):
 
 
 class TransactionCreate(BaseModel):
-    amount: Decimal
+    amount: Decimal = Field(..., ge=0, le=9999999999)
     description: str
     source: TransactionSource
     category: TransactionCategory

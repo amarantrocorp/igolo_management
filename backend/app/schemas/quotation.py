@@ -12,10 +12,10 @@ from app.schemas.crm import LeadResponse
 class QuoteItemCreate(BaseModel):
     inventory_item_id: Optional[UUID] = None
     description: str
-    quantity: float = Field(..., ge=0)
+    quantity: float = Field(..., ge=0, le=999999)
     unit: str = "nos"
-    unit_price: Decimal = Field(..., ge=0)
-    markup_percentage: float = Field(default=0.0, ge=0)
+    unit_price: Decimal = Field(..., ge=0, le=9999999999)
+    markup_percentage: float = Field(default=0.0, ge=0, le=1000)
 
 
 class QuoteItemResponse(BaseModel):

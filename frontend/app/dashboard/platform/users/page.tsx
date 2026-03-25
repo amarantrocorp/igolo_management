@@ -120,15 +120,19 @@ export default function PlatformUsersPage() {
   const [orgFilter, setOrgFilter] = useState<string>("ALL")
   const [page, setPage] = useState(1)
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<
-    PlatformUser[]
-  >({
+  const {
+    data: users = [],
+    isLoading: usersLoading,
+    isError: usersError,
+    error: usersErrorDetail,
+  } = useQuery<PlatformUser[]>({
     queryKey: ["platform", "users"],
     queryFn: async () => {
       const { data } = await api.get("/users")
-      return data
+      return Array.isArray(data) ? data : []
     },
     staleTime: 30000,
+    retry: 1,
   })
 
   const { data: organizations = [] } = useQuery<Organization[]>({
@@ -201,6 +205,18 @@ export default function PlatformUsersPage() {
       {usersLoading ? (
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      ) : usersError ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-red-400" />
+          <p className="text-sm font-medium text-red-700">
+            Failed to load users
+          </p>
+          <p className="mt-1 text-xs text-red-600">
+            {(usersErrorDetail as Error)?.message?.includes("403")
+              ? "You do not have permission to view platform users. SUPER_ADMIN role is required."
+              : (usersErrorDetail as Error)?.message || "An unexpected error occurred. Please try again."}
+          </p>
         </div>
       ) : (
         <>
