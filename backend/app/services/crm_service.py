@@ -149,7 +149,7 @@ async def update_lead(
             select(OrgMembership).where(
                 OrgMembership.user_id == data.assigned_to_id,
                 OrgMembership.org_id == org_id,
-                OrgMembership.is_active == True,
+                OrgMembership.is_active.is_(True),
             )
         )
         if not membership.scalar_one_or_none():
