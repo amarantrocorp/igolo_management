@@ -128,8 +128,9 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # 7. Send welcome email (fire and forget)
     from app.core.config import settings
 
+    protocol = "https" if "localhost" not in settings.BASE_DOMAIN else "http"
     dashboard_url = (
-        f"http://{slug}.{settings.BASE_DOMAIN}/dashboard"
+        f"{protocol}://{slug}.{settings.BASE_DOMAIN}/dashboard"
         if settings.USE_SUBDOMAINS
         else f"{settings.FRONTEND_URL}/dashboard"
     )
