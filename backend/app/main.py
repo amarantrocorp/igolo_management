@@ -50,14 +50,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS — support exact origins + wildcard subdomains
+_cors_kwargs = {
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+    "allow_origins": settings.cors_origins_list,
+}
+# If any origin contains a wildcard, use regex matching for subdomains
+_wildcard_origins = [o for o in settings.cors_origins_list if "*" in o]
+if _wildcard_origins:
+    import re as _re
+
+    # Convert "https://*.igolohomes.com" to regex "https://[a-z0-9-]+\.igolohomes\.com"
+    _patterns = []
+    for o in _wildcard_origins:
+        escaped = _re.escape(o).replace(r"\*", r"[a-z0-9\-]+")
+        _patterns.append(escaped)
+    # Also allow the exact origins (non-wildcard)
+    _exact = [o for o in settings.cors_origins_list if "*" not in o]
+    for o in _exact:
+        _patterns.append(_re.escape(o))
+    _cors_kwargs["allow_origin_regex"] = f"^({'|'.join(_patterns)})$"
+    _cors_kwargs.pop("allow_origins")  # Can't use both allow_origins and allow_origin_regex
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # GZip compression for responses >= 1KB
 app.add_middleware(GZipMiddleware, minimum_size=1000)
