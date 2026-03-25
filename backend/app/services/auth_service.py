@@ -75,7 +75,7 @@ async def authenticate_user(
         if not matching:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"You are not a member of this organization. Please login at your own workspace.",
+                detail="You are not a member of this organization. Please login at your own workspace.",
             )
         # Force-select this org, skip multi-org selection
         forced_org = matching[0]
