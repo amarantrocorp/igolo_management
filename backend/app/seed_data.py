@@ -839,7 +839,16 @@ async def seed_leads(db, users):
     admin_result = await db.execute(
         select(User).where(User.email == "admin@intdesignerp.com")
     )
-    admin = admin_result.scalar_one()
+    admin = admin_result.scalar_one_or_none()
+    if not admin:
+        # Try any SUPER_ADMIN
+        admin_result = await db.execute(
+            select(User).where(User.role == UserRole.SUPER_ADMIN).limit(1)
+        )
+        admin = admin_result.scalar_one_or_none()
+    if not admin:
+        print("  No admin user found. Skipping lead seeding.")
+        return []
 
     # Assign leads to BDE/Sales users
     sales_users = [
