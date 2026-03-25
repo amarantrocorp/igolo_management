@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -52,6 +53,7 @@ import {
   Clock,
   AlertCircle,
   MessageSquare,
+  UserCheck,
 } from "lucide-react"
 
 // ── Constants (aligned with create page) ──
@@ -479,6 +481,8 @@ export default function LeadDetailPage() {
   const hasErrors = Object.keys(formErrors).length > 0
   const { toast } = useToast()
 
+  const [showConvertDialog, setShowConvertDialog] = useState(false)
+
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.put(`/crm/leads/${id}`, { status }),
     onSuccess: () => {
@@ -488,6 +492,42 @@ export default function LeadDetailPage() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" })
+    },
+  })
+
+  const canConvert = !isConverted
+    && quotations.some((q) => q.status === "APPROVED")
+    && (userRole === "MANAGER" || userRole === "SUPER_ADMIN")
+
+  const convertMutation = useMutation({
+    mutationFn: async () => {
+      // Step 1: Convert lead to client
+      await api.post(`/crm/leads/${id}/convert`)
+
+      // Step 2: Find approved quotation and create project
+      const approvedQuote = quotations.find((q) => q.status === "APPROVED")
+      if (approvedQuote) {
+        const startDate = new Date()
+        startDate.setDate(startDate.getDate() + 7)
+        const startDateStr = startDate.toISOString().split("T")[0]
+
+        await api.post(`/projects/convert/${approvedQuote.id}`, {
+          quotation_id: approvedQuote.id,
+          start_date: startDateStr,
+          name: lead?.name ? `${lead.name} - Interior Project` : "New Project",
+        })
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Converted", description: "Lead converted to client and project created successfully" })
+      queryClient.invalidateQueries({ queryKey: ["lead", id] })
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["quotations-for-lead", id] })
+      setShowConvertDialog(false)
+    },
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail || "Failed to convert lead"
+      toast({ title: "Conversion Failed", description: detail, variant: "destructive" })
     },
   })
 
@@ -602,6 +642,17 @@ export default function LeadDetailPage() {
                   Save
                 </Button>
               </>
+            )}
+            {canConvert && (
+              <Button
+                size="sm"
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => setShowConvertDialog(true)}
+              >
+                <UserCheck className="mr-2 h-4 w-4" />
+                Convert to Client
+              </Button>
             )}
             {canManageQuotes && !isConverted && (
               <Button
@@ -1289,6 +1340,45 @@ export default function LeadDetailPage() {
         {activeTab === "activity" && (
           <ActivityTab leadId={id} />
         )}
+
+        {/* Convert to Client Dialog */}
+        <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Convert Lead to Client?</DialogTitle>
+              <DialogDescription>
+                This will create a client account for {lead.name} and start a project from the approved quotation.
+                {lead.email && (
+                  <>
+                    <br />
+                    A login will be created with email: <strong>{lead.email}</strong>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowConvertDialog(false)}
+                disabled={convertMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => convertMutation.mutate()}
+                disabled={convertMutation.isPending}
+              >
+                {convertMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <UserCheck className="mr-2 h-4 w-4" />
+                )}
+                Convert &amp; Create Project
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGuard>
   )

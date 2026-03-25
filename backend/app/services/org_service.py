@@ -204,12 +204,12 @@ async def invite_member(
     await db.commit()
     await db.refresh(invitation)
 
-    # Build invite link — use subdomain if enabled, otherwise main domain
-    if settings.USE_SUBDOMAINS and org.slug:
-        protocol = "https" if "localhost" not in settings.BASE_DOMAIN else "http"
-        invite_link = f"{protocol}://{org.slug}.{settings.BASE_DOMAIN}/accept-invite?token={token}"
-    else:
-        invite_link = f"{settings.FRONTEND_URL}/accept-invite?token={token}"
+    # Build invite link — ALWAYS use the main domain (not subdomain)
+    # The user has no account yet, so subdomain auth context doesn't exist
+    # After accepting, they'll be redirected to their tenant subdomain on login
+    protocol = "https" if "localhost" not in settings.BASE_DOMAIN else "http"
+    main_domain = settings.BASE_DOMAIN
+    invite_link = f"{protocol}://{main_domain}/accept-invite?token={token}"
     send_email_fire_and_forget(
         subject=f"You're invited to join {org.name} on IntDesign ERP",
         email_to=email,
