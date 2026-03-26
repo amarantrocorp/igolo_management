@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
@@ -40,24 +40,38 @@ router.include_router(register_router)
     dependencies=[Depends(RateLimiter(times=5, seconds=60))],
 )
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     tenant_slug: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """OAuth2 password flow login. Returns access + refresh token pair with org context.
 
-    If tenant_slug is provided (from subdomain login), the user must belong to that org.
+    Tenant slug can come from:
+    1. Query parameter (?tenant_slug=xxx)
+    2. X-Tenant-Slug header (mobile app)
+    3. Subdomain middleware (web frontend) via request.state
+
+    If tenant_slug is provided, the user must belong to that org.
     If no tenant_slug (main domain login), only platform admins are allowed.
     """
     if len(form_data.password) > 128:
         raise HTTPException(
             status_code=422, detail="Password too long (max 128 characters)"
         )
+
+    # Resolve tenant slug from multiple sources
+    resolved_slug = tenant_slug
+    if not resolved_slug:
+        resolved_slug = request.headers.get("x-tenant-slug")
+    if not resolved_slug:
+        resolved_slug = getattr(request.state, "tenant_slug", None)
+
     return await auth_service.authenticate_user(
         email=form_data.username,
         password=form_data.password,
         db=db,
-        tenant_slug=tenant_slug,
+        tenant_slug=resolved_slug,
     )
 
 
