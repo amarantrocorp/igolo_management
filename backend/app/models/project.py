@@ -76,6 +76,11 @@ class Project(Base, UUIDMixin, TimestampMixin, TenantMixin):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     site_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    site_latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    site_longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geofence_radius_meters: Mapped[int] = mapped_column(
+        Integer, default=500, nullable=False, server_default="500"
+    )
     cover_image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Relationships

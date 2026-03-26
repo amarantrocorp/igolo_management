@@ -32,6 +32,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  MapPin,
 } from "lucide-react"
 import { formatCurrency, cn } from "@/lib/utils"
 import { PageHeader } from "@/components/layout/page-header"
@@ -60,9 +61,17 @@ const columns: ColumnDef<Project>[] = [
         row.original.client?.user?.full_name ??
         row.original.client?.lead?.name ??
         "Unknown Client"
+      const hasLocation = row.original.site_latitude != null && row.original.site_longitude != null
       return (
         <div>
-          <span className="font-medium">{clientName}&apos;s Project</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium">{clientName}&apos;s Project</span>
+            {hasLocation && (
+              <span title={row.original.site_address || "Location set"}>
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground font-mono">
             PRJ-{row.original.id.slice(0, 8).toUpperCase()}
           </p>

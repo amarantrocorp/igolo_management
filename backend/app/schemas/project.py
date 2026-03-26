@@ -15,6 +15,8 @@ class ProjectConvert(BaseModel):
     start_date: date
     name: str
     site_address: Optional[str] = None
+    site_latitude: Optional[float] = Field(None, ge=-90, le=90)
+    site_longitude: Optional[float] = Field(None, ge=-180, le=180)
     manager_id: Optional[UUID] = None
     supervisor_id: Optional[UUID] = None
 
@@ -24,6 +26,9 @@ class ProjectUpdate(BaseModel):
     manager_id: Optional[UUID] = None
     supervisor_id: Optional[UUID] = None
     site_address: Optional[str] = None
+    site_latitude: Optional[float] = Field(None, ge=-90, le=90)
+    site_longitude: Optional[float] = Field(None, ge=-180, le=180)
+    geofence_radius_meters: Optional[int] = Field(None, ge=50, le=5000)
     cover_image_url: Optional[str] = None
 
 
@@ -88,6 +93,9 @@ class ProjectResponse(BaseModel):
     manager_id: Optional[UUID]
     supervisor_id: Optional[UUID]
     site_address: Optional[str]
+    site_latitude: Optional[float] = None
+    site_longitude: Optional[float] = None
+    geofence_radius_meters: int = 500
     cover_image_url: Optional[str] = None
     sprints: List[SprintResponse] = []
     wallet: Optional[WalletSummary] = None

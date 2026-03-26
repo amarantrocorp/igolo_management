@@ -373,6 +373,10 @@ export interface Project {
   expected_end_date: string
   total_project_value: number
   cover_image_url?: string
+  site_latitude?: number | null
+  site_longitude?: number | null
+  site_address?: string | null
+  geofence_radius_meters?: number
   wallet?: {
     total_agreed_value: number
     total_received: number

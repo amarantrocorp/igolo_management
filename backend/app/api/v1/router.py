@@ -21,6 +21,7 @@ from app.api.v1.payments.router import router as payments_router
 from app.api.v1.billing.router import router as billing_router
 from app.api.v1.org.router import router as org_router
 from app.api.v1.platform.router import router as platform_router
+from app.api.v1.checkins.router import router as checkins_router
 
 api_router = APIRouter()
 
@@ -59,3 +60,4 @@ api_router.include_router(payments_router, prefix="/payments", tags=["Payments"]
 api_router.include_router(billing_router, prefix="/billing", tags=["Billing"])
 api_router.include_router(org_router, prefix="/org", tags=["Organization"])
 api_router.include_router(platform_router, prefix="/platform", tags=["Platform Admin"])
+api_router.include_router(checkins_router, prefix="/check-ins", tags=["Check-ins"])

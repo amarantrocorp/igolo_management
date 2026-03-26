@@ -97,6 +97,8 @@ async def convert_quote_to_project(
         manager_id=data.manager_id,
         supervisor_id=data.supervisor_id,
         site_address=data.site_address,
+        site_latitude=data.site_latitude,
+        site_longitude=data.site_longitude,
         org_id=org_id,
     )
     db.add(project)

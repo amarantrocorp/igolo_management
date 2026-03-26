@@ -77,12 +77,15 @@ import {
   Package,
   Warehouse,
   XCircle,
+  MapPin,
+  Pencil,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { FileUpload } from "@/components/ui/file-upload"
 import { MultiFileUpload } from "@/components/ui/multi-file-upload"
 import { useAuthStore } from "@/store/auth-store"
 import { cn, formatCurrency } from "@/lib/utils"
+import { LocationPicker, LocationDisplay } from "@/components/ui/location-picker"
 import {
   BarChart,
   Bar,
@@ -298,6 +301,9 @@ function OverviewTab({
         </CardContent>
       </Card>
 
+      {/* Project Location */}
+      <ProjectLocationSection project={project} projectId={projectId} />
+
       {/* Progress */}
       <Card>
         <CardHeader>
@@ -400,6 +406,111 @@ function OverviewTab({
         </Card>
       )}
     </div>
+  )
+}
+
+// ---- Project Location Section ----
+
+function ProjectLocationSection({
+  project,
+  projectId,
+}: {
+  project: Project
+  projectId: string
+}) {
+  const [editing, setEditing] = useState(false)
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  const hasLocation =
+    project.site_latitude != null &&
+    project.site_longitude != null &&
+    !isNaN(Number(project.site_latitude)) &&
+    !isNaN(Number(project.site_longitude))
+
+  const locationMutation = useMutation({
+    mutationFn: async (payload: {
+      site_latitude: number
+      site_longitude: number
+      site_address: string
+    }) => {
+      await api.patch(`/projects/${projectId}`, payload)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+      toast({ title: "Location updated", description: "Project site location has been saved." })
+      setEditing(false)
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update project location.", variant: "destructive" })
+    },
+  })
+
+  const handleLocationChange = (lat: number, lng: number, address: string) => {
+    locationMutation.mutate({
+      site_latitude: lat,
+      site_longitude: lng,
+      site_address: address,
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="text-lg">Project Location</CardTitle>
+          <CardDescription>
+            {hasLocation ? "Site location for this project" : "No location set for this project"}
+          </CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEditing(!editing)}
+        >
+          {editing ? (
+            <>
+              <XCircle className="mr-1 h-3.5 w-3.5" />
+              Cancel
+            </>
+          ) : hasLocation ? (
+            <>
+              <Pencil className="mr-1 h-3.5 w-3.5" />
+              Edit Location
+            </>
+          ) : (
+            <>
+              <MapPin className="mr-1 h-3.5 w-3.5" />
+              Set Location
+            </>
+          )}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {editing ? (
+          <LocationPicker
+            latitude={project.site_latitude ?? null}
+            longitude={project.site_longitude ?? null}
+            address={project.site_address ?? ""}
+            onLocationChange={handleLocationChange}
+            radiusMeters={project.geofence_radius_meters ?? 500}
+          />
+        ) : hasLocation ? (
+          <LocationDisplay
+            latitude={project.site_latitude ?? null}
+            longitude={project.site_longitude ?? null}
+            address={project.site_address}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <MapPin className="h-8 w-8 text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Click &quot;Set Location&quot; to add the project site address
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

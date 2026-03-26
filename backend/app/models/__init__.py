@@ -24,6 +24,7 @@ from app.models.work_order import WorkOrder, RABill
 from app.models.asset import Asset, AssetUsageLog
 from app.models.document import ProjectDocument
 from app.models.vendor_bill import VendorBill
+from app.models.checkin import CheckIn
 
 __all__ = [
     "User",
@@ -71,4 +72,5 @@ __all__ = [
     "AssetUsageLog",
     "ProjectDocument",
     "VendorBill",
+    "CheckIn",
 ]

@@ -482,6 +482,9 @@ export default function LeadDetailPage() {
   const { toast } = useToast()
 
   const [showConvertDialog, setShowConvertDialog] = useState(false)
+  const [convertLocationAddress, setConvertLocationAddress] = useState("")
+  const [convertLocationLat, setConvertLocationLat] = useState<number | null>(null)
+  const [convertLocationLng, setConvertLocationLng] = useState<number | null>(null)
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.put(`/crm/leads/${id}`, { status }),
@@ -515,6 +518,13 @@ export default function LeadDetailPage() {
           quotation_id: approvedQuote.id,
           start_date: startDateStr,
           name: lead?.name ? `${lead.name} - Interior Project` : "New Project",
+          ...(convertLocationLat != null && convertLocationLng != null
+            ? {
+                site_latitude: convertLocationLat,
+                site_longitude: convertLocationLng,
+                site_address: convertLocationAddress || undefined,
+              }
+            : {}),
         })
       }
     },
@@ -648,7 +658,13 @@ export default function LeadDetailPage() {
                 size="sm"
                 variant="default"
                 className="bg-green-600 hover:bg-green-700"
-                onClick={() => setShowConvertDialog(true)}
+                onClick={() => {
+                  // Pre-fill location from lead
+                  setConvertLocationAddress(lead?.location || "")
+                  setConvertLocationLat(null)
+                  setConvertLocationLng(null)
+                  setShowConvertDialog(true)
+                }}
               >
                 <UserCheck className="mr-2 h-4 w-4" />
                 Convert to Client
@@ -1356,6 +1372,33 @@ export default function LeadDetailPage() {
                 )}
               </DialogDescription>
             </DialogHeader>
+
+            {/* Optional Project Location */}
+            <div className="space-y-2 py-2">
+              <Label className="text-sm font-medium flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+                Project Location <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <PlacesAutocomplete
+                value={convertLocationAddress}
+                onChange={setConvertLocationAddress}
+                onPlaceSelect={(place) => {
+                  if (place.lat != null && place.lng != null) {
+                    setConvertLocationLat(place.lat)
+                    setConvertLocationLng(place.lng)
+                    setConvertLocationAddress(place.address)
+                  }
+                }}
+                placeholder="Search project site address..."
+                countryRestrictions={["in"]}
+              />
+              {convertLocationLat != null && convertLocationLng != null && (
+                <p className="text-xs text-muted-foreground">
+                  Coordinates: {convertLocationLat.toFixed(6)}, {convertLocationLng.toFixed(6)}
+                </p>
+              )}
+            </div>
+
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
                 variant="outline"
