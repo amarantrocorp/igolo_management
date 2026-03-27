@@ -152,7 +152,11 @@ export function StepGenerate() {
   const handleConvertToProject = async () => {
     if (!savedQuoteId) return
     try {
-      await api.post(`/projects/convert/${savedQuoteId}`)
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() + 7)
+      await api.post(`/projects/convert/${savedQuoteId}`, {
+        start_date: startDate.toISOString().split("T")[0],
+      })
       toast({ title: "Project created from quotation" })
       resetWizard()
       router.push("/dashboard/projects")

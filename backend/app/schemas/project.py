@@ -11,9 +11,9 @@ from app.schemas.crm import ClientResponse
 
 
 class ProjectConvert(BaseModel):
-    quotation_id: UUID
+    quotation_id: Optional[UUID] = None  # Auto-set from URL path param
     start_date: date
-    name: str
+    name: Optional[str] = None  # Auto-generated from lead/client name if not provided
     site_address: Optional[str] = None
     site_latitude: Optional[float] = Field(None, ge=-90, le=90)
     site_longitude: Optional[float] = Field(None, ge=-180, le=180)

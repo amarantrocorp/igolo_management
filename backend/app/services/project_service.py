@@ -86,9 +86,15 @@ async def convert_quote_to_project(
             detail="No client record found for this lead. Convert the lead to a client first."
         )
 
+    # Auto-generate name if not provided
+    project_name = data.name
+    if not project_name:
+        lead_name = quotation.lead.name if quotation.lead else "Client"
+        project_name = f"{lead_name}'s Project"
+
     # Create the Project
     project = Project(
-        name=data.name,
+        name=project_name,
         client_id=client.id,
         accepted_quotation_id=quotation.id,
         status=ProjectStatus.NOT_STARTED,

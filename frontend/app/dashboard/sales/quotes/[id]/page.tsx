@@ -202,7 +202,7 @@ export default function QuoteViewPage() {
   // Finalize mutation (DRAFT → SENT + emails client)
   const finalizeMutation = useMutation({
     mutationFn: async () => {
-      const res = await api.post(`/quotes/quotes/${id}/finalize`)
+      const res = await api.post(`/quotes/${id}/finalize`)
       return res.data
     },
     onSuccess: () => {
@@ -214,7 +214,7 @@ export default function QuoteViewPage() {
   // Status update mutation (for APPROVED, REJECTED, etc.)
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
-      const res = await api.patch(`/quotes/quotes/${id}/status`, {
+      const res = await api.patch(`/quotes/${id}/status`, {
         status: newStatus,
       })
       return res.data
