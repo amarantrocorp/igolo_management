@@ -275,6 +275,70 @@ export function buildQuotePayload(state: WizardState) {
     noteParts.push(`Discount: ${state.discount.flatPercent}%`)
   }
 
+  // Serialize room builder configs into notes (category-based BOQ format)
+  const builderData = state.roomBuilderData
+  if (Object.keys(builderData).length > 0) {
+    noteParts.push("")
+    noteParts.push("=== DETAILED ROOM CONFIGURATIONS (BOQ) ===")
+    for (const [roomKey, cfg] of Object.entries(builderData)) {
+      const roomLabel = state.rooms.find((r) => r.key === roomKey)?.label ?? roomKey
+      noteParts.push("")
+      noteParts.push(`── ${roomLabel} ──`)
+
+      // Group items by category
+      const byCategory = new Map<string, typeof cfg.items>()
+      for (const item of cfg.items) {
+        const list = byCategory.get(item.category) || []
+        list.push(item)
+        byCategory.set(item.category, list)
+      }
+
+      for (const [cat, items] of byCategory) {
+        noteParts.push(`  [${cat.replace(/_/g, " ")}]`)
+        for (const it of items) {
+          let line = `    • ${it.name}`
+          if (it.length || it.width || it.height) {
+            line += ` (${it.length}×${it.width}×${it.height} ft)`
+          }
+          if (it.quantity > 1) line += ` × ${it.quantity} ${it.unit}`
+          if (it.material) line += ` | ${it.material}`
+          if (it.finish) line += ` / ${it.finish}`
+          if (it.hardware) line += ` / ${it.hardware}`
+          if (it.placement) line += ` [${it.placement.replace(/_/g, " ")}]`
+          const activeSubs = it.subItems.filter((s) => s.quantity > 0)
+          if (activeSubs.length > 0) {
+            line += ` {${activeSubs.map((s) => `${s.name}: ${s.quantity}${s.notes ? ` (${s.notes})` : ""}`).join(", ")}}`
+          }
+          if (it.notes) line += ` — ${it.notes}`
+          noteParts.push(line)
+        }
+      }
+
+      // Electrical summary
+      const el = cfg.electrical
+      const elParts: string[] = []
+      if (el.switchBoards) elParts.push(`${el.switchBoards} switch boards`)
+      if (el.plugPoints5amp) elParts.push(`${el.plugPoints5amp}×5A plugs`)
+      if (el.plugPoints15amp) elParts.push(`${el.plugPoints15amp}×15A plugs`)
+      if (el.lightsCeiling) elParts.push(`${el.lightsCeiling} ceiling lights`)
+      if (el.lightsWall) elParts.push(`${el.lightsWall} wall lights`)
+      if (el.lightsCove) elParts.push(`${el.lightsCove} cove lights`)
+      if (el.lightsSpot) elParts.push(`${el.lightsSpot} spots`)
+      if (el.acPoints) elParts.push(`${el.acPoints} AC (${el.acType})`)
+      if (el.fanPoints) elParts.push(`${el.fanPoints} fan pts`)
+      if (el.tvPoints) elParts.push(`${el.tvPoints} TV pts`)
+      if (el.dataPoints) elParts.push(`${el.dataPoints} data pts`)
+      if (el.exhaustFan) elParts.push(`${el.exhaustFan} exhaust`)
+      if (el.gyserPoint) elParts.push(`${el.gyserPoint} geyser`)
+      if (el.washerPoint) elParts.push(`${el.washerPoint} washer`)
+      if (elParts.length > 0) {
+        noteParts.push(`  [ELECTRICAL] ${elParts.join(", ")}`)
+      }
+      if (el.notes) noteParts.push(`    Note: ${el.notes}`)
+      if (cfg.designNotes) noteParts.push(`  [DESIGN NOTES] ${cfg.designNotes}`)
+    }
+  }
+
   return {
     lead_id: state.projectDetails.leadId,
     notes: noteParts.join("\n"),

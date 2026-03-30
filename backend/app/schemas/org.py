@@ -22,6 +22,7 @@ class OrgSettingsResponse(BaseModel):
     trial_expires_at: Optional[datetime] = None
     max_users: int
     max_projects: int
+    inventory_enabled: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -31,6 +32,7 @@ class OrgSettingsUpdate(BaseModel):
     logo_url: Optional[str] = None
     address: Optional[str] = None
     gst_number: Optional[str] = None
+    inventory_enabled: Optional[bool] = None
 
 
 # ── Members ──
@@ -61,6 +63,16 @@ class OrgInviteResponse(BaseModel):
     role: str
     token: str
     expires_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PendingInviteResponse(BaseModel):
+    id: UUID
+    email: str
+    role: str
+    expires_at: datetime
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 

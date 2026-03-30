@@ -144,7 +144,7 @@ api.interceptors.response.use(
       }
     }
 
-    // ---- 403: Org membership revoked / access denied (Fix #5 + #6) ----
+    // ---- 403: Distinguish org-level revocation from role-based permission denial ----
     if (status === 403) {
       const detail: string =
         error.response?.data &&
@@ -152,57 +152,62 @@ api.interceptors.response.use(
           ? (error.response.data as any).detail
           : "";
 
-      const orgs = useAuthStore.getState().organizations;
-      const activeOrgId = useAuthStore.getState().activeOrgId;
+      // Only show "Access Revoked" for org membership issues, not regular role permissions.
+      // Regular role permission errors (e.g. "Not enough permissions") are silently rejected
+      // so individual screens/hooks can handle them gracefully.
+      const isOrgRevoked =
+        detail.toLowerCase().includes("revoked") ||
+        detail.toLowerCase().includes("not a member") ||
+        detail.toLowerCase().includes("organization");
 
-      // Check if user has other orgs they can switch to
-      const otherOrgs = orgs.filter((o) => o.org_id !== activeOrgId);
+      if (isOrgRevoked) {
+        const orgs = useAuthStore.getState().organizations;
+        const activeOrgId = useAuthStore.getState().activeOrgId;
+        const otherOrgs = orgs.filter((o) => o.org_id !== activeOrgId);
 
-      if (otherOrgs.length > 0) {
-        // User has other orgs — prompt to switch
-        Alert.alert(
-          "Access Revoked",
-          detail ||
-            "Your access to this organization has been revoked. You can switch to another organization.",
-          [
-            {
-              text: "Switch Organization",
-              onPress: () => {
-                // Use expo-router's imperative API (works outside components)
-                try {
-                  const { router } = require("expo-router");
-                  router.replace("/(auth)/org-selector");
-                } catch {
-                  // If router not available, logout so AuthGate handles it
+        if (otherOrgs.length > 0) {
+          Alert.alert(
+            "Access Revoked",
+            detail ||
+              "Your access to this organization has been revoked. You can switch to another organization.",
+            [
+              {
+                text: "Switch Organization",
+                onPress: () => {
+                  try {
+                    const { router } = require("expo-router");
+                    router.replace("/(auth)/org-selector");
+                  } catch {
+                    useAuthStore.getState().logout();
+                  }
+                },
+              },
+              {
+                text: "Log Out",
+                style: "destructive",
+                onPress: () => {
                   useAuthStore.getState().logout();
-                }
+                },
               },
-            },
-            {
-              text: "Log Out",
-              style: "destructive",
-              onPress: () => {
-                useAuthStore.getState().logout();
+            ]
+          );
+        } else {
+          Alert.alert(
+            "Access Revoked",
+            detail ||
+              "Your access has been revoked. Contact your administrator.",
+            [
+              {
+                text: "Log Out",
+                onPress: () => {
+                  useAuthStore.getState().logout();
+                },
               },
-            },
-          ]
-        );
-      } else {
-        // No other orgs — show message and stay
-        Alert.alert(
-          "Access Revoked",
-          detail ||
-            "Your access has been revoked. Contact your administrator.",
-          [
-            {
-              text: "Log Out",
-              onPress: () => {
-                useAuthStore.getState().logout();
-              },
-            },
-          ]
-        );
+            ]
+          );
+        }
       }
+      // For regular role-based 403s, just reject silently — let the caller handle it
     }
 
     return Promise.reject(error);

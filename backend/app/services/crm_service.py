@@ -61,9 +61,12 @@ async def create_lead(data: LeadCreate, org_id: UUID, db: AsyncSession) -> Lead:
     )
     db.add(lead)
     await db.commit()
+
     # Re-fetch with relationship eagerly loaded for response serialization
     result = await db.execute(
-        select(Lead).options(selectinload(Lead.assigned_to)).where(Lead.id == lead.id)
+        select(Lead)
+        .options(selectinload(Lead.assigned_to))
+        .where(Lead.id == lead.id)
     )
     lead = result.scalar_one()
 

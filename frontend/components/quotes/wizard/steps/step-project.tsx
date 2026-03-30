@@ -61,11 +61,44 @@ export default function StepProject() {
   // Pre-fill from lead data
   useEffect(() => {
     if (leadData) {
+      // Map lead's property_type + bhk_config to wizard's propertyType
+      // Wizard uses: 1BHK, 2BHK, 3BHK, 4BHK, VILLA, PENTHOUSE, OFFICE, COMMERCIAL
+      let propertyType: string = ""
+      const bhk = leadData.bhk_config?.replace(/\s+/g, "").toUpperCase() // "2 BHK" -> "2BHK"
+      if (bhk && PROPERTY_TYPES.some((pt) => pt.value === bhk)) {
+        propertyType = bhk
+      } else if (leadData.property_type) {
+        // Map lead enum values to wizard values
+        const typeMap: Record<string, string> = {
+          VILLA: "VILLA",
+          PENTHOUSE: "PENTHOUSE",
+          OFFICE: "OFFICE",
+          RETAIL: "COMMERCIAL",
+          STUDIO: "1BHK",
+        }
+        propertyType = typeMap[leadData.property_type] || ""
+      }
+
+      // Map lead budget_range to wizard budget range
+      // Lead uses: "Under 5 Lakhs", "5-10 Lakhs", etc.
+      // Wizard uses: "Under 5L", "5-10L", "10-15L", "15-25L", "25-50L", "50L+"
+      let budgetRange: string = ""
+      const lb = leadData.budget_range?.toLowerCase() || ""
+      if (lb.includes("under 5")) budgetRange = "Under 5L"
+      else if (lb.includes("5-10") || lb.includes("5 - 10")) budgetRange = "5-10L"
+      else if (lb.includes("10-20") || lb.includes("10 - 20")) budgetRange = "10-15L"
+      else if (lb.includes("20-50") || lb.includes("20 - 50")) budgetRange = "25-50L"
+      else if (lb.includes("50") || lb.includes("above") || lb.includes("1 crore")) budgetRange = "50L+"
+
       updateProjectDetails({
         leadId: leadData.id,
         clientName: leadData.name || "",
         clientEmail: leadData.email || "",
         clientPhone: leadData.contact_number || "",
+        projectName: leadData.location ? `${leadData.name}'s Project - ${leadData.location}` : "",
+        ...(propertyType ? { propertyType } : {}),
+        ...(leadData.carpet_area ? { flatSizeSqft: String(Math.round(leadData.carpet_area)) } : {}),
+        ...(budgetRange ? { budgetRange } : {}),
       })
     }
   }, [leadData]) // eslint-disable-line react-hooks/exhaustive-deps

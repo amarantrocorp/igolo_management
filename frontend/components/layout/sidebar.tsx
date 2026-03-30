@@ -2,10 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/store/auth-store"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 import type { UserRole } from "@/types"
+import api from "@/lib/api"
 import {
   LayoutDashboard,
   Users,
@@ -35,6 +37,7 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   roles: UserRole[]
+  requiresInventory?: boolean
 }
 
 interface NavSection {
@@ -107,12 +110,14 @@ const navSections: NavSection[] = [
         href: "/dashboard/admin/inventory",
         icon: Package,
         roles: ADMIN_ROLES,
+        requiresInventory: true,
       },
       {
         title: "Purchase Orders",
         href: "/dashboard/admin/purchase-orders",
         icon: ShoppingCart,
         roles: ADMIN_ROLES,
+        requiresInventory: true,
       },
       {
         title: "Approvals",
@@ -205,9 +210,17 @@ export default function Sidebar() {
   const { user, roleInOrg } = useAuthStore()
   const [collapsed, setCollapsed] = useState(false)
 
+  const { data: orgSettings } = useQuery<{ inventory_enabled?: boolean }>({
+    queryKey: ["org-settings"],
+    queryFn: async () => (await api.get("/org/settings")).data,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!user && !user.is_platform_admin,
+  })
+
   if (!user) return null
 
   const effectiveRole = roleInOrg ?? user.role
+  const inventoryEnabled = orgSettings?.inventory_enabled ?? true
 
   const allSections = user.is_platform_admin
     ? [platformSection]
@@ -216,9 +229,15 @@ export default function Sidebar() {
   const filteredSections = allSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) =>
-        effectiveRole ? item.roles.includes(effectiveRole as UserRole) : false
-      ),
+      items: section.items.filter((item) => {
+        if (!(effectiveRole ? item.roles.includes(effectiveRole as UserRole) : false)) {
+          return false
+        }
+        if (item.requiresInventory && !inventoryEnabled) {
+          return false
+        }
+        return true
+      }),
     }))
     .filter((section) => section.items.length > 0)
 

@@ -73,6 +73,11 @@ class Organization(Base, UUIDMixin, TimestampMixin):
         Integer, default=2, nullable=False, server_default="2"
     )
 
+    # Feature toggles
+    inventory_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default="true"
+    )
+
     # Schema-per-tenant: the PostgreSQL schema name for this tenant's data
     schema_name: Mapped[str | None] = mapped_column(
         String(100), unique=True, nullable=True

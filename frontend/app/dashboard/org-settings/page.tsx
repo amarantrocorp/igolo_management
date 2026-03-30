@@ -57,6 +57,10 @@ import {
   Save,
   AlertTriangle,
   ArrowUpRight,
+  Clock,
+  X,
+  Mail,
+  Package,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { UserRole } from "@/types"
@@ -75,6 +79,7 @@ interface OrgSettings {
   trial_expires_at?: string
   max_users: number
   max_projects: number
+  inventory_enabled?: boolean
 }
 
 interface OrgMember {
@@ -84,6 +89,14 @@ interface OrgMember {
   role: UserRole
   is_active: boolean
   joined_at: string
+}
+
+interface PendingInvite {
+  id: string
+  email: string
+  role: string
+  expires_at: string
+  created_at: string
 }
 
 interface OrgUsage {
@@ -132,6 +145,7 @@ function CompanyInfoTab() {
     logo_url: string
     address: string
     gst_number: string
+    inventory_enabled: boolean
   } | null>(null)
 
   // Initialize form when data loads
@@ -140,6 +154,7 @@ function CompanyInfoTab() {
     logo_url: settings?.logo_url ?? "",
     address: settings?.address ?? "",
     gst_number: settings?.gst_number ?? "",
+    inventory_enabled: settings?.inventory_enabled ?? false,
   }
 
   const updateMutation = useMutation({
@@ -164,7 +179,7 @@ function CompanyInfoTab() {
     )
   }
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string | boolean) => {
     setForm((prev) => ({ ...formValues, ...prev, [field]: value }))
   }
 
@@ -215,6 +230,32 @@ function CompanyInfoTab() {
           />
         </div>
 
+        {/* Feature Toggles */}
+        <div className="space-y-3">
+          <Label className="text-base font-medium">Feature Modules</Label>
+          <label
+            htmlFor="inventory-toggle"
+            className="flex cursor-pointer items-center justify-between rounded-lg border p-4 hover:bg-muted/50"
+          >
+            <div className="flex items-center gap-3">
+              <Package className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">Inventory Management</p>
+                <p className="text-xs text-muted-foreground">
+                  Track materials, stock levels, and purchase orders
+                </p>
+              </div>
+            </div>
+            <input
+              id="inventory-toggle"
+              type="checkbox"
+              className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+              checked={formValues.inventory_enabled}
+              onChange={(e) => handleChange("inventory_enabled", e.target.checked)}
+            />
+          </label>
+        </div>
+
         <Button
           onClick={() => updateMutation.mutate(formValues)}
           disabled={updateMutation.isPending}
@@ -247,11 +288,32 @@ function MembersTab() {
     queryFn: async () => (await api.get("/org/members")).data,
   })
 
+  const { data: pendingInvites = [] } = useQuery<PendingInvite[]>({
+    queryKey: ["org-pending-invites"],
+    queryFn: async () => (await api.get("/org/invitations")).data,
+  })
+
+  const cancelInviteMutation = useMutation({
+    mutationFn: async (id: string) => api.delete(`/org/invitations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-pending-invites"] })
+      toast({ title: "Invitation cancelled" })
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description: err?.response?.data?.detail ?? "Failed to cancel invitation.",
+        variant: "destructive",
+      })
+    },
+  })
+
   const inviteMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) =>
       (await api.post("/org/invite", data)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["org-members"] })
+      queryClient.invalidateQueries({ queryKey: ["org-pending-invites"] })
       toast({ title: "Invitation sent", description: `Invitation email sent to ${inviteEmail}.` })
       setInviteEmail("")
       setInviteRole("SALES")
@@ -356,6 +418,55 @@ function MembersTab() {
                 "Send Invite"
               )}
             </Button>
+          </div>
+        )}
+
+        {pendingInvites.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Pending Invitations ({pendingInvites.length})
+            </h4>
+            <div className="rounded-lg border bg-muted/30">
+              {pendingInvites.map((invite) => {
+                const isExpiringSoon =
+                  new Date(invite.expires_at).getTime() - Date.now() < 2 * 24 * 60 * 60 * 1000
+                return (
+                  <div
+                    key={invite.id}
+                    className="flex items-center justify-between px-4 py-3 border-b last:border-b-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">{invite.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Invited as{" "}
+                          <Badge variant="outline" className="ml-1 text-xs">
+                            {roleLabel(invite.role as UserRole)}
+                          </Badge>
+                          {isExpiringSoon && (
+                            <span className="ml-2 text-amber-600">
+                              Expires soon
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => cancelInviteMutation.mutate(invite.id)}
+                      disabled={cancelInviteMutation.isPending}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 

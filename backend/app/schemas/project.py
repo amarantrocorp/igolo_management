@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.models.finance import TransactionCategory, TransactionSource, TransactionStatus
-from app.models.project import ProjectStatus, SprintStatus, VOStatus
+from app.models.project import BOMStatus, ProjectStatus, SprintStatus, VOStatus
 from app.schemas.crm import ClientResponse
 
 
@@ -197,3 +197,38 @@ class DailyLogResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Bill of Materials (BOM) ──
+
+
+class BOMItemResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    inventory_item_id: Optional[UUID] = None
+    inventory_item_name: Optional[str] = None
+    description: str
+    category: str
+    quantity_required: float
+    quantity_in_stock: float
+    quantity_ordered: float
+    quantity_issued: float
+    unit: str
+    estimated_unit_cost: Decimal
+    status: BOMStatus
+    notes: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BOMItemUpdate(BaseModel):
+    inventory_item_id: Optional[UUID] = None
+    notes: Optional[str] = None
+    quantity_required: Optional[float] = None
+
+
+class BOMCreatePO(BaseModel):
+    vendor_id: UUID
+    quantity: float = Field(..., gt=0)
+    unit_price: Decimal = Field(..., ge=0)

@@ -368,6 +368,31 @@ async def receive_purchase_order(
                 db.add(wallet)
 
     db.add(po)
+
+    # Update BOM items when a project-specific PO is received
+    if po.project_id:
+        from app.models.project import ProjectBOMItem, BOMStatus
+
+        for po_item in po.items:
+            bom_result = await db.execute(
+                select(ProjectBOMItem).where(
+                    ProjectBOMItem.project_id == po.project_id,
+                    ProjectBOMItem.inventory_item_id == po_item.item_id,
+                    ProjectBOMItem.org_id == org_id,
+                )
+            )
+            for bom in bom_result.scalars().all():
+                if bom.status in (BOMStatus.PENDING, BOMStatus.ORDERED):
+                    bom.quantity_ordered = max(0, bom.quantity_ordered)
+                    if not po.is_project_specific:
+                        # General stock received — update in_stock snapshot
+                        bom.quantity_in_stock = min(
+                            bom.quantity_in_stock + po_item.quantity,
+                            bom.quantity_required,
+                        )
+                    if bom.status == BOMStatus.PENDING:
+                        bom.status = BOMStatus.ORDERED
+
     await db.commit()
 
     # Notify managers that PO has been received
@@ -463,6 +488,23 @@ async def issue_stock_to_project(
     if wallet:
         wallet.total_spent += total_cost
         db.add(wallet)
+
+    # Update BOM: mark quantity as issued
+    from app.models.project import ProjectBOMItem, BOMStatus
+
+    bom_result = await db.execute(
+        select(ProjectBOMItem).where(
+            ProjectBOMItem.project_id == project_id,
+            ProjectBOMItem.inventory_item_id == item_id,
+            ProjectBOMItem.org_id == org_id,
+        )
+    )
+    for bom in bom_result.scalars().all():
+        bom.quantity_issued += quantity
+        if bom.quantity_issued >= bom.quantity_required:
+            bom.status = BOMStatus.FULFILLED
+        elif bom.quantity_issued > 0:
+            bom.status = BOMStatus.PARTIALLY_FULFILLED
 
     await db.commit()
     await db.refresh(stock_txn)

@@ -440,6 +440,30 @@ export interface DailyLog {
 }
 
 // ============================================================
+// Bill of Materials (BOM)
+// ============================================================
+
+export type BOMStatus = "PENDING" | "IN_STOCK" | "ORDERED" | "PARTIALLY_FULFILLED" | "FULFILLED"
+
+export interface BOMItem {
+  id: string
+  project_id: string
+  inventory_item_id?: string | null
+  inventory_item_name?: string | null
+  description: string
+  category: string
+  quantity_required: number
+  quantity_in_stock: number
+  quantity_ordered: number
+  quantity_issued: number
+  unit: string
+  estimated_unit_cost: number
+  status: BOMStatus
+  notes?: string | null
+  created_at: string
+}
+
+// ============================================================
 // Financials
 // ============================================================
 

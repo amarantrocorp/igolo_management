@@ -81,16 +81,26 @@ async def get_user_by_id(user_id: UUID, db: AsyncSession) -> User:
 async def get_users(
     org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 50
 ) -> List[User]:
-    """Retrieve a paginated list of users belonging to the given org."""
+    """Retrieve a paginated list of users belonging to the given org.
+
+    Each returned User has its `role` field set to the OrgMembership role
+    for the requested org (not the legacy User.role column).
+    """
     result = await db.execute(
-        select(User)
-        .join(OrgMembership)
-        .where(OrgMembership.org_id == org_id, OrgMembership.is_active is True)
+        select(User, OrgMembership.role)
+        .join(OrgMembership, OrgMembership.user_id == User.id)
+        .where(OrgMembership.org_id == org_id, OrgMembership.is_active == True)
         .order_by(User.created_at.desc())
         .offset(skip)
         .limit(limit)
     )
-    return list(result.scalars().all())
+    rows = result.all()
+    users: List[User] = []
+    for user_obj, membership_role in rows:
+        # Stamp the org-level role onto the user object for serialization
+        user_obj.role = membership_role
+        users.append(user_obj)
+    return users
 
 
 async def update_user(

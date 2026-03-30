@@ -14,6 +14,7 @@ from app.schemas.org import (
     OrgSettingsResponse,
     OrgSettingsUpdate,
     OrgUsageResponse,
+    PendingInviteResponse,
 )
 from app.services import org_service
 
@@ -72,6 +73,27 @@ async def invite_member(
         role=payload.role.value,
         invited_by=ctx.user.id,
         db=db,
+    )
+
+
+@router.get("/invitations", response_model=list[PendingInviteResponse])
+async def list_pending_invitations(
+    ctx: AuthContext = Depends(_admin_or_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all pending (not accepted, not expired) invitations."""
+    return await org_service.list_pending_invitations(org_id=ctx.org_id, db=db)
+
+
+@router.delete("/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_invitation(
+    invitation_id: UUID,
+    ctx: AuthContext = Depends(_super_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a pending invitation. Only SUPER_ADMIN."""
+    await org_service.cancel_invitation(
+        org_id=ctx.org_id, invitation_id=invitation_id, db=db
     )
 
 

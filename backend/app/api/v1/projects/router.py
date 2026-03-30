@@ -14,6 +14,9 @@ from app.models.project import ProjectStatus
 from app.models.user import UserRole
 from app.schemas.inventory import ProjectMaterialsResponse
 from app.schemas.project import (
+    BOMCreatePO,
+    BOMItemResponse,
+    BOMItemUpdate,
     DailyLogCreate,
     DailyLogResponse,
     ProjectAssignmentCreate,
@@ -533,3 +536,79 @@ async def delete_document(
     from app.services import document_service
 
     await document_service.delete_document(doc_id, ctx.org_id, db)
+
+
+# ---------------------------------------------------------------------------
+# Bill of Materials (BOM)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{project_id}/bom",
+    response_model=list[BOMItemResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_bom_items(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(get_auth_context),
+):
+    """List all BOM items for a project with current stock status."""
+    return await project_service.get_bom_items(project_id, ctx.org_id, db)
+
+
+@router.patch(
+    "/{project_id}/bom/{bom_id}",
+    response_model=BOMItemResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_bom_item(
+    project_id: UUID,
+    bom_id: UUID,
+    payload: BOMItemUpdate,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Update a BOM item (link inventory item, update qty/notes)."""
+    return await project_service.update_bom_item(
+        bom_id=bom_id, data=payload, org_id=ctx.org_id, db=db
+    )
+
+
+@router.post(
+    "/{project_id}/bom/{bom_id}/create-po",
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_po_from_bom(
+    project_id: UUID,
+    bom_id: UUID,
+    payload: BOMCreatePO,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Create a Purchase Order from a BOM item."""
+    return await project_service.create_po_from_bom(
+        bom_id=bom_id,
+        project_id=project_id,
+        data=payload,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
+        db=db,
+    )
+
+
+@router.post(
+    "/{project_id}/bom/generate",
+    response_model=list[BOMItemResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def regenerate_bom(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Manually re-generate BOM from the project's accepted quotation."""
+    project = await project_service.get_project(project_id, ctx.org_id, db)
+    return await project_service._generate_bom_from_quotation(
+        project_id, project.accepted_quotation_id, ctx.org_id, db
+    )

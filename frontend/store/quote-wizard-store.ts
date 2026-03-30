@@ -65,6 +65,7 @@ function emptyState(): WizardState {
       gst: 0,
       finalAmount: 0,
     },
+    roomBuilderData: {},
   }
 }
 
@@ -289,6 +290,22 @@ export const useQuoteWizardStore = create<WizardState & WizardActions>(
     setDiscount: (percent) => {
       set({ discount: { flatPercent: percent } })
       get().recalculateCosts()
+    },
+
+    // ── Room Builder ──
+
+    updateRoomBuilder: (roomKey, config) => {
+      set((s) => ({
+        roomBuilderData: { ...s.roomBuilderData, [roomKey]: config },
+      }))
+    },
+
+    clearRoomBuilder: (roomKey) => {
+      set((s) => {
+        const next = { ...s.roomBuilderData }
+        delete next[roomKey]
+        return { roomBuilderData: next }
+      })
     },
 
     // ── Cost Recalculation ──

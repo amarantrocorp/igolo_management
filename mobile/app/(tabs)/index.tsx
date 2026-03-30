@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Phone,
   TrendingUp,
+  HardHat,
 } from "lucide-react-native";
 import { format } from "date-fns";
 
@@ -446,6 +447,12 @@ export default function DashboardScreen() {
   const todayFormatted = format(new Date(), "EEEE, d MMM");
   const firstName = user?.full_name?.split(" ")[0] ?? "there";
 
+  // Role-based visibility flags
+  const canViewLeads = stats.canViewLeads;
+  const isSupervisor = roleInOrg === "SUPERVISOR";
+  const isClient = roleInOrg === "CLIENT";
+  const canViewFinancials = ["MANAGER", "SUPER_ADMIN", "SALES"].includes(roleInOrg ?? "");
+
   if (stats.isLoading) {
     return <DashboardSkeleton />;
   }
@@ -512,16 +519,26 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* ── KPI Grid ──────────────────────────── */}
+        {/* ── KPI Grid (role-aware) ──────────────── */}
         <View style={styles.kpiGrid}>
           <View style={styles.kpiRow}>
-            <KPICard
-              type="leads"
-              icon={Users}
-              label="Total Leads"
-              value={stats.leadCount}
-              index={0}
-            />
+            {canViewLeads ? (
+              <KPICard
+                type="leads"
+                icon={Users}
+                label="Total Leads"
+                value={stats.leadCount}
+                index={0}
+              />
+            ) : (
+              <KPICard
+                type="projects"
+                icon={HardHat}
+                label="Assigned Projects"
+                value={stats.projectCount}
+                index={0}
+              />
+            )}
             <KPICard
               type="projects"
               icon={FolderKanban}
@@ -531,82 +548,86 @@ export default function DashboardScreen() {
             />
           </View>
           <View style={styles.kpiRow}>
-            <KPICard
-              type="payments"
-              icon={IndianRupee}
-              label="Pending Payments"
-              value={formatINR(stats.pendingPayments)}
-              index={2}
-            />
+            {canViewFinancials ? (
+              <KPICard
+                type="payments"
+                icon={IndianRupee}
+                label="Pending Payments"
+                value={formatINR(stats.pendingPayments)}
+                index={2}
+              />
+            ) : null}
             <KPICard
               type="notifications"
               icon={Bell}
               label="Unread Alerts"
               value={stats.notificationCount}
-              index={3}
+              index={canViewFinancials ? 3 : 2}
             />
           </View>
         </View>
 
-        {/* ── Recent Leads ──────────────────────── */}
-        {recentLeadsQuery.data && recentLeadsQuery.data.length > 0 ? (
-          <View style={styles.section}>
-            <SectionHeader
-              title="Recent Leads"
-              onViewAll={() => router.push("/(tabs)/leads")}
-              index={0}
-            />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20 }}
-              decelerationRate="fast"
-              snapToInterval={216}
-              snapToAlignment="start"
-            >
-              {recentLeadsQuery.data.map((lead, idx) => (
-                <MemoizedLeadMiniCard
-                  key={lead.id}
-                  lead={lead}
-                  index={idx}
-                  onPress={() => handleLeadPress(lead.id)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        ) : !recentLeadsQuery.isLoading ? (
-          <View style={styles.section}>
-            <SectionHeader title="Recent Leads" index={0} />
-            <View style={{ paddingHorizontal: 20 }}>
-              <Animated.View
-                entering={FadeInDown.delay(500).duration(400)}
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  borderRadius: 14,
-                  padding: 20,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: "rgba(226, 232, 240, 0.5)",
-                  borderStyle: "dashed",
-                }}
+        {/* ── Recent Leads (only for sales/BDE/manager/admin) ── */}
+        {canViewLeads ? (
+          recentLeadsQuery.data && recentLeadsQuery.data.length > 0 ? (
+            <View style={styles.section}>
+              <SectionHeader
+                title="Recent Leads"
+                onViewAll={() => router.push("/(tabs)/leads")}
+                index={0}
+              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+                decelerationRate="fast"
+                snapToInterval={216}
+                snapToAlignment="start"
               >
-                <Text style={{ fontSize: 14, color: COLORS.mutedForeground, marginBottom: 12, textAlign: "center" }}>
-                  No leads yet — Create your first lead
-                </Text>
-                <Pressable
-                  onPress={() => router.push("/(tabs)/leads/new")}
+                {recentLeadsQuery.data.map((lead, idx) => (
+                  <MemoizedLeadMiniCard
+                    key={lead.id}
+                    lead={lead}
+                    index={idx}
+                    onPress={() => handleLeadPress(lead.id)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : !recentLeadsQuery.isLoading ? (
+            <View style={styles.section}>
+              <SectionHeader title="Recent Leads" index={0} />
+              <View style={{ paddingHorizontal: 20 }}>
+                <Animated.View
+                  entering={FadeInDown.delay(500).duration(400)}
                   style={{
-                    paddingHorizontal: 20,
-                    paddingVertical: 10,
-                    borderRadius: 10,
-                    backgroundColor: COLORS.gold,
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 14,
+                    padding: 20,
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "rgba(226, 232, 240, 0.5)",
+                    borderStyle: "dashed",
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Create Lead</Text>
-                </Pressable>
-              </Animated.View>
+                  <Text style={{ fontSize: 14, color: COLORS.mutedForeground, marginBottom: 12, textAlign: "center" }}>
+                    No leads yet — Create your first lead
+                  </Text>
+                  <Pressable
+                    onPress={() => router.push("/(tabs)/leads/new")}
+                    style={{
+                      paddingHorizontal: 20,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: COLORS.gold,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Create Lead</Text>
+                  </Pressable>
+                </Animated.View>
+              </View>
             </View>
-          </View>
+          ) : null
         ) : null}
 
         {/* ── Active Projects ───────────────────── */}

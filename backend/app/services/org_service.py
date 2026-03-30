@@ -230,6 +230,35 @@ async def invite_member(
     return invitation
 
 
+async def list_pending_invitations(org_id: UUID, db: AsyncSession) -> list:
+    """Return all pending (not accepted, not expired) invitations for the org."""
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(OrgInvitation).where(
+            OrgInvitation.org_id == org_id,
+            OrgInvitation.accepted == False,
+            OrgInvitation.expires_at > now,
+        ).order_by(OrgInvitation.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def cancel_invitation(org_id: UUID, invitation_id: UUID, db: AsyncSession) -> None:
+    """Delete a pending invitation."""
+    result = await db.execute(
+        select(OrgInvitation).where(
+            OrgInvitation.id == invitation_id,
+            OrgInvitation.org_id == org_id,
+            OrgInvitation.accepted == False,
+        )
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise NotFoundException(detail="Invitation not found or already accepted")
+    await db.delete(invitation)
+    await db.commit()
+
+
 # ── Invite Info & Acceptance ──
 
 

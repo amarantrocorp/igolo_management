@@ -38,20 +38,89 @@ api.interceptors.request.use(
   }
 )
 
-// Response Interceptor: Auto-logout on 401 Unauthorized
-// Only logout once to prevent multiple 401s from causing cascading reloads
-let isLoggingOut = false
+// Response Interceptor: Refresh access token on 401, then retry
+let isRefreshing = false
+let failedQueue: {
+  resolve: (token: string) => void
+  reject: (err: unknown) => void
+}[] = []
+
+function processQueue(error: unknown, token: string | null) {
+  failedQueue.forEach((prom) => {
+    if (token) prom.resolve(token)
+    else prom.reject(error)
+  })
+  failedQueue = []
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && !isLoggingOut) {
-      isLoggingOut = true
-      useAuthStore.getState().logout()
-      // DashboardShell will detect the missing token and redirect to /login
-      // No need for window.location.href which causes full page reloads
-      setTimeout(() => { isLoggingOut = false }, 2000)
+  async (error) => {
+    const originalRequest = error.config
+
+    // Only attempt refresh on 401, and not on the refresh endpoint itself
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/token")
+    ) {
+      return Promise.reject(error)
     }
-    return Promise.reject(error)
+
+    // If a refresh is already in flight, queue this request
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({
+          resolve: (token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`
+            resolve(api(originalRequest))
+          },
+          reject: (err: unknown) => reject(err),
+        })
+      })
+    }
+
+    originalRequest._retry = true
+    isRefreshing = true
+
+    const refreshToken = useAuthStore.getState().refreshToken
+    if (!refreshToken) {
+      useAuthStore.getState().logout()
+      return Promise.reject(error)
+    }
+
+    try {
+      const { data } = await axios.post(
+        `${api.defaults.baseURL}/auth/refresh`,
+        { refresh_token: refreshToken }
+      )
+
+      // Update tokens in store
+      const store = useAuthStore.getState()
+      store.login(
+        data.access_token,
+        data.refresh_token,
+        store.user!,
+        store.activeOrgId ?? undefined,
+        store.roleInOrg ?? undefined,
+        store.organizations
+      )
+
+      // Resolve all queued requests with the new token
+      processQueue(null, data.access_token)
+
+      // Retry the original request
+      originalRequest.headers.Authorization = `Bearer ${data.access_token}`
+      return api(originalRequest)
+    } catch (refreshError) {
+      // Refresh failed — logout
+      processQueue(refreshError, null)
+      useAuthStore.getState().logout()
+      return Promise.reject(refreshError)
+    } finally {
+      isRefreshing = false
+    }
   }
 )
 

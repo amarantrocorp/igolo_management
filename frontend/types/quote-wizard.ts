@@ -173,6 +173,106 @@ export interface WizardState {
   discount: WizardDiscount
 
   costBreakdown: WizardCostBreakdown
+
+  // Room Builder data per room
+  roomBuilderData: Record<string, RoomBuilderConfig>
+}
+
+// ── Room Builder Types (Category-based BOQ approach) ──
+
+/** Work categories — matches how the interior design industry operates */
+export type WorkCategory =
+  | "WOODWORK"
+  | "FALSE_CEILING"
+  | "ELECTRICAL"
+  | "PAINTING"
+  | "FLOORING"
+  | "COUNTERTOP_STONE"
+  | "FIXTURES_FITTINGS"
+  | "SOFT_FURNISHING"
+  | "MISCELLANEOUS"
+
+export type PlacementTag =
+  | "none" | "wall_a" | "wall_b" | "wall_c" | "wall_d"
+  | "island" | "center" | "corner"
+  | "window_side" | "ceiling" | "floor" | "full_room"
+
+/** A single line item in the BOQ */
+export interface RoomBuilderItem {
+  id: string
+  category: WorkCategory
+  name: string               // "3-Door Wardrobe", "Peripheral False Ceiling"
+  description: string        // Detailed spec: "BWR Ply + Laminate, soft-close Hettich"
+  length: number             // feet (0 = not applicable)
+  width: number              // feet
+  height: number             // feet
+  unit: string               // "sqft", "rft", "nos", "lot"
+  quantity: number
+  placement: PlacementTag    // optional placement hint
+  material: string           // "BWR Ply", "Gypsum", etc.
+  finish: string             // "Laminate", "PU Paint", etc.
+  hardware: string           // "Hettich Premium", "Blum", etc.
+  notes: string              // special instructions
+  subItems: RoomBuilderSubItem[]  // internal components
+}
+
+export interface RoomBuilderSubItem {
+  id: string
+  name: string
+  quantity: number
+  notes: string
+}
+
+/** Electrical plan for the entire room */
+export interface RoomElectricalPlan {
+  switchBoards: number
+  plugPoints5amp: number
+  plugPoints15amp: number
+  lightsCeiling: number
+  lightsWall: number
+  lightsCove: number
+  lightsSpot: number
+  acPoints: number
+  acType: string             // "Split", "Window", "Cassette"
+  fanPoints: number
+  tvPoints: number
+  dataPoints: number
+  exhaustFan: number
+  gyserPoint: number
+  washerPoint: number
+  notes: string              // "All switches at 4ft height", etc.
+}
+
+/** Complete Room Builder config */
+export interface RoomBuilderConfig {
+  items: RoomBuilderItem[]
+  electrical: RoomElectricalPlan
+  designNotes: string
+}
+
+// ── Catalog definitions for room-type suggestions ──
+
+export interface CatalogSubItemDef {
+  name: string
+  defaultQty: number
+}
+
+export interface CatalogItemDef {
+  key: string
+  name: string
+  category: WorkCategory
+  defaultLength: number
+  defaultWidth: number
+  defaultHeight: number
+  defaultUnit: string
+  defaultMaterial: string
+  defaultFinish: string
+  subItems: CatalogSubItemDef[]
+}
+
+export interface RoomCatalog {
+  roomKeys: string[]
+  items: CatalogItemDef[]
 }
 
 // ── Floor Plan AI Analysis Result ──
@@ -232,6 +332,10 @@ export interface WizardActions {
 
   // Step 6
   setDiscount: (percent: string) => void
+
+  // Room Builder
+  updateRoomBuilder: (roomKey: string, config: RoomBuilderConfig) => void
+  clearRoomBuilder: (roomKey: string) => void
 
   // Floor Plan AI
   applyFloorPlanAnalysis: (analysis: FloorPlanAnalysis) => void

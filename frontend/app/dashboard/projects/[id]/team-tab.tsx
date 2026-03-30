@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Loader2, Trash2, UserPlus } from "lucide-react"
+import { Loader2, Trash2, UserPlus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuthStore } from "@/store/auth-store"
 import type { ProjectAssignment } from "@/types"
@@ -43,8 +43,6 @@ interface TeamTabProps {
   projectId: string
 }
 
-const ASSIGNABLE_ROLES = ["SUPERVISOR", "MANAGER", "BDE", "SALES"] as const
-
 const roleBadgeVariant = (role: string) => {
   switch (role) {
     case "MANAGER":
@@ -63,13 +61,12 @@ const roleBadgeVariant = (role: string) => {
 export default function TeamTab({ projectId }: TeamTabProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
+  const roleInOrg = useAuthStore((s) => s.roleInOrg)
   const canManageTeam =
-    user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
+    roleInOrg === "SUPER_ADMIN" || roleInOrg === "MANAGER"
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState("")
-  const [selectedRole, setSelectedRole] = useState("")
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
 
   // Fetch team assignments
@@ -106,7 +103,6 @@ export default function TeamTab({ projectId }: TeamTabProps) {
       toast({ title: "Member assigned successfully" })
       setAssignDialogOpen(false)
       setSelectedUserId("")
-      setSelectedRole("")
     },
     onError: (err: any) => {
       toast({
@@ -137,6 +133,10 @@ export default function TeamTab({ projectId }: TeamTabProps) {
       })
     },
   })
+
+  // Derive role from selected user
+  const selectedUser = orgUsers.find((u) => u.id === selectedUserId)
+  const selectedRole = selectedUser?.role ?? ""
 
   const handleAssign = () => {
     if (!selectedUserId || !selectedRole) return
@@ -254,21 +254,16 @@ export default function TeamTab({ projectId }: TeamTabProps) {
                 </Select>
               )}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Role</label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ASSIGNABLE_ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {selectedUser && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Role</label>
+                <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50">
+                  <Badge variant={roleBadgeVariant(selectedRole)}>
+                    {selectedRole}
+                  </Badge>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button

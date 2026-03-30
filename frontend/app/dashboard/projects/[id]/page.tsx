@@ -98,6 +98,7 @@ import {
 } from "recharts"
 import { BarChart3, List } from "lucide-react"
 import TeamTab from "./team-tab"
+import BOMTab from "./bom-tab"
 
 // ---- Sprint Status helpers ----
 
@@ -3662,6 +3663,7 @@ export default function ProjectDetailPage() {
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="indent">Indent</TabsTrigger>
             <TabsTrigger value="pnl">P&L</TabsTrigger>
+            <TabsTrigger value="bom">BOM</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
           </TabsList>
 
@@ -3714,6 +3716,10 @@ export default function ProjectDetailPage() {
 
           <TabsContent value="pnl">
             <PnLTab projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="bom">
+            <BOMTab projectId={projectId} />
           </TabsContent>
 
           <TabsContent value="team">

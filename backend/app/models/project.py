@@ -25,6 +25,7 @@ from app.db.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.crm import Client
+    from app.models.inventory import Item
     from app.models.finance import ProjectWallet
     from app.models.quotation import Quotation
     from app.models.user import User
@@ -105,6 +106,9 @@ class Project(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
     assignments: Mapped[List["ProjectAssignment"]] = relationship(
         "ProjectAssignment", back_populates="project", cascade="all, delete-orphan"
+    )
+    bom_items: Mapped[List["ProjectBOMItem"]] = relationship(
+        "ProjectBOMItem", back_populates="project", cascade="all, delete-orphan"
     )
 
 
@@ -198,6 +202,49 @@ class DailyLog(Base, UUIDMixin, TimestampMixin, TenantMixin):
     project: Mapped["Project"] = relationship("Project", back_populates="daily_logs")
     sprint: Mapped["Sprint"] = relationship("Sprint")
     logged_by: Mapped["User"] = relationship("User")
+
+
+class BOMStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    IN_STOCK = "IN_STOCK"
+    ORDERED = "ORDERED"
+    PARTIALLY_FULFILLED = "PARTIALLY_FULFILLED"
+    FULFILLED = "FULFILLED"
+
+
+class ProjectBOMItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    """Bill of Materials line item — tracks every material needed for a project."""
+
+    __tablename__ = "project_bom_items"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    inventory_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("items.id"), nullable=True
+    )
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    category: Mapped[str] = mapped_column(
+        String(100), nullable=False, server_default="GENERAL"
+    )
+    quantity_required: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    quantity_in_stock: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    quantity_ordered: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    quantity_issued: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    unit: Mapped[str] = mapped_column(String(20), nullable=False, default="nos")
+    estimated_unit_cost: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0
+    )
+    status: Mapped[BOMStatus] = mapped_column(
+        Enum(BOMStatus), default=BOMStatus.PENDING, nullable=False
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project", back_populates="bom_items")
+    inventory_item: Mapped[Optional["Item"]] = relationship("Item")
 
 
 class ProjectAssignment(Base, UUIDMixin, TimestampMixin, TenantMixin):

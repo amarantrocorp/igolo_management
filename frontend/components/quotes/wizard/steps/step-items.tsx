@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import {
   ChevronUp,
   ChevronDown,
@@ -22,7 +22,9 @@ import {
   Monitor,
   Wine,
   Footprints,
+  LayoutGrid,
 } from "lucide-react"
+import RoomBuilderModal from "../room-builder-modal"
 import { useQuoteWizardStore } from "@/store/quote-wizard-store"
 import { ROOM_DEFINITIONS, PACKAGES } from "@/lib/quote-wizard-constants"
 import { calcQuantity, calcItemBasePrice } from "@/lib/quote-wizard-calc"
@@ -105,12 +107,16 @@ function RoomAccordion({
   isExpanded,
   onToggleExpand,
   pkgMult,
+  hasBuilderConfig,
+  onOpenBuilder,
 }: {
   room: WizardSelectedRoom
   roomDef: RoomDefinition | undefined
   isExpanded: boolean
   onToggleExpand: () => void
   pkgMult: number
+  hasBuilderConfig: boolean
+  onOpenBuilder: () => void
 }) {
   const { toggleItem } = useQuoteWizardStore()
 
@@ -144,9 +150,20 @@ function RoomAccordion({
         <span className="text-xs text-muted-foreground mr-2">
           {selectedCount}/{totalItems} items selected
         </span>
-        <span className="text-xs text-muted-foreground opacity-50 mr-2 hidden sm:inline">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpenBuilder()
+          }}
+          className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors mr-2 hidden sm:inline-flex"
+        >
+          <LayoutGrid className="h-3 w-3" />
           Room Builder
-        </span>
+          {hasBuilderConfig && (
+            <span className="h-2 w-2 rounded-full bg-green-500 ml-1" />
+          )}
+        </button>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
         ) : (
@@ -259,13 +276,17 @@ function RoomAccordion({
 // ── Main Step Component ──
 
 export default function StepItems() {
-  const { rooms, projectDetails } = useQuoteWizardStore()
+  const { rooms, projectDetails, roomBuilderData, updateRoomBuilder } =
+    useQuoteWizardStore()
 
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(() => {
     const initial = new Set<string>()
     if (rooms.length > 0) initial.add(rooms[0].key)
     return initial
   })
+
+  const [builderRoom, setBuilderRoom] = useState<string | null>(null)
+  const activeBuilderRoom = rooms.find((r) => r.key === builderRoom)
 
   const pkgMult = useMemo(() => {
     const pkg = PACKAGES.find((p) => p.key === projectDetails.packageType)
@@ -304,6 +325,8 @@ export default function StepItems() {
               isExpanded={expandedRooms.has(room.key)}
               onToggleExpand={() => toggleExpand(room.key)}
               pkgMult={pkgMult}
+              hasBuilderConfig={!!roomBuilderData[room.key]}
+              onOpenBuilder={() => setBuilderRoom(room.key)}
             />
           )
         })}
@@ -316,6 +339,17 @@ export default function StepItems() {
           </div>
         )}
       </div>
+
+      {/* Room Builder Modal */}
+      {activeBuilderRoom && (
+        <RoomBuilderModal
+          open={!!builderRoom}
+          onClose={() => setBuilderRoom(null)}
+          room={activeBuilderRoom}
+          initialConfig={roomBuilderData[activeBuilderRoom.key]}
+          onSave={(config) => updateRoomBuilder(activeBuilderRoom.key, config)}
+        />
+      )}
     </div>
   )
 }

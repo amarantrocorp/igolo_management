@@ -18,9 +18,11 @@ from app.models.finance import (
     Transaction,
 )
 from app.models.project import (
+    BOMStatus,
     DailyLog,
     Project,
     ProjectAssignment,
+    ProjectBOMItem,
     ProjectStatus,
     Sprint,
     SprintStatus,
@@ -142,6 +144,9 @@ async def convert_quote_to_project(
         lead.status = LeadStatus.CONVERTED
         db.add(lead)
 
+    # Generate Bill of Materials (BOM) from quotation items if inventory is enabled
+    await _generate_bom_from_quotation(project.id, quotation.id, org_id, db)
+
     await db.commit()
 
     # Reload the full project with relationships for notifications
@@ -251,6 +256,78 @@ async def _generate_standard_sprints(
         current_date = end_date + timedelta(days=1)
 
     return sprints
+
+
+async def _generate_bom_from_quotation(
+    project_id: UUID, quotation_id: UUID, org_id: UUID, db: AsyncSession
+) -> List[ProjectBOMItem]:
+    """Extract Bill of Materials from quotation items.
+
+    Checks if inventory is enabled for the org. If disabled, skips BOM generation.
+    For each quote item, tries to match to an existing inventory item by name,
+    checks current stock, and sets the BOM status accordingly.
+    """
+    from app.models.organization import Organization
+    from app.models.inventory import Item
+    from app.models.quotation import QuoteItem, QuoteRoom
+
+    # Check if org has inventory enabled
+    org_result = await db.execute(
+        select(Organization).where(Organization.id == org_id)
+    )
+    org = org_result.scalar_one_or_none()
+    if not org or not org.inventory_enabled:
+        return []
+
+    # Fetch all quote items via rooms
+    rooms_result = await db.execute(
+        select(QuoteRoom)
+        .options(selectinload(QuoteRoom.items))
+        .where(QuoteRoom.quotation_id == quotation_id)
+    )
+    rooms = rooms_result.scalars().all()
+
+    bom_items: List[ProjectBOMItem] = []
+    for room in rooms:
+        for qi in room.items:
+            # Try to match to inventory item
+            matched_item = None
+            if qi.inventory_item_id:
+                inv_result = await db.execute(
+                    select(Item).where(Item.id == qi.inventory_item_id)
+                )
+                matched_item = inv_result.scalar_one_or_none()
+            else:
+                # Fuzzy match by description/name
+                inv_result = await db.execute(
+                    select(Item).where(
+                        Item.name.ilike(f"%{qi.description[:50]}%"),
+                        Item.org_id == org_id,
+                    ).limit(1)
+                )
+                matched_item = inv_result.scalar_one_or_none()
+
+            in_stock = matched_item.current_stock if matched_item else 0
+            status = BOMStatus.IN_STOCK if in_stock >= qi.quantity else BOMStatus.PENDING
+
+            bom = ProjectBOMItem(
+                project_id=project_id,
+                inventory_item_id=matched_item.id if matched_item else None,
+                description=qi.description,
+                category=room.name,  # Use room name as category
+                quantity_required=qi.quantity,
+                quantity_in_stock=min(in_stock, qi.quantity),
+                quantity_ordered=0,
+                quantity_issued=0,
+                unit=qi.unit,
+                estimated_unit_cost=qi.unit_price,
+                status=status,
+                org_id=org_id,
+            )
+            db.add(bom)
+            bom_items.append(bom)
+
+    return bom_items
 
 
 async def get_project(project_id: UUID, org_id: UUID, db: AsyncSession) -> Project:
@@ -829,3 +906,139 @@ async def get_assigned_projects(
         .order_by(Project.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Bill of Materials (BOM)
+# ---------------------------------------------------------------------------
+
+
+async def get_bom_items(
+    project_id: UUID, org_id: UUID, db: AsyncSession
+) -> List[ProjectBOMItem]:
+    """List all BOM items for a project, refreshing stock snapshots."""
+    from app.models.inventory import Item
+
+    result = await db.execute(
+        select(ProjectBOMItem)
+        .where(ProjectBOMItem.project_id == project_id, ProjectBOMItem.org_id == org_id)
+        .order_by(ProjectBOMItem.category, ProjectBOMItem.description)
+    )
+    bom_items = list(result.scalars().all())
+
+    # Refresh in-stock snapshots from current inventory
+    for bom in bom_items:
+        if bom.inventory_item_id:
+            inv_result = await db.execute(
+                select(Item.current_stock).where(Item.id == bom.inventory_item_id)
+            )
+            stock = inv_result.scalar_one_or_none() or 0
+            remaining = bom.quantity_required - bom.quantity_issued
+            bom.quantity_in_stock = min(stock, remaining)
+
+    return bom_items
+
+
+async def update_bom_item(
+    bom_id: UUID, data, org_id: UUID, db: AsyncSession
+) -> ProjectBOMItem:
+    """Update a BOM item (link to inventory, change qty, notes)."""
+    result = await db.execute(
+        select(ProjectBOMItem).where(
+            ProjectBOMItem.id == bom_id, ProjectBOMItem.org_id == org_id
+        )
+    )
+    bom = result.scalar_one_or_none()
+    if not bom:
+        raise NotFoundException(detail="BOM item not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(bom, key, value)
+
+    # Recalculate status
+    if bom.quantity_issued >= bom.quantity_required:
+        bom.status = BOMStatus.FULFILLED
+    elif bom.quantity_issued > 0:
+        bom.status = BOMStatus.PARTIALLY_FULFILLED
+    elif bom.quantity_ordered > 0:
+        bom.status = BOMStatus.ORDERED
+    elif bom.inventory_item_id:
+        from app.models.inventory import Item
+        inv_result = await db.execute(
+            select(Item.current_stock).where(Item.id == bom.inventory_item_id)
+        )
+        stock = inv_result.scalar_one_or_none() or 0
+        bom.status = BOMStatus.IN_STOCK if stock >= bom.quantity_required else BOMStatus.PENDING
+    else:
+        bom.status = BOMStatus.PENDING
+
+    await db.commit()
+    await db.refresh(bom)
+    return bom
+
+
+async def create_po_from_bom(
+    bom_id: UUID,
+    project_id: UUID,
+    data,
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    """Create a Purchase Order from a BOM item and update BOM status."""
+    from app.models.inventory import PurchaseOrder, POItem, POStatus
+    from app.schemas.inventory import PurchaseOrderCreate, POItemCreate
+
+    result = await db.execute(
+        select(ProjectBOMItem).where(
+            ProjectBOMItem.id == bom_id, ProjectBOMItem.org_id == org_id
+        )
+    )
+    bom = result.scalar_one_or_none()
+    if not bom:
+        raise NotFoundException(detail="BOM item not found")
+
+    if not bom.inventory_item_id:
+        raise BadRequestException(
+            detail="BOM item must be linked to an inventory item before creating a PO. "
+            "Use 'Link to Inventory' first."
+        )
+
+    # Create the PO
+    po = PurchaseOrder(
+        vendor_id=data.vendor_id,
+        status=POStatus.DRAFT,
+        is_project_specific=True,
+        project_id=project_id,
+        total_amount=data.quantity * data.unit_price,
+        notes=f"Auto-generated from BOM: {bom.description}",
+        created_by_id=user_id,
+        org_id=org_id,
+    )
+    db.add(po)
+    await db.flush()
+
+    po_item = POItem(
+        purchase_order_id=po.id,
+        item_id=bom.inventory_item_id,
+        quantity=data.quantity,
+        unit_price=data.unit_price,
+        total_price=data.quantity * data.unit_price,
+        org_id=org_id,
+    )
+    db.add(po_item)
+
+    # Update BOM
+    bom.quantity_ordered += data.quantity
+    if bom.status == BOMStatus.PENDING:
+        bom.status = BOMStatus.ORDERED
+
+    await db.commit()
+
+    return {
+        "purchase_order_id": str(po.id),
+        "bom_item_id": str(bom.id),
+        "quantity": data.quantity,
+        "total_amount": float(po.total_amount),
+    }

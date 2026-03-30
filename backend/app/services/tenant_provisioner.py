@@ -49,61 +49,69 @@ async def provision_tenant_tables(schema_name: str) -> None:
     # Define which tables belong to the tenant (Data Plane)
     # Control Plane tables (users, organizations, org_memberships, org_invitations)
     # remain in the public schema
-    TENANT_TABLES = {
-        "projects",
-        "project_sprints",
-        "project_rooms",
-        "leads",
-        "lead_activities",
-        "quotations",
-        "quotation_items",
-        "invoices",
-        "invoice_items",
-        "material_requests",
-        "material_request_items",
-        "work_orders",
-        "work_order_items",
-        "vendors",
-        "vendor_categories",
-        "assets",
-        "inventory_items",
-        "stock_movements",
-        "purchase_orders",
-        "purchase_order_items",
-        "approvals",
-        "budget_items",
-        "documents",
-        "expenses",
-        "expense_categories",
-        "labor_entries",
-        "labor_contractors",
-        "labor_attendance",
-        "quality_checklists",
-        "quality_checklist_items",
-        "quality_inspections",
-        "vendor_bills",
-        "vendor_bill_items",
-        "usage_logs",
-        "notifications",
-        "password_reset_tokens",
-        "whatsapp_message_log",
+    # Control Plane tables that stay in public schema:
+    #   users, organizations, org_memberships, org_invitations, org_usage
+    CONTROL_PLANE_TABLES = {
+        "users",
+        "organizations",
+        "org_memberships",
+        "org_invitations",
+        "org_usage",
     }
 
-    logger.info(f"Provisioning tables in schema '{schema_name}'")
+    # All other tables are tenant-specific (Data Plane).
+    # Built dynamically from model metadata so new models are included automatically.
+    TENANT_TABLES = {
+        name
+        for name in Base.metadata.tables
+        if name not in CONTROL_PLANE_TABLES
+    }
+
+    logger.info(f"Provisioning {len(TENANT_TABLES)} tables in schema '{schema_name}'")
 
     async with engine.begin() as conn:
-        # Set the search path to the tenant schema
-        await conn.execute(text(f'SET search_path TO "{schema_name}", public'))
-
-        # Create only the tenant-specific tables
+        # Create each tenant table explicitly in the target schema.
+        # We temporarily set table.schema so DDL targets the right schema,
+        # then restore it to avoid side-effects on the shared metadata.
         for table_name, table in Base.metadata.tables.items():
             if table_name in TENANT_TABLES:
-                await conn.run_sync(
-                    lambda sync_conn, t=table: t.create(sync_conn, checkfirst=True)
-                )
+                original_schema = table.schema
+                table.schema = schema_name
+                try:
+                    await conn.run_sync(
+                        lambda sync_conn, t=table: t.create(
+                            sync_conn, checkfirst=True
+                        )
+                    )
+                finally:
+                    table.schema = original_schema
 
-        # Reset search path
-        await conn.execute(text("SET search_path TO public"))
+        # Drop FK constraints that point from tenant tables to public-schema
+        # copies of other tenant tables (e.g. tenant_abc.lead_activities.lead_id
+        # -> public.leads). FKs to actual control-plane tables (users,
+        # organizations, etc.) are kept.
+        control_list = ", ".join(f"'{t}'" for t in CONTROL_PLANE_TABLES)
+        fk_query = await conn.execute(text(f"""
+            SELECT DISTINCT tc.constraint_name, tc.table_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.constraint_column_usage ccu
+                ON tc.constraint_name = ccu.constraint_name
+                AND tc.table_schema = ccu.constraint_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = '{schema_name}'
+              AND ccu.table_schema = 'public'
+              AND ccu.table_name NOT IN ({control_list})
+        """))
+        bad_fks = fk_query.all()
+        for row in bad_fks:
+            await conn.execute(text(
+                f'ALTER TABLE "{schema_name}"."{row.table_name}" '
+                f'DROP CONSTRAINT IF EXISTS "{row.constraint_name}"'
+            ))
+        if bad_fks:
+            logger.info(
+                f"Dropped {len(bad_fks)} cross-schema FK constraints in '{schema_name}'"
+            )
 
     logger.info(f"Tables provisioned in schema '{schema_name}'")
 

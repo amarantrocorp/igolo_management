@@ -195,8 +195,25 @@ async def get_tenant_session(
                 await session.execute(
                     text(f'SET search_path TO "{schema_name}", public')
                 )
+
+                # Wrap commit to re-apply search_path after each transaction.
+                # PostgreSQL resets search_path when a transaction ends, which
+                # breaks db.refresh() and subsequent queries in tenant sessions.
+                _original_commit = session.commit
+
+                async def _commit_and_restore_path():
+                    await _original_commit()
+                    await session.execute(
+                        text(f'SET search_path TO "{schema_name}", public')
+                    )
+
+                session.commit = _commit_and_restore_path  # type: ignore[assignment]
+
             yield session
         finally:
             if schema_name:
-                await session.execute(text("SET search_path TO public"))
+                try:
+                    await session.execute(text("SET search_path TO public"))
+                except Exception:
+                    pass  # Connection may already be in a failed state
             await session.close()
