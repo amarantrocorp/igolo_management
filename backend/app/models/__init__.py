@@ -11,7 +11,7 @@ from app.models.inventory import (
     POItem,
     StockTransaction,
 )
-from app.models.project import Project, Sprint, VariationOrder, DailyLog
+from app.models.project import Project, Sprint, VariationOrder, DailyLog, ProjectAssignment
 from app.models.finance import ProjectWallet, Transaction
 from app.models.labor import LaborTeam, Worker, AttendanceLog
 from app.models.notification import Notification, WhatsAppLog
@@ -49,6 +49,7 @@ __all__ = [
     "Sprint",
     "VariationOrder",
     "DailyLog",
+    "ProjectAssignment",
     "ProjectWallet",
     "Transaction",
     "LaborTeam",

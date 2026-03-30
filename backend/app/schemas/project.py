@@ -157,6 +157,24 @@ class TransactionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProjectAssignmentCreate(BaseModel):
+    user_id: UUID
+    role: str  # "SUPERVISOR", "MANAGER", "BDE", "SALES"
+
+
+class ProjectAssignmentResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    user_id: UUID
+    user_name: str = ""
+    user_email: str = ""
+    role: str
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class DailyLogCreate(BaseModel):
     sprint_id: UUID
     date: date

@@ -987,6 +987,21 @@ export interface VendorBill {
 }
 
 // ============================================================
+// Project Assignments
+// ============================================================
+
+export interface ProjectAssignment {
+  id: string
+  project_id: string
+  user_id: string
+  user_name: string
+  user_email: string
+  role: string
+  is_active: boolean
+  created_at: string
+}
+
+// ============================================================
 // API Responses
 // ============================================================
 

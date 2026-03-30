@@ -269,7 +269,7 @@ export default function LaborTeamsPage() {
   })
 
   return (
-    <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER"]}>
+    <RoleGuard allowedRoles={["SUPER_ADMIN", "MANAGER", "SUPERVISOR"]}>
       <div className="space-y-6">
         <PageHeader
           icon={HardHat}

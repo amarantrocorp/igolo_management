@@ -196,6 +196,37 @@ export default function BillingPage() {
           billing_cycle: billingCycle,
         });
 
+        // Dummy order from backend (no Razorpay keys) — skip payment modal
+        if (order.order_id?.startsWith("dummy_order_")) {
+          try {
+            const { data: verification } = await api.post(
+              "/billing/verify-payment",
+              {
+                razorpay_order_id: order.order_id,
+                razorpay_payment_id: `dummy_pay_${Date.now()}`,
+                razorpay_signature: "dummy_sig_local_dev",
+                plan,
+              },
+            );
+            if (verification.success) {
+              toast({
+                title: "Upgrade Successful (Dev Mode)",
+                description: verification.message,
+              });
+              queryClient.invalidateQueries({ queryKey: ["billing-status"] });
+            }
+          } catch {
+            toast({
+              title: "Verification Error",
+              description: "Dev mode verification failed.",
+              variant: "destructive",
+            });
+          } finally {
+            setUpgrading(null);
+          }
+          return;
+        }
+
         const options = {
           key: order.key_id,
           amount: order.amount,

@@ -20,6 +20,7 @@ from app.models.finance import (
 from app.models.project import (
     DailyLog,
     Project,
+    ProjectAssignment,
     ProjectStatus,
     Sprint,
     SprintStatus,
@@ -279,8 +280,13 @@ async def get_projects(
     skip: int = 0,
     limit: int = 50,
     status_filter: Optional[ProjectStatus] = None,
+    assigned_user_id: Optional[UUID] = None,
 ) -> List[Project]:
-    """Retrieve a paginated list of projects with optional status filter."""
+    """Retrieve a paginated list of projects with optional status filter.
+
+    When *assigned_user_id* is provided the results are limited to projects
+    where the user is the assigned supervisor **or** manager.
+    """
     query = (
         select(Project)
         .options(
@@ -293,6 +299,24 @@ async def get_projects(
         )
         .where(Project.org_id == org_id)
     )
+
+    if assigned_user_id:
+        from sqlalchemy import or_
+
+        query = query.where(
+            or_(
+                # Check the new many-to-many assignments table
+                Project.id.in_(
+                    select(ProjectAssignment.project_id).where(
+                        ProjectAssignment.user_id == assigned_user_id,
+                        ProjectAssignment.is_active == True,  # noqa: E712
+                    )
+                ),
+                # Also check legacy FK fields for backward compatibility
+                Project.supervisor_id == assigned_user_id,
+                Project.manager_id == assigned_user_id,
+            )
+        )
 
     if status_filter:
         query = query.where(Project.status == status_filter)
@@ -665,4 +689,143 @@ async def list_transactions(
         .limit(limit)
     )
     result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Project Assignments
+# ---------------------------------------------------------------------------
+
+
+async def assign_user_to_project(
+    project_id: UUID,
+    user_id: UUID,
+    role: str,
+    org_id: UUID,
+    db: AsyncSession,
+) -> ProjectAssignment:
+    """Assign a user to a project with a specific role."""
+    from app.models.user import User
+
+    # Validate project exists
+    await get_project(project_id, org_id, db)
+
+    # Validate user exists
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise NotFoundException(detail=f"User with id '{user_id}' not found")
+
+    # Check for duplicate assignment
+    existing = await db.execute(
+        select(ProjectAssignment).where(
+            ProjectAssignment.project_id == project_id,
+            ProjectAssignment.user_id == user_id,
+            ProjectAssignment.org_id == org_id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise BadRequestException(
+            detail="User is already assigned to this project"
+        )
+
+    assignment = ProjectAssignment(
+        project_id=project_id,
+        user_id=user_id,
+        role=role,
+        is_active=True,
+        org_id=org_id,
+    )
+    db.add(assignment)
+    await db.commit()
+    await db.refresh(assignment)
+
+    # Attach user info for the response
+    assignment.user = user  # type: ignore[assignment]
+    return assignment
+
+
+async def remove_assignment(
+    project_id: UUID,
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+) -> None:
+    """Remove a user's assignment from a project."""
+    result = await db.execute(
+        select(ProjectAssignment).where(
+            ProjectAssignment.project_id == project_id,
+            ProjectAssignment.user_id == user_id,
+            ProjectAssignment.org_id == org_id,
+        )
+    )
+    assignment = result.scalar_one_or_none()
+    if not assignment:
+        raise NotFoundException(detail="Assignment not found")
+
+    await db.delete(assignment)
+    await db.commit()
+
+
+async def list_assignments(
+    project_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+) -> List[dict]:
+    """Return all active assignments for a project with user details."""
+    result = await db.execute(
+        select(ProjectAssignment)
+        .options(selectinload(ProjectAssignment.user))
+        .where(
+            ProjectAssignment.project_id == project_id,
+            ProjectAssignment.org_id == org_id,
+            ProjectAssignment.is_active.is_(True),
+        )
+        .order_by(ProjectAssignment.created_at)
+    )
+    assignments = list(result.scalars().all())
+
+    response = []
+    for a in assignments:
+        response.append(
+            {
+                "id": a.id,
+                "project_id": a.project_id,
+                "user_id": a.user_id,
+                "user_name": a.user.full_name if a.user else "",
+                "user_email": a.user.email if a.user else "",
+                "role": a.role,
+                "is_active": a.is_active,
+                "created_at": a.created_at,
+            }
+        )
+    return response
+
+
+async def get_assigned_projects(
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+) -> List[Project]:
+    """Return all projects a user is assigned to."""
+    result = await db.execute(
+        select(Project)
+        .join(
+            ProjectAssignment,
+            (ProjectAssignment.project_id == Project.id)
+            & (ProjectAssignment.user_id == user_id)
+            & (ProjectAssignment.org_id == org_id)
+            & (ProjectAssignment.is_active.is_(True)),
+        )
+        .options(
+            selectinload(Project.sprints),
+            selectinload(Project.wallet),
+            selectinload(Project.client).options(
+                selectinload(Client.user),
+                selectinload(Client.lead),
+            ),
+        )
+        .where(Project.org_id == org_id)
+        .order_by(Project.created_at.desc())
+    )
     return list(result.scalars().all())

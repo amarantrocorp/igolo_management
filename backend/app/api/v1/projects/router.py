@@ -11,10 +11,13 @@ from app.core.security import (
     role_required,
 )
 from app.models.project import ProjectStatus
+from app.models.user import UserRole
 from app.schemas.inventory import ProjectMaterialsResponse
 from app.schemas.project import (
     DailyLogCreate,
     DailyLogResponse,
+    ProjectAssignmentCreate,
+    ProjectAssignmentResponse,
     ProjectConvert,
     ProjectResponse,
     ProjectUpdate,
@@ -73,14 +76,38 @@ async def list_projects(
     ctx: AuthContext = Depends(get_auth_context),
 ):
     """List projects with optional filters for status."""
+    # Supervisors only see projects they are assigned to
+    assigned_user_id = ctx.user.id if ctx.role == UserRole.SUPERVISOR else None
+
     projects = await project_service.get_projects(
         db=db,
         org_id=ctx.org_id,
         skip=skip,
         limit=limit,
         status_filter=status_filter,
+        assigned_user_id=assigned_user_id,
     )
     return projects
+
+
+# ---------------------------------------------------------------------------
+# My Assigned Projects (must be before /{project_id} routes)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/me/assigned-projects",
+    response_model=list[ProjectResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def my_assigned_projects(
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(get_auth_context),
+):
+    """Return all projects the current user is assigned to."""
+    return await project_service.get_assigned_projects(
+        user_id=ctx.user.id, org_id=ctx.org_id, db=db
+    )
 
 
 @router.get(
@@ -137,6 +164,74 @@ async def update_project(
 
 
 # ---------------------------------------------------------------------------
+# Project Assignments
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{project_id}/assignments",
+    response_model=ProjectAssignmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def assign_user(
+    project_id: UUID,
+    payload: ProjectAssignmentCreate,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Assign a user to a project with a specific role."""
+    assignment = await project_service.assign_user_to_project(
+        project_id=project_id,
+        user_id=payload.user_id,
+        role=payload.role,
+        org_id=ctx.org_id,
+        db=db,
+    )
+    return ProjectAssignmentResponse(
+        id=assignment.id,
+        project_id=assignment.project_id,
+        user_id=assignment.user_id,
+        user_name=assignment.user.full_name if assignment.user else "",
+        user_email=assignment.user.email if assignment.user else "",
+        role=assignment.role,
+        is_active=assignment.is_active,
+        created_at=assignment.created_at,
+    )
+
+
+@router.get(
+    "/{project_id}/assignments",
+    response_model=list[ProjectAssignmentResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_assignments(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(get_auth_context),
+):
+    """List all active assignments for a project."""
+    return await project_service.list_assignments(
+        project_id=project_id, org_id=ctx.org_id, db=db
+    )
+
+
+@router.delete(
+    "/{project_id}/assignments/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_assignment(
+    project_id: UUID,
+    user_id: UUID,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(role_required(["MANAGER", "SUPER_ADMIN"])),
+):
+    """Remove a user's assignment from a project."""
+    await project_service.remove_assignment(
+        project_id=project_id, user_id=user_id, org_id=ctx.org_id, db=db
+    )
+
+
+# ---------------------------------------------------------------------------
 # Sprints
 # ---------------------------------------------------------------------------
 
@@ -175,7 +270,7 @@ async def create_daily_log(
     project_id: UUID,
     payload: DailyLogCreate,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN", "BDE", "SALES"])),
 ):
     """Log daily site progress for a project sprint."""
     log = await project_service.create_daily_log(

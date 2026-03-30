@@ -15,30 +15,17 @@ import {
   ShoppingCart,
   DollarSign,
   HardHat,
-  UserCog,
-  Store,
-  ClipboardList,
   Building2,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Hammer,
-  Wrench,
-  Receipt,
   Shield,
-  ClipboardCheck,
-  Ruler,
-  MapPin,
-  Palette,
-  PenTool,
-  Calculator,
-  CheckSquare,
   Truck,
   CreditCard,
   BarChart3,
-  Bell,
   Settings,
   TrendingUp,
+  ClipboardCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -62,7 +49,7 @@ const ALL_INTERNAL: UserRole[] = ["SUPER_ADMIN", "MANAGER", "BDE", "SALES", "SUP
 
 const navSections: NavSection[] = [
   {
-    label: "Main Menu",
+    label: "Overview",
     items: [
       {
         title: "Dashboard",
@@ -70,100 +57,78 @@ const navSections: NavSection[] = [
         icon: LayoutDashboard,
         roles: ALL_INTERNAL,
       },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
       {
-        title: "Lead Management",
+        title: "Leads",
         href: "/dashboard/sales/leads",
         icon: Users,
         roles: SALES_ROLES,
       },
       {
-        title: "Client Requirements",
-        href: "/dashboard/client-requirements",
-        icon: ClipboardCheck,
-        roles: SALES_ROLES,
-      },
-      {
-        title: "Site Survey",
-        href: "/dashboard/site-survey",
-        icon: MapPin,
-        roles: OPS_ROLES,
-      },
-      {
-        title: "Design Concepts",
-        href: "/dashboard/design-concepts",
-        icon: Palette,
-        roles: OPS_ROLES,
-      },
-      {
-        title: "Drawings",
-        href: "/dashboard/drawings",
-        icon: PenTool,
-        roles: OPS_ROLES,
-      },
-      {
-        title: "Smart Quotation",
+        title: "Quotations",
         href: "/dashboard/sales/quotes",
         icon: FileText,
         roles: SALES_ROLES,
       },
+    ],
+  },
+  {
+    label: "Projects",
+    items: [
       {
-        title: "BOQ & Estimates",
-        href: "/dashboard/boq",
-        icon: Calculator,
-        roles: SALES_ROLES,
-      },
-      {
-        title: "Budget Approval",
-        href: "/dashboard/budget-approval",
-        icon: CheckSquare,
-        roles: ADMIN_ROLES,
-      },
-      {
-        title: "Projects",
+        title: "All Projects",
         href: "/dashboard/projects",
         icon: FolderKanban,
         roles: OPS_ROLES,
       },
       {
-        title: "Material Planning",
-        href: "/dashboard/material-planning",
-        icon: Package,
-        roles: ADMIN_ROLES,
-      },
-      {
-        title: "Vendors",
-        href: "/dashboard/admin/vendors",
-        icon: Store,
-        roles: ADMIN_ROLES,
-      },
-      {
-        title: "Purchasing",
-        href: "/dashboard/purchasing",
-        icon: ShoppingCart,
-        roles: ADMIN_ROLES,
-      },
-      {
-        title: "Labour Management",
-        href: "/dashboard/labour",
-        icon: HardHat,
-        roles: OPS_ROLES,
-      },
-      {
-        title: "Execution Tracking",
+        title: "Execution",
         href: "/dashboard/execution-tracking",
         icon: Truck,
         roles: OPS_ROLES,
       },
       {
-        title: "Expenses",
-        href: "/dashboard/expenses",
-        icon: DollarSign,
+        title: "Labour",
+        href: "/dashboard/admin/labor",
+        icon: HardHat,
+        roles: OPS_ROLES,
+      },
+    ],
+  },
+  {
+    label: "Procurement",
+    items: [
+      {
+        title: "Inventory",
+        href: "/dashboard/admin/inventory",
+        icon: Package,
         roles: ADMIN_ROLES,
       },
       {
-        title: "Client Billing",
-        href: "/dashboard/client-billing",
-        icon: CreditCard,
+        title: "Purchase Orders",
+        href: "/dashboard/admin/purchase-orders",
+        icon: ShoppingCart,
+        roles: ADMIN_ROLES,
+      },
+      {
+        title: "Approvals",
+        href: "/dashboard/admin/approvals",
+        icon: ClipboardCheck,
+        roles: ADMIN_ROLES,
+      },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      {
+        title: "Accounts",
+        href: "/dashboard/admin/finance",
+        icon: DollarSign,
         roles: ADMIN_ROLES,
       },
       {
@@ -173,28 +138,10 @@ const navSections: NavSection[] = [
         roles: ADMIN_ROLES,
       },
       {
-        title: "Notifications",
-        href: "/dashboard/notifications",
-        icon: Bell,
-        roles: ALL_INTERNAL,
-      },
-      {
         title: "Settings",
-        href: "/dashboard/settings",
-        icon: Settings,
-        roles: ["SUPER_ADMIN"],
-      },
-      {
-        title: "Org Settings",
         href: "/dashboard/org-settings",
-        icon: UserCog,
+        icon: Settings,
         roles: ADMIN_ROLES,
-      },
-      {
-        title: "Billing",
-        href: "/dashboard/billing",
-        icon: CreditCard,
-        roles: ["SUPER_ADMIN"],
       },
     ],
   },

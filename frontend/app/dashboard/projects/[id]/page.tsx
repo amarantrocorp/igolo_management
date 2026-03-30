@@ -97,6 +97,7 @@ import {
   CartesianGrid,
 } from "recharts"
 import { BarChart3, List } from "lucide-react"
+import TeamTab from "./team-tab"
 
 // ---- Sprint Status helpers ----
 
@@ -3661,6 +3662,7 @@ export default function ProjectDetailPage() {
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="indent">Indent</TabsTrigger>
             <TabsTrigger value="pnl">P&L</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -3712,6 +3714,10 @@ export default function ProjectDetailPage() {
 
           <TabsContent value="pnl">
             <PnLTab projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="team">
+            <TeamTab projectId={projectId} />
           </TabsContent>
         </Tabs>
       </div>

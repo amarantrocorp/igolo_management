@@ -22,19 +22,41 @@ PLAN_PRICES = {
 async def create_subscription(
     org_id: UUID, plan: str, billing_cycle: str, db: AsyncSession
 ) -> dict:
-    """Create a Razorpay order for a subscription upgrade."""
-    import razorpay
+    """Create a Razorpay order for a subscription upgrade.
 
-    if not settings.RAZORPAY_KEY_ID:
-        raise RuntimeError("Razorpay not configured")
-
-    client = razorpay.Client(
-        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
-    )
+    Falls back to a dummy order when Razorpay keys are not configured,
+    allowing local development without a payment gateway.
+    """
+    import uuid as _uuid
 
     price = PLAN_PRICES.get(plan, {}).get(billing_cycle)
     if not price:
         raise ValueError(f"Invalid plan '{plan}' or billing cycle '{billing_cycle}'")
+
+    # Bypass Razorpay when keys are missing or set to placeholders (local dev)
+    _placeholder = {"", "your_razorpay_key_id", "your_razorpay_key_secret"}
+    if (
+        not settings.RAZORPAY_KEY_ID
+        or not settings.RAZORPAY_KEY_SECRET
+        or settings.RAZORPAY_KEY_ID in _placeholder
+        or settings.RAZORPAY_KEY_SECRET in _placeholder
+        or not settings.RAZORPAY_KEY_ID.startswith("rzp_")
+    ):
+        logger.warning("Razorpay not configured — returning dummy order for local dev")
+        return {
+            "order_id": f"dummy_order_{_uuid.uuid4().hex[:16]}",
+            "amount": price,
+            "currency": "INR",
+            "key_id": "rzp_dummy_local",
+            "plan": plan,
+            "billing_cycle": billing_cycle,
+        }
+
+    import razorpay
+
+    client = razorpay.Client(
+        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+    )
 
     order = client.order.create(
         {
@@ -62,11 +84,26 @@ async def create_subscription(
 async def verify_razorpay_signature(
     order_id: str, payment_id: str, signature: str
 ) -> bool:
-    """Verify the Razorpay payment signature."""
-    import razorpay
+    """Verify the Razorpay payment signature.
 
-    if not settings.RAZORPAY_KEY_ID:
+    Auto-approves dummy orders created during local dev (no Razorpay keys).
+    """
+    _placeholder = {"", "your_razorpay_key_id", "your_razorpay_key_secret"}
+    _keys_missing = (
+        not settings.RAZORPAY_KEY_ID
+        or not settings.RAZORPAY_KEY_SECRET
+        or settings.RAZORPAY_KEY_ID in _placeholder
+        or settings.RAZORPAY_KEY_SECRET in _placeholder
+        or not settings.RAZORPAY_KEY_ID.startswith("rzp_")
+    )
+    if _keys_missing:
+        # Accept dummy orders in local dev
+        if order_id.startswith("dummy_order_"):
+            logger.warning("Auto-verifying dummy order %s for local dev", order_id)
+            return True
         raise RuntimeError("Razorpay not configured")
+
+    import razorpay
 
     client = razorpay.Client(
         auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)

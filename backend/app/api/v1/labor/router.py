@@ -126,7 +126,7 @@ async def add_worker(
 async def log_attendance(
     payload: AttendanceLogCreate,
     db: AsyncSession = Depends(get_tenant_session),
-    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN", "BDE", "SALES"])),
 ):
     """Log daily attendance for a labor team on a project sprint.
     Automatically calculates cost as workers_present * daily_rate * (total_hours / 8).

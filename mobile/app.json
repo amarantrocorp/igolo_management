@@ -18,7 +18,8 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "Use Face ID for quick and secure sign-in.",
         "NSCameraUsageDescription": "Take photos of site progress for daily logs.",
-        "NSPhotoLibraryUsageDescription": "Select photos from your library for daily logs."
+        "NSPhotoLibraryUsageDescription": "Select photos from your library for daily logs.",
+        "NSLocationWhenInUseUsageDescription": "Igolo needs your location to verify you are at the project site for check-in."
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -47,7 +48,9 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "notification": {

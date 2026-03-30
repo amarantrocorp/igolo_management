@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import AuthContext, get_auth_context, get_tenant_session, role_required
@@ -39,6 +39,7 @@ def _to_response(checkin, project_name: Optional[str] = None) -> CheckInResponse
 )
 async def check_in(
     payload: CheckInRequest,
+    request: Request,
     db: AsyncSession = Depends(get_tenant_session),
     ctx: AuthContext = Depends(
         role_required(["SUPERVISOR", "MANAGER", "SUPER_ADMIN", "LABOR_LEAD"])
@@ -46,6 +47,16 @@ async def check_in(
 ):
     """Check in to a project site. Validates the user is within the
     project's geofence radius before recording the check-in."""
+    # Mobile-only check-in enforcement
+    user_agent = request.headers.get("user-agent", "").lower()
+    mobile_indicators = ["mobile", "expo", "reactnative", "okhttp", "darwin", "android", "iphone", "ipad"]
+    is_mobile = any(indicator in user_agent for indicator in mobile_indicators)
+    if not is_mobile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Check-in is only available from the mobile app. Please use the Igolo mobile app to check in at project sites."
+        )
+
     checkin = await checkin_service.check_in(
         data=payload,
         user_id=ctx.user.id,
