@@ -124,7 +124,6 @@ function markdownToHtml(md: string): string {
       5: "doc-h5",
       6: "doc-h6",
     }
-    // process inline formatting in the text
     let formatted = text
     formatted = formatted.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     formatted = formatted.replace(/`([^`]+)`/g, '<code class="doc-inline-code">$1</code>')
@@ -140,7 +139,6 @@ function markdownToHtml(md: string): string {
       const parseRow = (row: string) =>
         row.split("|").slice(1, -1).map((c) => c.trim())
       const headerCells = parseRow(rows[0])
-      // Check if row 1 is separator
       const sepRow = parseRow(rows[1])
       const isSep = sepRow.every((c) => /^[-:]+$/.test(c))
       if (!isSep) return tableBlock
@@ -241,95 +239,95 @@ function markdownToHtml(md: string): string {
 }
 
 // ════════════════════════════════════════════════════════════════
-// STYLES (embedded <style> tag for the document viewer)
+// STYLES (light theme)
 // ════════════════════════════════════════════════════════════════
 
 const DOCS_STYLES = `
 /* ── Layout ── */
-.doc-page { display: flex; min-height: 100vh; background: #0B1120; }
+.doc-page { display: flex; min-height: 100vh; background: #fff; }
 .doc-left-sidebar {
   position: sticky; top: 80px; align-self: flex-start;
   width: 260px; min-width: 260px; max-height: calc(100vh - 80px);
   overflow-y: auto; padding: 24px 0 24px 24px;
-  border-right: 1px solid rgba(255,255,255,0.06);
-  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+  border-right: 1px solid #e5e7eb;
+  scrollbar-width: thin; scrollbar-color: #d1d5db transparent;
 }
 .doc-main { flex: 1; min-width: 0; max-width: 820px; margin: 0 auto; padding: 24px 40px 80px; }
 .doc-right-sidebar {
   position: sticky; top: 80px; align-self: flex-start;
   width: 220px; min-width: 220px; max-height: calc(100vh - 80px);
   overflow-y: auto; padding: 24px 24px 24px 0;
-  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+  scrollbar-width: thin; scrollbar-color: #d1d5db transparent;
 }
 
 /* ── Sidebar Nav ── */
 .doc-nav-category {
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.35); padding: 16px 16px 6px; margin: 0;
+  color: #9ca3af; padding: 16px 16px 6px; margin: 0;
 }
 .doc-nav-category:first-child { padding-top: 0; }
 .doc-nav-link {
   display: block; padding: 6px 16px; font-size: 13.5px; line-height: 1.5;
-  color: rgba(255,255,255,0.55); text-decoration: none; border-radius: 6px;
+  color: #6b7280; text-decoration: none; border-radius: 6px;
   transition: all 0.15s ease; border-left: 2px solid transparent; margin-left: 0;
 }
-.doc-nav-link:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.04); }
+.doc-nav-link:hover { color: #0F172A; background: #f3f4f6; }
 .doc-nav-link-active {
-  color: #CBB282 !important; background: rgba(203,178,130,0.08);
-  border-left-color: #CBB282; font-weight: 500;
+  color: #0D9488 !important; background: rgba(13,148,136,0.06);
+  border-left-color: #0D9488; font-weight: 500;
 }
 
 /* ── ToC (Right Sidebar) ── */
 .doc-toc-title {
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.35); margin-bottom: 12px;
+  color: #9ca3af; margin-bottom: 12px;
 }
 .doc-toc-link {
   display: block; padding: 4px 0; font-size: 12.5px; line-height: 1.6;
-  color: rgba(255,255,255,0.45); text-decoration: none; transition: color 0.15s ease;
-  border-left: 2px solid rgba(255,255,255,0.06); padding-left: 12px;
+  color: #9ca3af; text-decoration: none; transition: color 0.15s ease;
+  border-left: 2px solid #e5e7eb; padding-left: 12px;
 }
-.doc-toc-link:hover { color: #CBB282; border-left-color: rgba(203,178,130,0.4); }
+.doc-toc-link:hover { color: #0D9488; border-left-color: rgba(13,148,136,0.4); }
 .doc-toc-h3 { padding-left: 24px; font-size: 12px; }
 
 /* ── Breadcrumb ── */
 .doc-breadcrumb {
   display: flex; align-items: center; gap: 8px; font-size: 13px;
-  color: rgba(255,255,255,0.4); margin-bottom: 8px;
+  color: #9ca3af; margin-bottom: 8px;
 }
-.doc-breadcrumb a { color: rgba(255,255,255,0.4); text-decoration: none; transition: color 0.15s; }
-.doc-breadcrumb a:hover { color: #CBB282; }
-.doc-breadcrumb-sep { color: rgba(255,255,255,0.2); }
+.doc-breadcrumb a { color: #9ca3af; text-decoration: none; transition: color 0.15s; }
+.doc-breadcrumb a:hover { color: #0D9488; }
+.doc-breadcrumb-sep { color: #d1d5db; }
 
 /* ── Header Area ── */
 .doc-header-meta {
   display: flex; align-items: center; gap: 16px; margin-top: 4px; margin-bottom: 32px;
-  font-size: 13px; color: rgba(255,255,255,0.35);
+  font-size: 13px; color: #9ca3af;
 }
 .doc-header-meta svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
 
 /* ── Content Typography ── */
 .doc-h1 {
-  font-size: 2rem; font-weight: 700; color: #fff; margin: 0 0 8px; line-height: 1.25;
+  font-size: 2rem; font-weight: 700; color: #0F172A; margin: 0 0 8px; line-height: 1.25;
   letter-spacing: -0.02em;
 }
 .doc-h2 {
-  font-size: 1.5rem; font-weight: 700; color: #CBB282; margin: 3rem 0 1rem;
-  padding-bottom: 0.5rem; border-bottom: 1px solid rgba(203,178,130,0.15);
+  font-size: 1.5rem; font-weight: 700; color: #0D9488; margin: 3rem 0 1rem;
+  padding-bottom: 0.5rem; border-bottom: 1px solid rgba(13,148,136,0.15);
   line-height: 1.3; letter-spacing: -0.01em; position: relative;
 }
 .doc-h3 {
-  font-size: 1.2rem; font-weight: 600; color: #fff; margin: 2rem 0 0.75rem;
+  font-size: 1.2rem; font-weight: 600; color: #0F172A; margin: 2rem 0 0.75rem;
   line-height: 1.35; position: relative;
 }
 .doc-h4 {
-  font-size: 1.05rem; font-weight: 600; color: rgba(255,255,255,0.9);
+  font-size: 1.05rem; font-weight: 600; color: #1e293b;
   margin: 1.5rem 0 0.5rem; line-height: 1.4; position: relative;
 }
-.doc-h5 { font-size: 0.95rem; font-weight: 600; color: rgba(255,255,255,0.8); margin: 1.25rem 0 0.5rem; position: relative; }
-.doc-h6 { font-size: 0.875rem; font-weight: 600; color: rgba(255,255,255,0.7); margin: 1rem 0 0.5rem; position: relative; }
+.doc-h5 { font-size: 0.95rem; font-weight: 600; color: #334155; margin: 1.25rem 0 0.5rem; position: relative; }
+.doc-h6 { font-size: 0.875rem; font-weight: 600; color: #475569; margin: 1rem 0 0.5rem; position: relative; }
 .doc-anchor {
-  position: absolute; left: -1.2em; color: rgba(203,178,130,0.3); text-decoration: none;
+  position: absolute; left: -1.2em; color: rgba(13,148,136,0.3); text-decoration: none;
   font-weight: 400; opacity: 0; transition: opacity 0.15s;
 }
 .doc-h1:hover .doc-anchor,
@@ -340,123 +338,123 @@ const DOCS_STYLES = `
 .doc-h6:hover .doc-anchor { opacity: 1; }
 
 .doc-p {
-  font-size: 0.95rem; line-height: 1.75; color: rgba(255,255,255,0.65);
+  font-size: 0.95rem; line-height: 1.75; color: #4b5563;
   margin: 0 0 1rem;
 }
 
 /* ── Code ── */
 .doc-inline-code {
-  background: rgba(255,255,255,0.08); color: #CBB282; padding: 2px 7px;
+  background: #f3f4f6; color: #0D9488; padding: 2px 7px;
   border-radius: 4px; font-size: 0.85em; font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 .doc-codeblock {
   margin: 1.25rem 0; border-radius: 10px; overflow: hidden;
-  background: #0d1117; border: 1px solid rgba(255,255,255,0.08);
+  background: #f8fafc; border: 1px solid #e5e7eb;
 }
 .doc-codeblock-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 16px; background: rgba(255,255,255,0.04);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 8px 16px; background: #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
 }
 .doc-codeblock-lang {
   font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
-  color: rgba(255,255,255,0.35); font-family: inherit;
+  color: #9ca3af; font-family: inherit;
 }
 .doc-copy-btn {
-  font-size: 12px; color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 5px;
+  font-size: 12px; color: #6b7280; background: #fff;
+  border: 1px solid #e5e7eb; border-radius: 5px;
   padding: 3px 10px; cursor: pointer; transition: all 0.15s;
   font-family: inherit;
 }
-.doc-copy-btn:hover { color: #CBB282; border-color: rgba(203,178,130,0.3); background: rgba(203,178,130,0.08); }
+.doc-copy-btn:hover { color: #0D9488; border-color: rgba(13,148,136,0.3); background: rgba(13,148,136,0.04); }
 .doc-code-scroll { overflow-x: auto; }
 .doc-pre {
   display: flex; margin: 0; padding: 16px; font-size: 13px; line-height: 1.65;
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-  color: rgba(255,255,255,0.75); background: transparent;
+  color: #334155; background: transparent;
 }
 .doc-line-nums {
   display: flex; flex-direction: column; text-align: right;
-  padding-right: 16px; margin-right: 16px; border-right: 1px solid rgba(255,255,255,0.06);
-  user-select: none; color: rgba(255,255,255,0.2); font-size: 12px;
+  padding-right: 16px; margin-right: 16px; border-right: 1px solid #e5e7eb;
+  user-select: none; color: #d1d5db; font-size: 12px;
 }
 .doc-ln { line-height: 1.65; }
 
 /* ── Tables ── */
-.doc-table-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); }
+.doc-table-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: 8px; border: 1px solid #e5e7eb; }
 .doc-table {
   width: 100%; border-collapse: collapse; font-size: 0.875rem;
 }
 .doc-table th {
-  background: #111827; color: rgba(255,255,255,0.8); font-weight: 600;
-  text-align: left; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  background: #f8fafc; color: #0F172A; font-weight: 600;
+  text-align: left; padding: 10px 14px; border-bottom: 1px solid #e5e7eb;
 }
 .doc-table td {
-  padding: 9px 14px; color: rgba(255,255,255,0.6);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 9px 14px; color: #4b5563;
+  border-bottom: 1px solid #f3f4f6;
 }
-.doc-stripe td { background: rgba(255,255,255,0.02); }
+.doc-stripe td { background: #f9fafb; }
 .doc-table tr:last-child td { border-bottom: none; }
 
 /* ── Lists ── */
 .doc-ul, .doc-ol {
-  margin: 0.75rem 0 1rem; padding-left: 1.5rem; color: rgba(255,255,255,0.65);
+  margin: 0.75rem 0 1rem; padding-left: 1.5rem; color: #4b5563;
   font-size: 0.95rem; line-height: 1.75;
 }
 .doc-ul { list-style: disc; }
 .doc-ol { list-style: decimal; }
 .doc-ul li, .doc-ol li { margin-bottom: 4px; }
-.doc-ul li::marker { color: rgba(203,178,130,0.5); }
-.doc-ol li::marker { color: rgba(203,178,130,0.5); }
+.doc-ul li::marker { color: #0D9488; }
+.doc-ol li::marker { color: #0D9488; }
 
 /* ── Blockquotes ── */
 .doc-blockquote {
-  margin: 1.25rem 0; padding: 12px 20px; border-left: 3px solid #CBB282;
-  background: rgba(203,178,130,0.04); border-radius: 0 8px 8px 0;
+  margin: 1.25rem 0; padding: 12px 20px; border-left: 3px solid #0D9488;
+  background: rgba(13,148,136,0.04); border-radius: 0 8px 8px 0;
 }
 .doc-blockquote p {
-  font-size: 0.925rem; line-height: 1.7; color: rgba(255,255,255,0.55);
+  font-size: 0.925rem; line-height: 1.7; color: #6b7280;
   font-style: italic; margin: 0;
 }
 
 /* ── Links ── */
 .doc-link {
-  color: #CBB282; text-decoration: none; border-bottom: 1px solid rgba(203,178,130,0.3);
+  color: #0D9488; text-decoration: none; border-bottom: 1px solid rgba(13,148,136,0.3);
   transition: border-color 0.15s;
 }
-.doc-link:hover { border-bottom-color: #CBB282; }
+.doc-link:hover { border-bottom-color: #0D9488; }
 
 /* ── Misc ── */
-.doc-hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 2.5rem 0; }
+.doc-hr { border: none; border-top: 1px solid #e5e7eb; margin: 2.5rem 0; }
 .doc-figure { margin: 1.5rem 0; text-align: center; }
-.doc-img { max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); }
-.doc-figcaption { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 8px; }
+.doc-img { max-width: 100%; border-radius: 8px; border: 1px solid #e5e7eb; }
+.doc-figcaption { font-size: 12px; color: #9ca3af; margin-top: 8px; }
 
 /* ── Footer Nav ── */
 .doc-footer {
-  margin-top: 4rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #e5e7eb;
 }
 .doc-footer-nav { display: flex; justify-content: space-between; gap: 16px; }
 .doc-footer-link {
   display: flex; flex-direction: column; gap: 4px; padding: 16px 20px;
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  border: 1px solid #e5e7eb; border-radius: 10px;
   text-decoration: none; transition: all 0.2s; flex: 1; max-width: 48%;
 }
-.doc-footer-link:hover { border-color: rgba(203,178,130,0.3); background: rgba(203,178,130,0.04); }
-.doc-footer-link-label { font-size: 12px; color: rgba(255,255,255,0.35); }
-.doc-footer-link-title { font-size: 14px; font-weight: 500; color: #CBB282; }
+.doc-footer-link:hover { border-color: rgba(13,148,136,0.3); background: rgba(13,148,136,0.04); }
+.doc-footer-link-label { font-size: 12px; color: #9ca3af; }
+.doc-footer-link-title { font-size: 14px; font-weight: 500; color: #0D9488; }
 .doc-footer-link-next { text-align: right; }
 .doc-feedback {
   display: flex; align-items: center; gap: 12px; margin-top: 24px;
-  padding: 16px 0; font-size: 13px; color: rgba(255,255,255,0.35);
+  padding: 16px 0; font-size: 13px; color: #9ca3af;
 }
 .doc-feedback-btn {
-  padding: 4px 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
-  background: transparent; color: rgba(255,255,255,0.5); cursor: pointer;
+  padding: 4px 12px; border: 1px solid #e5e7eb; border-radius: 6px;
+  background: transparent; color: #6b7280; cursor: pointer;
   font-size: 13px; transition: all 0.15s; font-family: inherit;
 }
-.doc-feedback-btn:hover { border-color: rgba(203,178,130,0.3); color: #CBB282; background: rgba(203,178,130,0.06); }
-.doc-last-updated { font-size: 12px; color: rgba(255,255,255,0.2); margin-top: 16px; }
+.doc-feedback-btn:hover { border-color: rgba(13,148,136,0.3); color: #0D9488; background: rgba(13,148,136,0.04); }
+.doc-last-updated { font-size: 12px; color: #d1d5db; margin-top: 16px; }
 
 /* ── Smooth scroll ── */
 html { scroll-behavior: smooth; }
@@ -581,13 +579,13 @@ export default function DocPage({ params }: { params: { slug: string } }) {
             <span className="doc-breadcrumb-sep">/</span>
             <span>{entry.category}</span>
             <span className="doc-breadcrumb-sep">/</span>
-            <span style={{ color: "rgba(255,255,255,0.65)" }}>{entry.title}</span>
+            <span style={{ color: "#0F172A" }}>{entry.title}</span>
           </div>
 
           {/* Meta */}
           <div className="doc-header-meta">
             <span><ClockIcon />{readingTime} min read</span>
-            <span style={{ color: "rgba(255,255,255,0.15)" }}>|</span>
+            <span style={{ color: "#d1d5db" }}>|</span>
             <span><BookIcon />{entry.category}</span>
           </div>
 

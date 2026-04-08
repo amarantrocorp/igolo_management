@@ -8,6 +8,9 @@ from app.core.security import AuthContext, get_tenant_session, role_required
 from app.models.crm import LeadStatus
 from app.schemas.crm import (
     ClientResponse,
+    FollowUpCreate,
+    FollowUpResponse,
+    FollowUpUpdate,
     LeadActivityCreate,
     LeadActivityResponse,
     LeadCreate,
@@ -163,3 +166,138 @@ async def list_lead_activities(
         db=db,
     )
     return activities
+
+
+# ── Follow-Ups ──
+
+
+def _serialize_follow_up(fu) -> dict:
+    """Build a FollowUpResponse-compatible dict with computed fields."""
+    data = {
+        "id": fu.id,
+        "lead_id": fu.lead_id,
+        "lead_name": fu.lead.name if fu.lead else "",
+        "type": fu.type.value if hasattr(fu.type, "value") else fu.type,
+        "scheduled_date": fu.scheduled_date,
+        "scheduled_time": fu.scheduled_time,
+        "assigned_to_id": fu.assigned_to_id,
+        "assigned_to_name": fu.assigned_to.full_name if fu.assigned_to else "",
+        "notes": fu.notes,
+        "status": fu.status.value if hasattr(fu.status, "value") else fu.status,
+        "reminder": fu.reminder,
+        "completed_at": fu.completed_at,
+        "outcome_notes": fu.outcome_notes,
+        "created_at": fu.created_at,
+    }
+    return data
+
+
+@router.post(
+    "/follow-ups",
+    response_model=FollowUpResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_follow_up(
+    payload: FollowUpCreate,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
+    ),
+):
+    """Schedule a follow-up (call, site visit, meeting, email) for a lead."""
+    fu = await crm_service.create_follow_up(
+        data=payload,
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
+        db=db,
+    )
+    return _serialize_follow_up(fu)
+
+
+@router.get(
+    "/follow-ups",
+    response_model=list[FollowUpResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_follow_ups(
+    lead_id: UUID = Query(...),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
+    ),
+):
+    """List follow-ups for a specific lead, with optional status filter."""
+    follow_ups = await crm_service.get_follow_ups(
+        lead_id=lead_id,
+        org_id=ctx.org_id,
+        db=db,
+        status_filter=status_filter,
+    )
+    return [_serialize_follow_up(fu) for fu in follow_ups]
+
+
+@router.get(
+    "/follow-ups/my-upcoming",
+    response_model=list[FollowUpResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def my_upcoming_follow_ups(
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
+    ),
+):
+    """Get all pending follow-ups assigned to the current user from today onwards."""
+    follow_ups = await crm_service.get_upcoming_follow_ups(
+        user_id=ctx.user.id,
+        org_id=ctx.org_id,
+        db=db,
+    )
+    return [_serialize_follow_up(fu) for fu in follow_ups]
+
+
+@router.patch(
+    "/follow-ups/{follow_up_id}",
+    response_model=FollowUpResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_follow_up(
+    follow_up_id: UUID,
+    payload: FollowUpUpdate,
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
+    ),
+):
+    """Update a follow-up (reschedule, change status, add notes)."""
+    fu = await crm_service.update_follow_up(
+        follow_up_id=follow_up_id,
+        data=payload,
+        org_id=ctx.org_id,
+        db=db,
+    )
+    return _serialize_follow_up(fu)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/complete",
+    response_model=FollowUpResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def complete_follow_up(
+    follow_up_id: UUID,
+    outcome_notes: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_tenant_session),
+    ctx: AuthContext = Depends(
+        role_required(["BDE", "SALES", "MANAGER", "SUPER_ADMIN"])
+    ),
+):
+    """Mark a follow-up as completed with optional outcome notes."""
+    fu = await crm_service.complete_follow_up(
+        follow_up_id=follow_up_id,
+        outcome_notes=outcome_notes,
+        org_id=ctx.org_id,
+        db=db,
+    )
+    return _serialize_follow_up(fu)

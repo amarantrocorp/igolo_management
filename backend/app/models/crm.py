@@ -5,7 +5,7 @@ import uuid
 from datetime import date as date_type
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Date, Enum, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,12 +36,14 @@ class LeadStatus(str, enum.Enum):
 
 
 class PropertyType(str, enum.Enum):
+    FLAT = "FLAT"
     APARTMENT = "APARTMENT"
     VILLA = "VILLA"
     INDEPENDENT_HOUSE = "INDEPENDENT_HOUSE"
     PENTHOUSE = "PENTHOUSE"
     STUDIO = "STUDIO"
     OFFICE = "OFFICE"
+    COMMERCIAL = "COMMERCIAL"
     RETAIL = "RETAIL"
     OTHER = "OTHER"
 
@@ -110,6 +112,9 @@ class Lead(Base, UUIDMixin, TimestampMixin, TenantMixin):
     activities: Mapped[List["LeadActivity"]] = relationship(
         "LeadActivity", back_populates="lead", cascade="all, delete-orphan"
     )
+    follow_ups: Mapped[List["FollowUp"]] = relationship(
+        "FollowUp", back_populates="lead", cascade="all, delete-orphan"
+    )
 
 
 class Client(Base, UUIDMixin, TimestampMixin, TenantMixin):
@@ -146,3 +151,42 @@ class LeadActivity(Base, UUIDMixin, TimestampMixin, TenantMixin):
     # Relationships
     lead: Mapped["Lead"] = relationship("Lead", back_populates="activities")
     created_by: Mapped["User"] = relationship("User")
+
+
+class FollowUpStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    RESCHEDULED = "RESCHEDULED"
+
+
+class FollowUpType(str, enum.Enum):
+    CALL = "CALL"
+    SITE_VISIT = "SITE_VISIT"
+    MEETING = "MEETING"
+    EMAIL = "EMAIL"
+
+
+class FollowUp(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    __tablename__ = "follow_ups"
+
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[FollowUpType] = mapped_column(Enum(FollowUpType), nullable=False)
+    scheduled_date: Mapped[date_type] = mapped_column(Date, nullable=False)
+    scheduled_time: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    assigned_to_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[FollowUpStatus] = mapped_column(
+        Enum(FollowUpStatus), default=FollowUpStatus.PENDING, nullable=False
+    )
+    reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    completed_at: Mapped[Optional[date_type]] = mapped_column(DateTime, nullable=True)
+    outcome_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="follow_ups")
+    assigned_to: Mapped["User"] = relationship("User")

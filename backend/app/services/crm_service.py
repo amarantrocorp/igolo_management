@@ -10,11 +10,26 @@ from app.core.config import settings
 from app.core.email import send_email_fire_and_forget
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.core.security import get_password_hash
-from app.models.crm import ActivityType, Client, Lead, LeadActivity, LeadStatus
+from app.models.crm import (
+    ActivityType,
+    Client,
+    FollowUp,
+    FollowUpStatus,
+    FollowUpType,
+    Lead,
+    LeadActivity,
+    LeadStatus,
+)
 from app.models.notification import NotificationType
 from app.models.organization import OrgMembership
 from app.models.user import User, UserRole
-from app.schemas.crm import LeadActivityCreate, LeadCreate, LeadUpdate
+from app.schemas.crm import (
+    FollowUpCreate,
+    FollowUpUpdate,
+    LeadActivityCreate,
+    LeadCreate,
+    LeadUpdate,
+)
 from app.core.plan_limits import enforce_lead_limit
 from app.services.notification_service import create_notification
 
@@ -330,3 +345,196 @@ async def get_lead_activities(
         .order_by(LeadActivity.date.desc(), LeadActivity.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+# ── Follow-Ups ──
+
+
+async def create_follow_up(
+    data: FollowUpCreate,
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+) -> FollowUp:
+    """Create a scheduled follow-up for a lead."""
+    # Verify lead exists and belongs to the org
+    await get_lead(data.lead_id, org_id, db)
+
+    # Validate follow-up type
+    try:
+        follow_up_type = FollowUpType(data.type)
+    except ValueError:
+        raise BadRequestException(
+            detail=f"Invalid follow-up type '{data.type}'. "
+            f"Must be one of: {', '.join(t.value for t in FollowUpType)}"
+        )
+
+    follow_up = FollowUp(
+        lead_id=data.lead_id,
+        type=follow_up_type,
+        scheduled_date=data.scheduled_date,
+        scheduled_time=data.scheduled_time,
+        assigned_to_id=data.assigned_to_id,
+        notes=data.notes,
+        reminder=data.reminder,
+        status=FollowUpStatus.PENDING,
+        org_id=org_id,
+    )
+    db.add(follow_up)
+    await db.commit()
+
+    # Re-fetch with relationships
+    result = await db.execute(
+        select(FollowUp)
+        .options(selectinload(FollowUp.lead), selectinload(FollowUp.assigned_to))
+        .where(FollowUp.id == follow_up.id)
+    )
+    follow_up = result.scalar_one()
+
+    # Notify the assigned user
+    if data.assigned_to_id != user_id:
+        lead_name = follow_up.lead.name if follow_up.lead else "Unknown"
+        await create_notification(
+            db=db,
+            recipient_id=data.assigned_to_id,
+            org_id=org_id,
+            type=NotificationType.INFO,
+            title=f"Follow-up assigned: {follow_up_type.value} for {lead_name[:80]}",
+            body=f"Scheduled for {data.scheduled_date}"
+            + (f" at {data.scheduled_time}" if data.scheduled_time else ""),
+            action_url=f"/dashboard/sales/leads/{data.lead_id}",
+        )
+
+    return follow_up
+
+
+async def get_follow_ups(
+    lead_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+    status_filter: Optional[str] = None,
+) -> List[FollowUp]:
+    """List follow-ups for a specific lead."""
+    # Verify lead exists and belongs to the org
+    await get_lead(lead_id, org_id, db)
+
+    query = (
+        select(FollowUp)
+        .options(selectinload(FollowUp.lead), selectinload(FollowUp.assigned_to))
+        .where(FollowUp.lead_id == lead_id, FollowUp.org_id == org_id)
+    )
+
+    if status_filter:
+        try:
+            status_enum = FollowUpStatus(status_filter)
+            query = query.where(FollowUp.status == status_enum)
+        except ValueError:
+            raise BadRequestException(
+                detail=f"Invalid status '{status_filter}'. "
+                f"Must be one of: {', '.join(s.value for s in FollowUpStatus)}"
+            )
+
+    query = query.order_by(FollowUp.scheduled_date.asc())
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+async def get_upcoming_follow_ups(
+    user_id: UUID,
+    org_id: UUID,
+    db: AsyncSession,
+) -> List[FollowUp]:
+    """Get all pending follow-ups assigned to a specific user, ordered by date."""
+    from datetime import date as _date
+
+    query = (
+        select(FollowUp)
+        .options(selectinload(FollowUp.lead), selectinload(FollowUp.assigned_to))
+        .where(
+            FollowUp.assigned_to_id == user_id,
+            FollowUp.org_id == org_id,
+            FollowUp.status == FollowUpStatus.PENDING,
+            FollowUp.scheduled_date >= _date.today(),
+        )
+        .order_by(FollowUp.scheduled_date.asc())
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+async def update_follow_up(
+    follow_up_id: UUID,
+    data: FollowUpUpdate,
+    org_id: UUID,
+    db: AsyncSession,
+) -> FollowUp:
+    """Update a follow-up (reschedule, change status, add notes)."""
+    result = await db.execute(
+        select(FollowUp)
+        .options(selectinload(FollowUp.lead), selectinload(FollowUp.assigned_to))
+        .where(FollowUp.id == follow_up_id)
+    )
+    follow_up = result.scalar_one_or_none()
+    if not follow_up or follow_up.org_id != org_id:
+        raise NotFoundException(
+            detail=f"Follow-up with id '{follow_up_id}' not found"
+        )
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    # Validate status if provided
+    if "status" in update_data:
+        try:
+            update_data["status"] = FollowUpStatus(update_data["status"])
+        except ValueError:
+            raise BadRequestException(
+                detail=f"Invalid status. Must be one of: "
+                f"{', '.join(s.value for s in FollowUpStatus)}"
+            )
+
+    # If rescheduling, mark as RESCHEDULED if still pending
+    if "scheduled_date" in update_data and follow_up.status == FollowUpStatus.PENDING:
+        if "status" not in update_data:
+            update_data["status"] = FollowUpStatus.RESCHEDULED
+
+    for field, value in update_data.items():
+        setattr(follow_up, field, value)
+
+    db.add(follow_up)
+    await db.commit()
+    await db.refresh(follow_up)
+    return follow_up
+
+
+async def complete_follow_up(
+    follow_up_id: UUID,
+    outcome_notes: Optional[str],
+    org_id: UUID,
+    db: AsyncSession,
+) -> FollowUp:
+    """Mark a follow-up as completed with optional outcome notes."""
+    from datetime import datetime, timezone
+
+    result = await db.execute(
+        select(FollowUp)
+        .options(selectinload(FollowUp.lead), selectinload(FollowUp.assigned_to))
+        .where(FollowUp.id == follow_up_id)
+    )
+    follow_up = result.scalar_one_or_none()
+    if not follow_up or follow_up.org_id != org_id:
+        raise NotFoundException(
+            detail=f"Follow-up with id '{follow_up_id}' not found"
+        )
+
+    if follow_up.status == FollowUpStatus.COMPLETED:
+        raise BadRequestException(detail="Follow-up is already completed")
+
+    follow_up.status = FollowUpStatus.COMPLETED
+    follow_up.completed_at = datetime.now(timezone.utc)
+    if outcome_notes:
+        follow_up.outcome_notes = outcome_notes
+
+    db.add(follow_up)
+    await db.commit()
+    await db.refresh(follow_up)
+    return follow_up

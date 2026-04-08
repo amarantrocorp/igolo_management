@@ -140,3 +140,43 @@ class LeadActivityResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Follow-Ups ──
+
+
+class FollowUpCreate(BaseModel):
+    lead_id: UUID
+    type: str  # CALL, SITE_VISIT, MEETING, EMAIL
+    scheduled_date: date
+    scheduled_time: Optional[str] = None
+    assigned_to_id: UUID
+    notes: Optional[str] = None
+    reminder: bool = True
+
+
+class FollowUpUpdate(BaseModel):
+    status: Optional[str] = None
+    scheduled_date: Optional[date] = None
+    scheduled_time: Optional[str] = None
+    notes: Optional[str] = None
+    outcome_notes: Optional[str] = None
+
+
+class FollowUpResponse(BaseModel):
+    id: UUID
+    lead_id: UUID
+    lead_name: str = ""
+    type: str
+    scheduled_date: date
+    scheduled_time: Optional[str] = None
+    assigned_to_id: UUID
+    assigned_to_name: str = ""
+    notes: Optional[str] = None
+    status: str
+    reminder: bool
+    completed_at: Optional[datetime] = None
+    outcome_notes: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

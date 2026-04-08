@@ -50,12 +50,14 @@ const LEAD_SOURCES = [
 ]
 
 const PROPERTY_TYPES = [
+  { value: "FLAT", label: "Flat" },
   { value: "APARTMENT", label: "Apartment" },
   { value: "VILLA", label: "Villa" },
   { value: "INDEPENDENT_HOUSE", label: "Independent House" },
   { value: "PENTHOUSE", label: "Penthouse" },
   { value: "STUDIO", label: "Studio" },
   { value: "OFFICE", label: "Office" },
+  { value: "COMMERCIAL", label: "Commercial" },
   { value: "RETAIL", label: "Retail" },
   { value: "OTHER", label: "Other" },
 ]
@@ -172,11 +174,19 @@ const INITIAL_FORM = {
 
   // Additional Details
   possession_date: "",
+  move_in_date: "",
   site_visit_availability: "",
   site_visit_other: "",
   notes: "",
   special_requirements: "",
   floor_plan_url: "",
+  // Categorized uploads: each category holds an array of URLs
+  uploads: {
+    floor_plan: [] as string[],
+    reference_images: [] as string[],
+    site_photos: [] as string[],
+    documents: [] as string[],
+  },
 }
 
 // ── Input Filters (prevent invalid chars at keystroke level) ──
@@ -349,13 +359,9 @@ function validateForm(data: typeof INITIAL_FORM): { valid: boolean; errors: Form
 
   if (data.possession_date) {
     const possDate = new Date(data.possession_date)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
     const maxDate = new Date()
     maxDate.setFullYear(maxDate.getFullYear() + 10)
-    if (possDate < today) {
-      errors.possession_date = "Possession date cannot be in the past"
-    } else if (possDate > maxDate) {
+    if (possDate > maxDate) {
       errors.possession_date = "Possession date seems too far in the future"
     }
   }
@@ -535,7 +541,23 @@ export default function CreateLeadPage() {
       }
       if (data.carpet_area) payload.carpet_area = Number(data.carpet_area)
       if (resolvedScope.length > 0) payload.scope_of_work = resolvedScope
-      if (data.floor_plan_url) payload.floor_plan_url = data.floor_plan_url
+      // Use first floor plan as the primary floor_plan_url for backward compat
+      if (data.uploads.floor_plan.length > 0) {
+        payload.floor_plan_url = data.uploads.floor_plan[0]
+      } else if (data.floor_plan_url) {
+        payload.floor_plan_url = data.floor_plan_url
+      }
+
+      // Append categorized uploads info to notes
+      const allUploads = Object.entries(data.uploads).filter(([, urls]) => (urls as string[]).length > 0)
+      if (allUploads.length > 0) {
+        const uploadNotes = allUploads.map(([cat, urls]) =>
+          `${cat.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}: ${(urls as string[]).length} file(s)`
+        ).join("\n")
+        payload.notes = payload.notes
+          ? `${payload.notes}\n\n--- Attachments ---\n${uploadNotes}`
+          : `--- Attachments ---\n${uploadNotes}`
+      }
       if (data.budget_range) payload.budget_range = data.budget_range
       if (resolvedDesignStyle) payload.design_style = resolvedDesignStyle
       if (data.possession_date) payload.possession_date = data.possession_date
@@ -1106,16 +1128,53 @@ export default function CreateLeadPage() {
           {/* ── Section 5: Scheduling ── */}
           <SectionCard icon={CalendarDays} title="Scheduling">
             <div className="grid gap-5 sm:grid-cols-2">
-              <FormField label="Possession / Move-in Date" error={formErrors.possession_date}>
+              <FormField label="Possession Date" error={formErrors.possession_date}>
                 <div className="relative" data-error={!!formErrors.possession_date}>
                   <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="date"
                     value={formData.possession_date}
-                    onChange={(e) => update("possession_date", e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => {
+                      update("possession_date", e.target.value)
+                      // Move-in = 7 days after possession if future, or 7 days from today if past
+                      if (e.target.value) {
+                        const pDate = new Date(e.target.value)
+                        const today = new Date()
+                        today.setHours(0, 0, 0, 0)
+                        const baseDate = pDate > today ? pDate : today
+                        const moveIn = new Date(baseDate)
+                        moveIn.setDate(moveIn.getDate() + 7)
+                        update("move_in_date", moveIn.toISOString().split("T")[0])
+                      } else {
+                        update("move_in_date", "")
+                      }
+                    }}
                     className={`pl-10 ${formErrors.possession_date ? "border-red-300 focus:ring-red-500" : ""}`}
                   />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Can be a past date (already possessed) or future date.
+                  </p>
+                </div>
+              </FormField>
+
+              <FormField label="Move-in Date" error={undefined}>
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={formData.move_in_date}
+                    onChange={(e) => update("move_in_date", e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="pl-10"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {formData.possession_date
+                      ? new Date(formData.possession_date) > new Date()
+                        ? "Auto-set to 7 days after possession."
+                        : "Auto-set to 7 days from today (possession is in the past)."
+                      : "Select possession date first."}
+                    {" "}Adjust if needed.
+                  </p>
                 </div>
               </FormField>
 
@@ -1183,14 +1242,68 @@ export default function CreateLeadPage() {
                 </div>
               </FormField>
 
-              <FileUpload
-                value={formData.floor_plan_url || null}
-                onChange={(url) => update("floor_plan_url", url || "")}
-                category="leads"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                maxSizeMB={25}
-                label="Floor Plan / Reference Images"
-              />
+              {/* Categorized File Uploads */}
+              <div className="space-y-4 sm:col-span-2">
+                <label className="text-sm font-medium">Attachments</label>
+                {([
+                  { key: "floor_plan", label: "Floor Plans", icon: "", accept: "image/jpeg,image/png,image/webp,application/pdf" },
+                  { key: "reference_images", label: "Reference / Inspiration Images", icon: "", accept: "image/jpeg,image/png,image/webp" },
+                  { key: "site_photos", label: "Site Photos", icon: "", accept: "image/jpeg,image/png,image/webp" },
+                  { key: "documents", label: "Documents (BOQ, Agreements, etc.)", icon: "", accept: "image/jpeg,image/png,image/webp,application/pdf" },
+                ] as const).map((cat) => (
+                  <div key={cat.key} className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium flex items-center gap-1.5">
+                        <span>{cat.icon}</span> {cat.label}
+                        {formData.uploads[cat.key].length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({formData.uploads[cat.key].length} file{formData.uploads[cat.key].length > 1 ? "s" : ""})
+                          </span>
+                        )}
+                      </span>
+                      <FileUpload
+                        value={null}
+                        onChange={(url) => {
+                          if (url) {
+                            const current = formData.uploads[cat.key]
+                            update("uploads", { ...formData.uploads, [cat.key]: [...current, url] })
+                          }
+                        }}
+                        category="leads"
+                        accept={cat.accept}
+                        maxSizeMB={25}
+                        label="Upload"
+                        compact
+                      />
+                    </div>
+                    {formData.uploads[cat.key].length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {formData.uploads[cat.key].map((url, idx) => (
+                          <div key={idx} className="relative group">
+                            {url.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? (
+                              <img src={url} alt="" className="h-16 w-16 rounded-md object-cover border" />
+                            ) : (
+                              <div className="h-16 w-16 rounded-md border flex items-center justify-center bg-muted">
+                                <span className="text-[10px] text-muted-foreground font-mono">PDF</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = formData.uploads[cat.key].filter((_, i) => i !== idx)
+                                update("uploads", { ...formData.uploads, [cat.key]: updated })
+                              }}
+                              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </SectionCard>
         </div>

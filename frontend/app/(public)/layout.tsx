@@ -7,7 +7,7 @@ export default function PublicLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-[#0B1120]">
+    <div className="min-h-screen bg-white">
       <MarketingNav />
       <main>{children}</main>
       <MarketingFooter />

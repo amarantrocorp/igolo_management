@@ -1,567 +1,625 @@
 "use client"
 
-import { useRef, useEffect, useMemo, useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import Image from "next/image"
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
-import { Player, PlayerRef } from "@remotion/player"
-import { TextGenerateEffect } from "@/components/ui/aceternity/text-generate-effect"
-import { InfiniteMovingCards } from "@/components/ui/aceternity/infinite-moving-cards"
-import { StatsCounter } from "@/components/remotion/compositions/stats-counter"
-import { ParticleField } from "@/components/remotion/compositions/particle-field"
-import { BlueprintScroll } from "@/components/remotion/compositions/blueprint-scroll"
-import { HeroPlayer } from "@/components/remotion/players/hero-player"
 import {
-  Sparkles,
   ArrowRight,
-  ChevronDown,
-  Paintbrush,
-  Building2,
-  Layers,
-  Ruler,
-  Home,
-  MessageSquare,
+  CheckCircle2,
+  AlertTriangle,
+  FileQuestion,
+  Construction,
+  IndianRupee,
+  Users,
+  FileText,
+  Briefcase,
+  Truck,
+  Receipt,
+  CreditCard,
+  Sparkles,
+  Brain,
+  CalendarClock,
+  BarChart3,
+  MessageSquareText,
+  Target,
+  ClipboardList,
+  Palette,
+  Send,
+  FolderKanban,
+  Wallet,
+  ListChecks,
+  Bot,
+  Star,
+  Quote,
+  ChevronRight,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 // ════════════════════════════════════════
 // DATA
 // ════════════════════════════════════════
 
-const services = [
+const painPoints = [
   {
-    title: "Smart CRM & Pipeline",
-    description: "Capture leads from any source, track them through a visual Kanban pipeline, and convert qualified prospects into projects automatically.",
-    icon: <Paintbrush className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+    icon: <AlertTriangle className="h-6 w-6" />,
+    title: "No Central System",
+    description:
+      "Leads in Excel, quotes in Word, photos on WhatsApp. Your data lives in 10 different places with zero connection.",
   },
   {
-    title: "AI-Powered Quotations",
-    description: "Build room-by-room quotations with auto-calculated pricing, version history, and professional PDF generation. AI analyzes floor plans to auto-populate rooms.",
-    icon: <Building2 className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
+    icon: <FileQuestion className="h-6 w-6" />,
+    title: "Quotation Confusion",
+    description:
+      "Version 1, version 2, version final-final. Tracking revisions and pricing changes across rooms is a nightmare.",
   },
   {
-    title: "Sprint-Based Execution",
-    description: "Six standardized project phases from Design to Handover. Gantt charts, daily site logs with photos, and automatic timeline cascading when delays occur.",
-    icon: <Layers className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800&q=80",
+    icon: <Construction className="h-6 w-6" />,
+    title: "Execution Chaos",
+    description:
+      "No visibility into what is happening on site. Missed timelines, no daily logs, and zero accountability from teams.",
   },
   {
-    title: "Financial Controls",
-    description: "Per-project wallets with spending locks, milestone billing, Razorpay integration for online payments, and real-time profitability tracking.",
-    icon: <Ruler className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1554224154-22dec7ec8818?w=800&q=80",
+    icon: <IndianRupee className="h-6 w-6" />,
+    title: "Expense Leakage",
+    description:
+      "Money goes out but you cannot track where. Vendor bills, labor costs, and petty cash disappear into a black hole.",
+  },
+]
+
+const aiFeatures = [
+  {
+    icon: <Brain className="h-5 w-5" />,
+    title: "AI Quotation Builder",
+    description: "Upload a floor plan and get a complete room-by-room quotation auto-generated in minutes.",
   },
   {
-    title: "Inventory & Procurement",
-    description: "Track materials across warehouses, create purchase orders for vendors, manage goods receiving, and auto-update pricing from bills.",
-    icon: <Home className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80",
+    icon: <CalendarClock className="h-5 w-5" />,
+    title: "Smart Project Planning",
+    description: "AI schedules your 6-phase execution plan with automatic timeline cascading on delays.",
   },
   {
-    title: "Client Portal",
-    description: "Give clients their own login to track project progress, view sprints, make payments online, and access documents — all branded to your company.",
-    icon: <MessageSquare className="h-6 w-6" />,
-    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",
+    icon: <BarChart3 className="h-5 w-5" />,
+    title: "Expense Intelligence",
+    description: "Real-time spending alerts, burn rate analysis, and profitability predictions per project.",
+  },
+  {
+    icon: <MessageSquareText className="h-5 w-5" />,
+    title: "AI Assistant",
+    description: "Ask questions about your projects, get instant reports, and automate repetitive tasks.",
   },
 ]
 
 const stats = [
-  { value: 500, suffix: "+", label: "Companies Onboarded" },
-  { value: 15000, suffix: "+", label: "Projects Managed" },
-  { value: 98, suffix: "%", label: "Client Satisfaction" },
-  { value: 50, suffix: "Cr+", label: "Revenue Tracked" },
+  { value: "50+", label: "PROJECTS MANAGED" },
+  { value: "500+", label: "QUOTATIONS GENERATED" },
+  { value: "10+", label: "TEAMS ONBOARDED" },
+  { value: "3x", label: "FASTER EXECUTION" },
 ]
 
-const portfolio = [
+const features = [
   {
-    before: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
-    title: "Lead Pipeline Dashboard",
-    category: "CRM",
+    icon: <Target className="h-6 w-6" />,
+    title: "Lead Management",
+    description: "Capture leads from any source, track interactions, and move them through your sales pipeline automatically.",
+    color: "bg-blue-50 text-blue-600",
   },
   {
-    before: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800&q=80",
-    title: "Quotation Builder",
-    category: "Sales",
+    icon: <FileText className="h-6 w-6" />,
+    title: "Smart Quotation",
+    description: "Build room-by-room quotations with auto-pricing, version history, markup controls, and PDF generation.",
+    color: "bg-teal-50 text-teal-600",
   },
   {
-    before: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80",
-    after: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80",
+    icon: <FolderKanban className="h-6 w-6" />,
     title: "Project Execution",
-    category: "Operations",
+    description: "6-phase sprint system with Gantt charts, daily site logs, photo uploads, and automatic delay cascading.",
+    color: "bg-purple-50 text-purple-600",
+  },
+  {
+    icon: <Truck className="h-6 w-6" />,
+    title: "Vendor & Procurement",
+    description: "Manage vendors, create purchase orders, track deliveries, and auto-update pricing from vendor bills.",
+    color: "bg-orange-50 text-orange-600",
+  },
+  {
+    icon: <Wallet className="h-6 w-6" />,
+    title: "Expense Management",
+    description: "Per-project wallets with spending locks, real-time balance tracking, and financial guardrails.",
+    color: "bg-red-50 text-red-600",
+  },
+  {
+    icon: <CreditCard className="h-6 w-6" />,
+    title: "Billing & Payments",
+    description: "Milestone-based invoicing, online payment collection via Razorpay, and automated payment receipts.",
+    color: "bg-green-50 text-green-600",
+  },
+]
+
+const timelineSteps = [
+  { label: "Lead Dashboard", description: "Capture and qualify leads from all sources" },
+  { label: "Requirements Mapped", description: "Site visit, measurements, and client preferences" },
+  { label: "Layout & Design", description: "2D layouts, 3D renders, and material selection" },
+  { label: "Quotation Shared", description: "Room-by-room pricing with professional PDFs" },
+  { label: "Project Created", description: "Auto-generate 6-phase execution plan" },
+  { label: "Budget Tracked", description: "Per-project wallet with spending controls" },
+  { label: "Weekly Tasks", description: "Sprint-based execution with daily logs" },
+  { label: "AI DPR & Alerts", description: "Automated daily progress reports and alerts" },
+  { label: "Happy Handover", description: "Final inspection, snag list, and key handover" },
+]
+
+const whyUsCards = [
+  {
+    title: "Interior-First",
+    description: "Built specifically for interior design companies. Not generic project management software retrofitted for your industry.",
+  },
+  {
+    title: "Faster Execution",
+    description: "Standardized 6-phase workflow reduces project delays by up to 40%. Every team knows exactly what to do next.",
+  },
+  {
+    title: "Financial Control",
+    description: "Per-project wallets with spending locks prevent expense leakage. Know your profitability in real-time.",
+  },
+  {
+    title: "Client Delight",
+    description: "Give clients their own portal to track progress, view photos, make payments, and communicate with your team.",
   },
 ]
 
 const testimonials = [
   {
-    quote: "We reduced our quotation time from 3 days to 30 minutes. The auto-pricing engine is a game changer.",
+    quote: "We reduced our quotation time from 3 days to 30 minutes. The auto-pricing engine is a game changer for our team.",
     name: "Priya Sharma",
-    title: "Founder, DesignCraft Interiors, Bangalore",
+    title: "Founder, DesignCraft Interiors",
+    location: "Bangalore",
   },
   {
-    quote: "The financial controls saved us from bleeding money. We can see exactly where every rupee goes across all our projects.",
+    quote: "The financial controls saved us from bleeding money. We can see exactly where every rupee goes across all projects.",
     name: "Vikram Mehta",
-    title: "CEO, Urban Nest Studios, Mumbai",
+    title: "CEO, Urban Nest Studios",
+    location: "Mumbai",
   },
   {
-    quote: "Our clients love the portal. They can track progress, see photos, and pay online. No more WhatsApp chaos.",
+    quote: "Our clients love the portal. They track progress, see photos, and pay online. No more WhatsApp chaos.",
     name: "Anita Desai",
-    title: "Director, Livespace Interiors, Delhi",
+    title: "Director, Livespace Interiors",
+    location: "Delhi",
   },
-  {
-    quote: "Managing 12 concurrent projects was impossible before. The sprint system and Gantt charts changed everything.",
-    name: "Rajesh Kumar",
-    title: "Operations Head, HomeStyle Co, Pune",
-  },
-  {
-    quote: "The AI floor plan analysis is incredible. Upload a blueprint and the system creates a complete quotation in minutes.",
-    name: "Meera Joshi",
-    title: "Lead Designer, Artisan Interiors, Hyderabad",
-  },
-]
-
-const processSteps = [
-  { phase: "Capture & Qualify", desc: "Leads flow in from your website, ads, and referrals. The CRM auto-assigns and tracks every interaction." },
-  { phase: "Quote & Convert", desc: "Build detailed room-by-room quotations with live pricing. Send professional PDFs and convert leads to projects." },
-  { phase: "Execute & Track", desc: "Six standardized sprints guide your team from civil work to handover. Daily logs, Gantt charts, and spending locks keep everything on track." },
-  { phase: "Handover & Grow", desc: "Deliver projects on time, collect final payments through the client portal, and use analytics to grow your business." },
 ]
 
 // ════════════════════════════════════════
-// COMPONENTS
+// SECTION COMPONENTS
 // ════════════════════════════════════════
 
 function HeroSection() {
   return (
-    <section className="relative flex min-h-screen items-center overflow-hidden">
-      <div className="absolute inset-0 z-0">
-        <HeroPlayer />
-      </div>
-      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/60 via-transparent to-black/30" />
-
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-32">
-        <div className="max-w-2xl">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-sm text-gold backdrop-blur-sm">
-              <Sparkles className="h-3.5 w-3.5" />
-              Built for Interior Design Companies
-            </div>
-          </motion.div>
-
-          <TextGenerateEffect
-            words="The Operating System for Interior Design Companies"
-            className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
-          />
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="mt-6 max-w-lg text-lg text-white/70"
-          >
-            From lead capture to project handover — manage quotations, sprints,
-            finances, inventory, and client communication in one powerful platform.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.0 }}
-            className="mt-10 flex flex-col gap-4 sm:flex-row"
-          >
-            <Link href="/register">
-              <Button
-                size="lg"
-                className="group bg-gold text-gold-foreground shadow-lg shadow-gold/20 hover:bg-gold/90 hover:shadow-gold/30"
+    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* Left Content */}
+          <div>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
+              Run Your Interior Projects.
+              <span className="mt-2 block text-teal-600/70">Without the Chaos.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-gray-500">
+              Manage leads, quotations, execution, vendors, and payments — all in one
+              powerful system built for interior companies.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0D9488] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#0D9488]/90"
               >
-                Start Your Free Trial
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
-            <Link href="#demo">
-              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                Watch Demo
-              </Button>
-            </Link>
-          </motion.div>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
-            className="mt-4 text-sm text-white/40"
-          >
-            14-day free trial &bull; No credit card required &bull; Setup in 2 minutes
-          </motion.p>
-        </div>
-      </div>
-
-      <motion.div
-        className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2"
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <ChevronDown className="h-6 w-6 text-gold/60" />
-      </motion.div>
-    </section>
-  )
-}
-
-function StatsSection() {
-  const [isVisible, setIsVisible] = useState(false)
-  const sectionRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIsVisible(true) },
-      { threshold: 0.3 }
-    )
-    if (sectionRef.current) observer.observe(sectionRef.current)
-    return () => observer.disconnect()
-  }, [])
-
-  const inputPropsArray = useMemo(() =>
-    stats.map((s) => ({ value: s.value, label: s.label, suffix: s.suffix })),
-    []
-  )
-
-  return (
-    <section ref={sectionRef} className="relative border-y border-gold/10 bg-[#0B1120] py-16">
-      <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 px-6 md:grid-cols-4">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: i * 0.1 }}
-            className="flex flex-col items-center"
-          >
-            <div className="h-[160px] w-[160px]">
-              {isVisible && (
-                <Player
-                  component={StatsCounter}
-                  inputProps={inputPropsArray[i]}
-                  durationInFrames={120}
-                  compositionWidth={400}
-                  compositionHeight={400}
-                  fps={30}
-                  autoPlay
-                  acknowledgeRemotionLicense
-                  style={{ width: "100%", height: "100%" }}
-                />
-              )}
+                Book a Demo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a
+                href="#features"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                View Features
+              </a>
             </div>
-          </motion.div>
-        ))}
-      </div>
-    </section>
-  )
-}
+            <div className="mt-6 flex items-center gap-2 text-sm text-gray-400">
+              <CheckCircle2 className="h-4 w-4 text-[#0D9488]" />
+              Built for modern interior companies handling multiple projects and teams.
+            </div>
+          </div>
 
-function ServicesSection() {
-  return (
-    <section id="services" className="relative bg-[#0B1120] py-24">
-      <div className="mx-auto max-w-7xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-16 text-center"
-        >
-          <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-            Everything You Need
-          </span>
-          <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            Platform Capabilities
-          </h2>
-          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
-        </motion.div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:auto-rows-[22rem]">
-          {services.map((service, i) => (
-            <motion.div
-              key={service.title}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className={`group relative overflow-hidden rounded-xl border border-gold/10 bg-[#111827] shadow-lg transition-all duration-300 hover:border-gold/30 hover:shadow-gold/5 ${
-                i === 0 || i === 3 ? "md:col-span-2" : ""
-              }`}
-            >
-              <div className="absolute inset-0">
-                <Image
-                  src={service.image}
-                  alt={service.title}
-                  fill
-                  className="object-cover opacity-15 transition-all duration-500 group-hover:opacity-25 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#111827] via-[#111827]/80 to-[#111827]/40" />
-              </div>
-              <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-              <div className="relative flex h-full flex-col justify-end p-6">
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold backdrop-blur-sm transition-colors group-hover:bg-gold/20">
-                  {service.icon}
-                </div>
-                <div className="font-serif text-lg font-semibold text-white">
-                  {service.title}
-                </div>
-                <div className="mt-2 text-sm text-white/50 transition-colors group-hover:text-white/70">
-                  {service.description}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="mt-12 text-center">
-          <Link href="/register">
-            <Button variant="outline" className="border-gold/30 text-gold hover:bg-gold/10">
-              Explore All Features
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function PortfolioCard({ item, index }: { item: typeof portfolio[0]; index: number }) {
-  const [isHovered, setIsHovered] = useState(false)
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-xl"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <Image
-        src={item.before}
-        alt={`${item.title} before`}
-        fill
-        className="object-cover transition-all duration-700 group-hover:scale-105"
-        style={{ filter: isHovered ? "grayscale(0.8) brightness(0.6)" : "grayscale(0.3) brightness(0.9)" }}
-      />
-      <motion.div
-        className="absolute inset-0"
-        animate={{
-          clipPath: isHovered ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)",
-        }}
-        transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
-      >
-        <Image
-          src={item.after}
-          alt={`${item.title} after`}
-          fill
-          className="object-cover"
-        />
-      </motion.div>
-      <motion.div
-        className="absolute top-0 bottom-0 z-10 w-[3px]"
-        style={{
-          background: "linear-gradient(180deg, transparent, #CBB282, #E8D5B7, #CBB282, transparent)",
-          boxShadow: "0 0 15px rgba(203, 178, 130, 0.5), 0 0 30px rgba(203, 178, 130, 0.2)",
-        }}
-        animate={{
-          left: isHovered ? "100%" : "0%",
-        }}
-        transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
-      />
-      <motion.div
-        className="absolute inset-0 z-10 flex flex-col justify-end bg-gradient-to-t from-black/80 via-transparent to-transparent p-5"
-        animate={{ opacity: isHovered ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <span className="text-xs font-medium uppercase tracking-wider text-gold">
-          {item.category}
-        </span>
-        <h3 className="mt-1 font-serif text-lg font-semibold text-white">
-          {item.title}
-        </h3>
-        <span className="mt-1 text-xs text-white/50">Hover to reveal transformation</span>
-      </motion.div>
-      <div className="absolute left-3 top-3 z-10 flex gap-1.5">
-        <motion.span
-          className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium uppercase text-white backdrop-blur-sm"
-          animate={{ opacity: isHovered ? 0.5 : 1 }}
-        >
-          Before
-        </motion.span>
-        <motion.span
-          className="rounded-full bg-gold/30 px-2 py-0.5 text-[10px] font-medium uppercase text-gold backdrop-blur-sm"
-          animate={{ opacity: isHovered ? 1 : 0.3 }}
-        >
-          After
-        </motion.span>
-      </div>
-    </motion.div>
-  )
-}
-
-function PortfolioSection() {
-  return (
-    <section id="portfolio" className="bg-[#0B1120] py-24">
-      <div className="mx-auto max-w-7xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-16 text-center"
-        >
-          <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-            See It In Action
-          </span>
-          <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            Platform Screenshots
-          </h2>
-          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
-          <p className="mt-4 text-white/50">
-            Hover over each screen to explore the interface
-          </p>
-        </motion.div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {portfolio.map((item, i) => (
-            <PortfolioCard key={item.title} item={item} index={i} />
-          ))}
-        </div>
-
-        <div className="mt-12 text-center">
-          <Link href="/register">
-            <Button variant="outline" className="border-gold/30 text-gold hover:bg-gold/10">
-              Try It Yourself
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ProcessSection() {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const playerRef = useRef<PlayerRef>(null)
-  const totalFrames = 600
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"],
-  })
-
-  useEffect(() => {
-    const unsubscribe = scrollYProgress.on("change", (progress) => {
-      const frame = Math.round(progress * (totalFrames - 1))
-      playerRef.current?.seekTo(frame)
-    })
-    return unsubscribe
-  }, [scrollYProgress, totalFrames])
-
-  const [activeStep, setActiveStep] = useState(0)
-  useEffect(() => {
-    const unsubscribe = scrollYProgress.on("change", (progress) => {
-      const step = Math.min(Math.floor(progress * 4), 3)
-      setActiveStep(step)
-    })
-    return unsubscribe
-  }, [scrollYProgress])
-
-  const blueprintInputProps = useMemo(() => ({}), [])
-
-  return (
-    <section id="process" ref={containerRef} className="relative bg-[#080D19]" style={{ height: "300vh" }}>
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden">
-        <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-8 px-6 lg:grid-cols-5">
-          <div className="flex flex-col justify-center lg:col-span-2">
-            <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-              Our Process
-            </span>
-            <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-4xl">
-              The Blueprint
-            </h2>
-            <div className="mt-2 h-px w-16 bg-gold/50" />
-
-            <div className="mt-8 space-y-6">
-              {processSteps.map((step, i) => (
-                <motion.div
-                  key={step.phase}
-                  animate={{
-                    opacity: activeStep === i ? 1 : 0.3,
-                    x: activeStep === i ? 0 : -10,
-                  }}
-                  transition={{ duration: 0.4 }}
-                  className="border-l-2 pl-4"
-                  style={{
-                    borderColor: activeStep === i ? "#CBB282" : "rgba(203,178,130,0.15)",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gold/60">0{i + 1}</span>
-                    <h3 className="font-serif text-lg font-semibold text-white">
-                      {step.phase}
-                    </h3>
+          {/* Right Mockup */}
+          <div className="relative hidden lg:block">
+            <div className="relative mx-auto w-full max-w-md">
+              {/* Main Card */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0D9488]/10">
+                    <Sparkles className="h-4 w-4 text-[#0D9488]" />
                   </div>
-                  <AnimatePresence>
-                    {activeStep === i && (
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="mt-2 text-sm text-white/50"
-                      >
-                        {step.desc}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Igolo Dashboard</div>
+                    <div className="text-xs text-gray-400">3 active projects</div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">Villa Whitefield</span>
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                        On Track
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200">
+                      <div className="h-1.5 w-[65%] rounded-full bg-[#0D9488]" />
+                    </div>
+                    <div className="mt-1 text-[10px] text-gray-400">Sprint 4: Carpentry - 65% complete</div>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">Apartment HSR Layout</span>
+                      <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-700">
+                        Delayed
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200">
+                      <div className="h-1.5 w-[40%] rounded-full bg-yellow-500" />
+                    </div>
+                    <div className="mt-1 text-[10px] text-gray-400">Sprint 3: MEP - 40% complete</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating Notification Cards */}
+              <div className="absolute -left-12 top-4 animate-pulse rounded-lg border border-gray-100 bg-white px-3 py-2 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-700">BoQ Parsed</span>
+                </div>
+              </div>
+              <div className="absolute -right-8 top-1/3 rounded-lg border border-gray-100 bg-white px-3 py-2 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+                    <FileText className="h-3 w-3 text-blue-600" />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-700">Drag & Drop BoQ.xlsx</span>
+                </div>
+              </div>
+              <div className="absolute -left-6 bottom-8 rounded-lg border border-gray-100 bg-white px-3 py-2 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-100">
+                    <Send className="h-3 w-3 text-purple-600" />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-700">PO Auto-Sent</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function PainPointsSection() {
+  return (
+    <section className="bg-white py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Managing Interior Projects Shouldn&apos;t Be This Messy
+          </h2>
+          <p className="mt-4 text-lg text-gray-500">
+            Most interior companies struggle with scattered tools, manual tracking, and zero
+            visibility across projects.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {painPoints.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:shadow-md"
+            >
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-red-50 text-red-500">
+                {item.icon}
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-500">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function AIPoweredSection() {
+  return (
+    <section className="bg-gradient-to-br from-teal-50 via-emerald-50/50 to-cyan-50 py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* Left Content */}
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#0D9488]/10 px-3 py-1 text-xs font-semibold text-[#0D9488]">
+              <Sparkles className="h-3 w-3" />
+              AI-Powered Interior Business OS
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              Your Interior Business.
+              <br />
+              Now Powered by AI.
+            </h2>
+            <div className="mt-8 space-y-6">
+              {aiFeatures.map((feature) => (
+                <div key={feature.title} className="flex gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0D9488]/10 text-[#0D9488]">
+                    {feature.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">{feature.title}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{feature.description}</p>
+                  </div>
+                </div>
               ))}
             </div>
-
-            <div className="mt-8 flex gap-2">
-              {processSteps.map((_, i) => (
-                <div
-                  key={i}
-                  className="h-1.5 rounded-full transition-all duration-300"
-                  style={{
-                    width: activeStep === i ? 24 : 8,
-                    backgroundColor: activeStep >= i ? "#CBB282" : "rgba(203,178,130,0.2)",
-                  }}
-                />
-              ))}
+            <div className="mt-8">
+              <Link
+                href="/contact"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0D9488] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#0D9488]/90"
+              >
+                Book a Demo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
 
-          <div className="flex items-center justify-center lg:col-span-3">
-            <div className="aspect-video w-full overflow-hidden rounded-2xl border border-gold/10 shadow-2xl shadow-gold/5">
-              <Player
-                ref={playerRef}
-                component={BlueprintScroll}
-                inputProps={blueprintInputProps}
-                durationInFrames={totalFrames}
-                compositionWidth={1920}
-                compositionHeight={1080}
-                fps={30}
-                acknowledgeRemotionLicense
-                style={{ width: "100%", height: "100%" }}
-              />
+          {/* Right Mockup */}
+          <div className="relative hidden lg:block">
+            <div className="mx-auto max-w-sm">
+              <div className="rounded-2xl border border-teal-200/50 bg-white p-6 shadow-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0D9488]">
+                    <Bot className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Igolo AI Engine</div>
+                    <div className="text-xs text-[#0D9488]">Processing Quote...</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-teal-50 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-[#0D9488]" />
+                      <span className="text-xs font-medium text-[#0D9488]">Floor plan detected</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1">
+                      <div className="rounded bg-teal-100/50 p-1 text-center text-[9px] text-teal-700">
+                        Kitchen
+                      </div>
+                      <div className="rounded bg-teal-100/50 p-1 text-center text-[9px] text-teal-700">
+                        Bedroom
+                      </div>
+                      <div className="rounded bg-teal-100/50 p-1 text-center text-[9px] text-teal-700">
+                        Living
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-100 p-3">
+                    <div className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                      Generating Quotation
+                    </div>
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Kitchen - Modular</span>
+                        <span className="text-xs font-medium text-gray-900">2,45,000</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Master Bedroom</span>
+                        <span className="text-xs font-medium text-gray-900">1,80,000</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Living Room</span>
+                        <span className="text-xs font-medium text-gray-900">1,20,000</span>
+                      </div>
+                      <div className="mt-2 border-t border-dashed pt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-700">Total</span>
+                          <span className="text-xs font-bold text-[#0D9488]">5,45,000</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-xs font-medium text-green-700">Quotation Finalized</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function StatsBanner() {
+  return (
+    <section className="bg-[#0F172A] py-16 lg:py-20">
+      <div className="mx-auto max-w-7xl px-6">
+        <h2 className="mb-12 text-center text-2xl font-bold text-white sm:text-3xl">
+          Built for Interior Teams That Deliver at Scale
+        </h2>
+        <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <div key={stat.label} className="text-center">
+              <div className="text-3xl font-bold text-[#0D9488] sm:text-4xl">{stat.value}</div>
+              <div className="mt-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FeatureGridSection() {
+  return (
+    <section id="features" className="bg-white py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Everything You Need to Run Your Interior Business
+          </h2>
+          <p className="mt-4 text-lg text-gray-500">
+            From first lead to final handover — manage every step in one system.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:shadow-md"
+            >
+              <div
+                className={`mb-4 flex h-11 w-11 items-center justify-center rounded-lg ${feature.color}`}
+              >
+                {feature.icon}
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">{feature.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-500">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function WorkflowTimelineSection() {
+  return (
+    <section className="py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="overflow-hidden rounded-2xl bg-[#0F172A] p-8 lg:p-14">
+          <h2 className="mb-4 text-center text-2xl font-bold text-white sm:text-3xl">
+            From First Enquiry to Final Handover — Seamlessly Managed
+          </h2>
+          <p className="mx-auto mb-14 max-w-xl text-center text-sm text-gray-400">
+            Every stage of your interior project lifecycle, connected in one workflow.
+          </p>
+
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+            {/* Left: Timeline */}
+            <div className="relative">
+              <div className="absolute bottom-0 left-[15px] top-0 w-px bg-gray-700" />
+              <div className="space-y-6">
+                {timelineSteps.map((step, i) => (
+                  <div key={step.label} className="relative flex gap-4 pl-0">
+                    <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-[#0D9488] bg-[#0F172A] text-xs font-bold text-[#0D9488]">
+                      {i + 1}
+                    </div>
+                    <div className="pb-0">
+                      <div className="text-sm font-semibold text-white">{step.label}</div>
+                      <div className="mt-0.5 text-xs text-gray-400">{step.description}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Mockup Card */}
+            <div className="flex items-center justify-center">
+              <div className="w-full max-w-sm rounded-xl border border-gray-700 bg-gray-800/50 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                      Quotation Preview
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-white">
+                      Villa Whitefield - v2
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-[#0D9488]/20 px-2.5 py-0.5 text-[10px] font-medium text-[#0D9488]">
+                    Approved
+                  </span>
+                </div>
+
+                <div className="space-y-2 rounded-lg bg-gray-900/50 p-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">Kitchen - Modular</span>
+                    <span className="font-medium text-white">2,45,000</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">Master Bedroom</span>
+                    <span className="font-medium text-white">1,80,000</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">Living Room</span>
+                    <span className="font-medium text-white">1,20,000</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">Guest Bedroom</span>
+                    <span className="font-medium text-white">95,000</span>
+                  </div>
+                  <div className="border-t border-dashed border-gray-600 pt-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-gray-300">Total Project Value</span>
+                      <span className="font-bold text-[#0D9488]">6,40,000</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white">
+                    <Send className="h-3 w-3" />
+                    Send via WhatsApp
+                  </button>
+                  <button className="flex items-center justify-center rounded-lg border border-gray-600 px-3 py-2 text-xs font-medium text-gray-300">
+                    PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function WhyUsSection() {
+  return (
+    <section className="bg-white py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Built for Interior Companies. Not Generic Software.
+          </h2>
+          <p className="mt-4 text-lg text-gray-500">
+            Igolo understands the interior design workflow. Every feature is designed for how you
+            actually work.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {whyUsCards.map((card) => (
+            <div
+              key={card.title}
+              className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:shadow-md"
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[#0D9488]/10">
+                <CheckCircle2 className="h-5 w-5 text-[#0D9488]" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">{card.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-500">{card.description}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -570,84 +628,80 @@ function ProcessSection() {
 
 function TestimonialsSection() {
   return (
-    <section id="testimonials" className="bg-[#0B1120] py-24">
+    <section className="bg-gray-50 py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 text-center"
-        >
-          <span className="text-sm font-medium uppercase tracking-widest text-gold/80">
-            Trusted by Industry Leaders
-          </span>
-          <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            What Our Customers Say
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            What Interior Teams Say
           </h2>
-          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
-        </motion.div>
-      </div>
+          <p className="mt-4 text-lg text-gray-500">
+            Trusted by interior design companies across India.
+          </p>
+        </div>
 
-      <InfiniteMovingCards
-        items={testimonials}
-        direction="right"
-        speed="slow"
-      />
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {testimonials.map((item) => (
+            <div
+              key={item.name}
+              className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-4 flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <p className="text-sm leading-relaxed text-gray-600">
+                &ldquo;{item.quote}&rdquo;
+              </p>
+              <div className="mt-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0D9488]/10 text-sm font-bold text-[#0D9488]">
+                  {item.name.charAt(0)}
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">{item.name}</div>
+                  <div className="text-xs text-gray-400">
+                    {item.title}, {item.location}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   )
 }
 
 function CTASection() {
-  const inputProps = useMemo(() => ({}), [])
-
   return (
-    <section className="relative overflow-hidden py-32">
-      <div className="absolute inset-0 z-0">
-        <Player
-          component={ParticleField}
-          inputProps={inputProps}
-          durationInFrames={300}
-          compositionWidth={1920}
-          compositionHeight={1080}
-          fps={30}
-          autoPlay
-          loop
-          acknowledgeRemotionLicense
-          style={{ width: "100%", height: "100%" }}
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="font-serif text-3xl font-bold tracking-tight text-white md:text-5xl">
-            Start Managing Your Interior Business Better
-          </h2>
-          <p className="mt-6 text-lg text-white/60">
-            Join hundreds of interior design companies already using our platform
-            to streamline operations and grow their business.
-          </p>
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/register">
-              <Button
-                size="lg"
-                className="group bg-gold text-gold-foreground shadow-lg shadow-gold/25 hover:bg-gold/90 hover:shadow-gold/40"
-              >
-                Start Free Trial
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                Talk to Sales
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
+    <section className="bg-gradient-to-br from-[#0F172A] via-[#0F172A] to-[#0D9488]/40 py-20 lg:py-28">
+      <div className="mx-auto max-w-3xl px-6 text-center">
+        <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Ready to Simplify Your Interior Business?
+        </h2>
+        <p className="mt-4 text-lg text-gray-300">
+          Join interior design companies already using Igolo to streamline operations, delight
+          clients, and grow profitably.
+        </p>
+        <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/contact"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#0D9488] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#0D9488]/90"
+          >
+            Book a Demo
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/contact"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            Talk to Sales
+          </Link>
+        </div>
+        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-400">
+          <CheckCircle2 className="h-4 w-4 text-[#0D9488]" />
+          No complex setup. Get started quickly with guided onboarding.
+        </div>
       </div>
     </section>
   )
@@ -661,10 +715,12 @@ export default function LandingPage() {
   return (
     <>
       <HeroSection />
-      <StatsSection />
-      <ServicesSection />
-      <PortfolioSection />
-      <ProcessSection />
+      <PainPointsSection />
+      <AIPoweredSection />
+      <StatsBanner />
+      <FeatureGridSection />
+      <WorkflowTimelineSection />
+      <WhyUsSection />
       <TestimonialsSection />
       <CTASection />
     </>

@@ -24,9 +24,9 @@ async def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    ctx: AuthContext = Depends(role_required(["SUPER_ADMIN"])),
+    ctx: AuthContext = Depends(role_required(["SUPER_ADMIN", "MANAGER", "SALES", "BDE"])),
 ):
-    """List all users. Admin only."""
+    """List all users in the organization."""
     users = await user_service.get_users(
         org_id=ctx.org_id, db=db, skip=skip, limit=limit
     )
